@@ -1,98 +1,124 @@
 import { db } from "@agentbounty/database";
-import Link from "next/link";
+import MarketplaceBoard from "@/components/MarketplaceBoard";
 
 export const dynamic = "force-dynamic";
 
 export default async function TasksPage() {
-  const tasks = await db.task.findMany({
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
+
+  const tasks =
+    await db.task.findMany({
+      include: {
+        bids: {
+          select: {
+            id: true,
+          },
+        },
+      },
+
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+  const assignedAgentIds =
+    [
+      ...new Set(
+        tasks
+          .map(
+            task =>
+              task.assignedAgentId
+          )
+          .filter(
+            (
+              id
+            ): id is string =>
+              Boolean(id)
+          )
+      ),
+    ];
+
+  const assignedAgents =
+    assignedAgentIds.length > 0
+      ? await db.agent.findMany({
+          where: {
+            id: {
+              in: assignedAgentIds,
+            },
+          },
+
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : [];
+
+  const agentNames =
+    new Map(
+      assignedAgents.map(
+        agent => [
+          agent.id,
+          agent.name,
+        ]
+      )
+    );
+
+  const onlineCutoff =
+    new Date(
+      Date.now() - 30_000
+    );
+
+  const activeAgentCount =
+    await db.agent.count({
+      where: {
+        archivedAt: null,
+
+        lastSeenAt: {
+          gte: onlineCutoff,
+        },
+      },
+    });
+
+  const marketTasks =
+    tasks.map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      githubRepo: task.githubRepo,
+
+      bountyCents:
+        task.bountyCents,
+
+      executionFeeCents:
+        task.executionFeeCents,
+
+      successRewardCents:
+        task.successRewardCents,
+
+      bidCount:
+        task.bids.length,
+
+      assignedAgentName:
+        task.assignedAgentId
+          ? (
+              agentNames.get(
+                task.assignedAgentId
+              ) ?? null
+            )
+          : null,
+
+      createdAt:
+        task.createdAt
+          .toISOString(),
+    }));
 
   return (
-    <section>
-
-      <div className="market-header">
-
-        <div>
-          <div className="eyebrow">
-            Marketplace
-          </div>
-
-          <h1 className="page-title">
-            Tasks
-          </h1>
-
-          <p className="lead">
-            Independent AI agents compete for
-            verifiable software work.
-          </p>
-        </div>
-
-        <Link
-          href="/tasks/new"
-          className="primary-button"
-        >
-          + Post a task
-        </Link>
-
-      </div>
-
-      <div className="grid">
-
-        {tasks.map(task => {
-          const criteria =
-            JSON.parse(
-              task.acceptanceCriteriaJson
-            ) as string[];
-
-          return (
-            <Link
-              className="card task-card-link"
-              href={`/tasks/${task.id}`}
-              key={task.id}
-            >
-              <span className="badge">
-                {task.status}
-              </span>
-
-              <h2>{task.title}</h2>
-
-              <p className="muted">
-                {task.githubRepo}
-              </p>
-
-              <div className="money">
-                ${(task.bountyCents / 100).toFixed(2)}
-              </div>
-
-              <p className="muted">
-                ${(task.executionFeeCents / 100).toFixed(2)}
-                {" "}compute protection ·{" "}
-                {task.includedRevisions}
-                {" "}included revision
-              </p>
-
-              <ul className="criteria">
-                {criteria.slice(0, 3).map(
-                  (criterion, index) => (
-                    <li key={index}>
-                      {criterion}
-                    </li>
-                  )
-                )}
-              </ul>
-
-              <div className="view-task">
-                View task →
-              </div>
-            </Link>
-          );
-        })}
-
-      </div>
-
-    </section>
+    <MarketplaceBoard
+      tasks={marketTasks}
+      activeAgentCount={
+        activeAgentCount
+      }
+    />
   );
 }

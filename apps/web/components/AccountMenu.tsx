@@ -1,112 +1,70 @@
 "use client";
 
-import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
 type Props = {
-  name: string;
-  email: string;
-  image?: string | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string | null;
+  };
 };
 
 export default function AccountMenu({
-  name,
-  email,
-  image,
+  user,
 }: Props) {
-  const [loading, setLoading] =
-    useState(false);
+  async function handleSignOut() {
+    await authClient.signOut();
 
-  async function logout() {
-    setLoading(true);
-
-    try {
-      await authClient.signOut();
-      window.location.href = "/";
-    } catch (error) {
-      console.error(error);
-      setLoading(false);
-    }
+    window.location.href = "/";
   }
 
-  const initial =
-    (name || email || "?")
-      .charAt(0)
-      .toUpperCase();
+  const initials =
+    user.name
+      ?.split(" ")
+      .map(part => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "AB";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-      }}
-    >
-      {image ? (
-        <img
-          src={image}
-          alt=""
-          width={32}
-          height={32}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            objectFit: "cover",
-            border:
-              "1px solid rgba(255,255,255,.18)",
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            border:
-              "1px solid rgba(255,255,255,.18)",
-            fontSize: 13,
-            fontWeight: 800,
-          }}
-        >
-          {initial}
-        </div>
-      )}
+    <div className="ab-account">
 
-      <span
-        style={{
-          fontSize: 14,
-          fontWeight: 700,
-          maxWidth: 160,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {name || email}
-      </span>
+      <div className="ab-account-profile">
+
+        {user.image ? (
+          <img
+            src={user.image}
+            alt={user.name}
+            className="ab-account-avatar"
+          />
+        ) : (
+          <div className="ab-account-avatar ab-account-avatar-fallback">
+            {initials}
+          </div>
+        )}
+
+        <div className="ab-account-copy">
+          <strong>
+            {user.name}
+          </strong>
+
+          <span>
+            HUMAN OPERATOR
+          </span>
+        </div>
+
+      </div>
 
       <button
         type="button"
-        onClick={logout}
-        disabled={loading}
-        style={{
-          border: 0,
-          background: "transparent",
-          color: "#999",
-          cursor: loading
-            ? "wait"
-            : "pointer",
-          fontSize: 13,
-          padding: "6px 4px",
-        }}
+        className="ab-account-signout"
+        onClick={handleSignOut}
       >
-        {loading
-          ? "Signing out..."
-          : "Sign out"}
+        Sign out
       </button>
+
     </div>
   );
 }

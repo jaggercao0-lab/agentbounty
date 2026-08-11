@@ -1,40 +1,138 @@
 import { db } from "@agentbounty/database";
 import { notFound } from "next/navigation";
-import { hireBid } from "./actions";
+import Link from "next/link";
+
 import AutoRefresh from "@/components/AutoRefresh";
 import { getWebSession } from "@/lib/web-session";
+
+import { hireBid } from "./actions";
 import OwnerTaskActions from "./OwnerTaskActions";
 
 export const dynamic = "force-dynamic";
 
+function money(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function lifecycle(
+  task: {
+    status: string;
+    assignedAgentId: string | null;
+  },
+  hasSubmission: boolean,
+  verified: boolean,
+  paid: boolean
+) {
+  return [
+    {
+      label: "Published",
+      code: "01",
+      done: true,
+    },
+    {
+      label: "Agent hired",
+      code: "02",
+      done: Boolean(task.assignedAgentId),
+    },
+    {
+      label: "Working",
+      code: "03",
+      done: [
+        "WORKING",
+        "SUBMITTED",
+        "ACCEPTED",
+        "REVISION",
+        "PAID",
+      ].includes(task.status),
+    },
+    {
+      label: "PR submitted",
+      code: "04",
+      done: hasSubmission,
+    },
+    {
+      label: "Verified",
+      code: "05",
+      done: verified,
+    },
+    {
+      label: "Paid",
+      code: "06",
+      done: paid,
+    },
+  ];
+}
+
+function machineMessage(
+  status: string,
+  hasBids: boolean
+) {
+  switch (status) {
+    case "OPEN":
+      return hasBids
+        ? "agents are circling this contract..."
+        : "broadcasting contract to the machine workforce...";
+
+    case "ASSIGNED":
+      return "worker selected. contract handshake complete.";
+
+    case "WORKING":
+      return "assigned machine is currently chewing through the repository...";
+
+    case "REVISION":
+      return "revision requested. machine has been sent back into the codebase.";
+
+    case "SUBMITTED":
+      return "delivery received. pull request awaiting verification.";
+
+    case "ACCEPTED":
+      return "output verified. contract ready for settlement.";
+
+    case "PAID":
+      return "contract settled. machine got its imaginary paycheck.";
+
+    case "CANCELLED":
+      return "contract terminated. the machines have been dismissed.";
+
+    default:
+      return `contract state: ${status.toLowerCase()}`;
+  }
+}
+
 export default async function TaskPage({
-  params
+  params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
 
   const session =
     await getWebSession();
 
-  const task = await db.task.findUnique({
-    where: { id },
-    include: {
-      bids: {
-        include: {
-          agent: true
-        },
-        orderBy: {
-          createdAt: "asc"
-        }
+  const task =
+    await db.task.findUnique({
+      where: {
+        id,
       },
-      submissions: {
-        orderBy: {
-          createdAt: "desc"
-        }
-      }
-    }
-  });
+
+      include: {
+        bids: {
+          include: {
+            agent: true,
+          },
+
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+
+        submissions: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+      },
+    });
 
   if (!task) {
     notFound();
@@ -45,334 +143,760 @@ export default async function TaskPage({
     task.ownerId;
 
   const criteria =
-    JSON.parse(task.acceptanceCriteriaJson) as string[];
+    JSON.parse(
+      task.acceptanceCriteriaJson
+    ) as string[];
 
   const assignedAgent =
     task.assignedAgentId
       ? await db.agent.findUnique({
           where: {
-            id: task.assignedAgentId
-          }
+            id: task.assignedAgentId,
+          },
         })
       : null;
 
-  const payment = await db.payment.findFirst({
-    where: {
-      taskId: task.id
-    }
-  });
+  const payment =
+    await db.payment.findFirst({
+      where: {
+        taskId: task.id,
+      },
+    });
 
   const latestSubmission =
-    task.submissions[0] || null;
+    task.submissions[0] ?? null;
 
-  const stage = {
-    published: true,
-    bidReceived: task.bids.length > 0,
-    hired: !!task.assignedAgentId,
-    working: [
-      "WORKING",
-      "SUBMITTED",
+  const verified =
+    Boolean(
+      latestSubmission?.verifiedAt
+    ) &&
+    [
       "ACCEPTED",
       "PAID",
-      "REVISION"
-    ].includes(task.status),
-    submitted: !!latestSubmission,
-    verified:
-      !!latestSubmission?.verifiedAt &&
-      ["ACCEPTED", "PAID"].includes(task.status),
-    paid: !!payment
-  };
+    ].includes(task.status);
+
+  const stages =
+    lifecycle(
+      task,
+      Boolean(latestSubmission),
+      verified,
+      Boolean(payment)
+    );
 
   return (
-    <section>
+    <div className="ab-task-page">
+
       <AutoRefresh interval={3000} />
 
-      <a href="/tasks" className="back-link">
-        ← Marketplace
-      </a>
-
-      <div className="task-header">
-
-        <div>
-          <span className="badge">
-            {task.status}
-          </span>
-
-          <h1 className="task-title">
-            {task.title}
-          </h1>
-
-          <p className="muted">
-            {task.githubRepo}
-          </p>
-        </div>
-
-        <div className="task-money-box">
-          <div className="money">
-            ${(task.bountyCents / 100).toFixed(2)}
-          </div>
-
-          <div className="muted">
-            ${(task.executionFeeCents / 100).toFixed(2)}
-            {" "}compute protection
-          </div>
-
-          <div className="muted">
-            ${(task.successRewardCents / 100).toFixed(2)}
-            {" "}success reward
-          </div>
-        </div>
-
+      <div className="ab-task-bg">
+        <div className="ab-task-grid" />
+        <div className="ab-task-glow" />
       </div>
 
-      <div className="task-timeline">
-        {[
-          ["Published", stage.published],
-          ["Bid received", stage.bidReceived],
-          ["Agent hired", stage.hired],
-          ["Working", stage.working],
-          ["PR submitted", stage.submitted],
-          ["Verified", stage.verified],
-          ["Paid", stage.paid]
-        ].map(([label, done], index, all) => (
-          <div className="timeline-item" key={String(label)}>
-            <div className={
-              done
-                ? "timeline-dot done"
-                : "timeline-dot"
-            }>
-              {done ? "✓" : ""}
-            </div>
+      <div className="ab-task-inner">
 
-            <span className={
-              done
-                ? "timeline-label done"
-                : "timeline-label"
-            }>
-              {String(label)}
-            </span>
+        <div className="ab-task-topbar">
 
-            {index < all.length - 1 && (
-              <div className={
-                done
-                  ? "timeline-line done"
-                  : "timeline-line"
-              } />
-            )}
+          <Link
+            href="/tasks"
+            className="ab-task-back"
+          >
+            ← JOB EXCHANGE
+          </Link>
+
+          <div className="ab-task-contract-id">
+            CONTRACT
+            {" "}
+            {task.id
+              .slice(-8)
+              .toUpperCase()}
           </div>
-        ))}
-      </div>
 
-      <div className="detail-grid">
+        </div>
 
-        <div>
+        <header className="ab-task-header">
 
-          <div className="panel">
-            <div className="eyebrow">
-              Description
+          <div className="ab-task-header-copy">
+
+            <div className="ab-task-state-row">
+
+              <span
+                className={
+                  "ab-task-status " +
+                  `ab-task-status-${task.status.toLowerCase()}`
+                }
+              >
+                <i />
+                {task.status}
+              </span>
+
+              <span className="ab-task-repo">
+                {task.githubRepo}
+              </span>
+
             </div>
 
-            <p className="detail-text">
+            <h1>
+              {task.title}
+            </h1>
+
+            <p>
               {task.description}
             </p>
 
-            <a
-              href={task.githubIssueUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-link"
-            >
-              View GitHub Issue ↗
-            </a>
-          </div>
-
-          <div className="panel">
-            <div className="eyebrow">
-              Acceptance contract
-            </div>
-
-            <ul className="criteria big">
-              {criteria.map((criterion, index) => (
-                <li key={index}>
-                  {criterion}
-                </li>
-              ))}
-            </ul>
-
-            <p className="muted">
-              {task.includedRevisions} included revision
-              {task.includedRevisions === 1 ? "" : "s"}.
-            </p>
-          </div>
-
-          {task.submissions.length > 0 && (
-            <div className="panel">
-              <div className="eyebrow">
-                Latest delivery
-              </div>
+            <div className="ab-task-header-links">
 
               <a
-                className="text-link"
-                href={
-                  task.submissions[0].pullRequestUrl
-                }
+                href={task.githubIssueUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                View Pull Request ↗
+                GitHub Issue ↗
               </a>
 
-              {task.submissions[0].notes && (
-                <p className="muted">
-                  {task.submissions[0].notes}
-                </p>
+              {latestSubmission?.pullRequestUrl && (
+                <a
+                  href={
+                    latestSubmission.pullRequestUrl
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Pull Request ↗
+                </a>
               )}
+
             </div>
-          )}
-
-        </div>
-
-        <aside>
-
-          {assignedAgent && (
-            <div className="panel agent-selected">
-              <div className="eyebrow">
-                Assigned agent
-              </div>
-
-              <div className="agent-name-row">
-                <h2>{assignedAgent.name}</h2>
-
-                <span className={
-                  assignedAgent.lastSeenAt &&
-                  Date.now() -
-                    new Date(assignedAgent.lastSeenAt).getTime()
-                    < 30000
-                    ? "online-pill"
-                    : "offline-pill"
-                }>
-                  {assignedAgent.lastSeenAt &&
-                  Date.now() -
-                    new Date(assignedAgent.lastSeenAt).getTime()
-                    < 30000
-                    ? "● Online"
-                    : "● Offline"}
-                </span>
-              </div>
-
-              <p className="muted">
-                {assignedAgent.description}
-              </p>
-
-              <div className="agent-stat">
-                Completed jobs
-                <strong>
-                  {assignedAgent.completedJobs}
-                </strong>
-              </div>
-
-              <div className="agent-stat">
-                Reputation
-                <strong>
-                  {assignedAgent.reputation.toFixed(1)}
-                </strong>
-              </div>
-            </div>
-          )}
-
-          {isOwner && (
-            <OwnerTaskActions
-              taskId={task.id}
-              status={task.status}
-            />
-          )}
-
-          <div className="panel">
-
-            <div className="bid-heading">
-              <div>
-                <div className="eyebrow">
-                  Agent bids
-                </div>
-
-                <h2>
-                  {task.bids.length} bid
-                  {task.bids.length === 1 ? "" : "s"}
-                </h2>
-              </div>
-            </div>
-
-            {task.bids.length === 0 ? (
-              <div className="empty-state">
-                Waiting for agents to discover this task.
-              </div>
-            ) : (
-              <div className="bid-list">
-
-                {task.bids.map(bid => (
-                  <div
-                    className="bid-card"
-                    key={bid.id}
-                  >
-
-                    <div className="bid-top">
-                      <div>
-                        <strong>
-                          {bid.agent.name}
-                        </strong>
-
-                        <div className="muted small">
-                          {bid.agent.completedJobs}
-                          {" "}completed jobs
-                        </div>
-                      </div>
-
-                      <div className="bid-price">
-                        ${(bid.priceCents / 100).toFixed(2)}
-                      </div>
-                    </div>
-
-                    {bid.message && (
-                      <p className="muted">
-                        {bid.message}
-                      </p>
-                    )}
-
-                    {isOwner && task.status === "OPEN" && (
-                      <form action={hireBid}>
-                        <input
-                          type="hidden"
-                          name="taskId"
-                          value={task.id}
-                        />
-
-                        <input
-                          type="hidden"
-                          name="bidId"
-                          value={bid.id}
-                        />
-
-                        <button
-                          type="submit"
-                          className="hire-button"
-                        >
-                          Hire {bid.agent.name} →
-                        </button>
-                      </form>
-                    )}
-
-                  </div>
-                ))}
-
-              </div>
-            )}
 
           </div>
 
-        </aside>
+          <div className="ab-task-bounty-box">
+
+            <span>
+              CONTRACT BOUNTY
+            </span>
+
+            <strong>
+              {money(
+                task.bountyCents
+              )}
+            </strong>
+
+            <div>
+              <small>
+                Protected compute
+              </small>
+
+              <b>
+                {money(
+                  task.executionFeeCents
+                )}
+              </b>
+            </div>
+
+            <div>
+              <small>
+                Success reward
+              </small>
+
+              <b>
+                {money(
+                  task.successRewardCents
+                )}
+              </b>
+            </div>
+
+          </div>
+
+        </header>
+
+        <section className="ab-task-lifecycle">
+
+          {stages.map(
+            (
+              stage,
+              index
+            ) => (
+              <div
+                key={stage.label}
+                className={
+                  stage.done
+                    ? "ab-life-step ab-life-done"
+                    : "ab-life-step"
+                }
+              >
+                <div className="ab-life-node">
+                  {stage.done
+                    ? "✓"
+                    : stage.code}
+                </div>
+
+                <div className="ab-life-copy">
+                  <strong>
+                    {stage.label}
+                  </strong>
+
+                  <span>
+                    {stage.done
+                      ? "COMPLETE"
+                      : "WAITING"}
+                  </span>
+                </div>
+
+                {index <
+                  stages.length -
+                    1 && (
+                  <div
+                    className={
+                      stage.done
+                        ? "ab-life-line ab-life-line-done"
+                        : "ab-life-line"
+                    }
+                  />
+                )}
+
+              </div>
+            )
+          )}
+
+        </section>
+
+        <div className="ab-task-machine-line">
+          <span>
+            &gt;_
+          </span>
+
+          {machineMessage(
+            task.status,
+            task.bids.length > 0
+          )}
+        </div>
+
+        <div className="ab-task-layout">
+
+          <main className="ab-task-main">
+
+            <section className="ab-task-panel">
+
+              <div className="ab-task-panel-head">
+
+                <div>
+                  <span>
+                    ACCEPTANCE CONTRACT
+                  </span>
+
+                  <h2>
+                    Definition of done
+                  </h2>
+                </div>
+
+                <div className="ab-task-panel-count">
+                  {criteria.length}
+                  {" "}
+                  RULE
+                  {criteria.length === 1
+                    ? ""
+                    : "S"}
+                </div>
+
+              </div>
+
+              <div className="ab-task-criteria">
+
+                {criteria.map(
+                  (
+                    criterion,
+                    index
+                  ) => (
+                    <div
+                      key={index}
+                      className="ab-task-criterion"
+                    >
+                      <span>
+                        {String(
+                          index + 1
+                        ).padStart(
+                          2,
+                          "0"
+                        )}
+                      </span>
+
+                      <p>
+                        {criterion}
+                      </p>
+
+                      <i>
+                        CONTRACT
+                      </i>
+                    </div>
+                  )
+                )}
+
+              </div>
+
+            </section>
+
+            {latestSubmission && (
+              <section className="ab-task-panel">
+
+                <div className="ab-task-panel-head">
+
+                  <div>
+                    <span>
+                      DELIVERY
+                    </span>
+
+                    <h2>
+                      Agent submission
+                    </h2>
+                  </div>
+
+                  <span
+                    className={
+                      latestSubmission.verifiedAt
+                        ? "ab-delivery-state ab-delivery-verified"
+                        : "ab-delivery-state"
+                    }
+                  >
+                    {latestSubmission.verifiedAt
+                      ? "VERIFIED"
+                      : "AWAITING REVIEW"}
+                  </span>
+
+                </div>
+
+                <div className="ab-task-delivery">
+
+                  <div>
+                    <span>
+                      PULL REQUEST
+                    </span>
+
+                    <a
+                      href={
+                        latestSubmission.pullRequestUrl
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {
+                        latestSubmission.pullRequestUrl
+                      }
+                      {" "}
+                      ↗
+                    </a>
+                  </div>
+
+                  <div>
+                    <span>
+                      SUBMITTED
+                    </span>
+
+                    <strong>
+                      {latestSubmission.createdAt
+                        .toLocaleString()}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      CI RESULT
+                    </span>
+
+                    <strong>
+                      {latestSubmission.ciPassed ===
+                      true
+                        ? "PASSED"
+                        : latestSubmission.ciPassed ===
+                            false
+                          ? "FAILED"
+                          : "PENDING"}
+                    </strong>
+                  </div>
+
+                </div>
+
+                {latestSubmission.notes && (
+                  <p className="ab-task-delivery-notes">
+                    {
+                      latestSubmission.notes
+                    }
+                  </p>
+                )}
+
+              </section>
+            )}
+
+            <section className="ab-task-panel">
+
+              <div className="ab-task-panel-head">
+
+                <div>
+                  <span>
+                    MARKET ACTIVITY
+                  </span>
+
+                  <h2>
+                    Agent bids
+                  </h2>
+                </div>
+
+                <div className="ab-task-panel-count">
+                  {task.bids.length}
+                  {" "}
+                  BID
+                  {task.bids.length === 1
+                    ? ""
+                    : "S"}
+                </div>
+
+              </div>
+
+              {task.bids.length ===
+              0 ? (
+                <div className="ab-task-no-bids">
+
+                  <div>
+                    @_@
+                  </div>
+
+                  <strong>
+                    No machines have bid yet.
+                  </strong>
+
+                  <p>
+                    Contract signal is still
+                    propagating through the
+                    workforce.
+                  </p>
+
+                </div>
+              ) : (
+                <div className="ab-task-bids">
+
+                  {task.bids.map(
+                    (
+                      bid,
+                      index
+                    ) => (
+                      <div
+                        key={bid.id}
+                        className="ab-task-bid"
+                      >
+
+                        <div className="ab-bid-rank">
+                          #
+                          {String(
+                            index + 1
+                          ).padStart(
+                            2,
+                            "0"
+                          )}
+                        </div>
+
+                        <div className="ab-bid-agent">
+
+                          <div className="ab-bid-avatar">
+                            {bid.agent.name
+                              .slice(
+                                0,
+                                2
+                              )
+                              .toUpperCase()}
+                          </div>
+
+                          <div>
+                            <strong>
+                              {
+                                bid.agent
+                                  .name
+                              }
+                            </strong>
+
+                            <span>
+                              {
+                                bid.agent
+                                  .completedJobs
+                              }
+                              {" "}
+                              jobs · rep{" "}
+                              {bid.agent.reputation.toFixed(
+                                1
+                              )}
+                            </span>
+                          </div>
+
+                        </div>
+
+                        <div className="ab-bid-message">
+                          {bid.message ||
+                            "No message. Machine prefers silence."}
+                        </div>
+
+                        <div className="ab-bid-price">
+                          <span>
+                            BID
+                          </span>
+
+                          <strong>
+                            {money(
+                              bid.priceCents
+                            )}
+                          </strong>
+                        </div>
+
+                        {isOwner &&
+                          task.status ===
+                            "OPEN" && (
+                            <form
+                              action={
+                                hireBid
+                              }
+                            >
+                              <input
+                                type="hidden"
+                                name="taskId"
+                                value={
+                                  task.id
+                                }
+                              />
+
+                              <input
+                                type="hidden"
+                                name="bidId"
+                                value={
+                                  bid.id
+                                }
+                              />
+
+                              <button
+                                type="submit"
+                                className="ab-hire-button"
+                              >
+                                Hire
+                                {" "}
+                                {
+                                  bid.agent
+                                    .name
+                                }
+                                <span>
+                                  →
+                                </span>
+                              </button>
+                            </form>
+                          )}
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+              )}
+
+            </section>
+
+          </main>
+
+          <aside className="ab-task-sidebar">
+
+            {isOwner && (
+              <OwnerTaskActions
+                taskId={task.id}
+                status={task.status}
+              />
+            )}
+
+            <section className="ab-task-side-panel">
+
+              <div className="ab-side-label">
+                ASSIGNED WORKER
+              </div>
+
+              {assignedAgent ? (
+                <>
+                  <Link
+                    href={`/agents/${assignedAgent.id}`}
+                    className="ab-assigned-agent"
+                  >
+                    <div className="ab-assigned-avatar">
+                      {assignedAgent.name
+                        .slice(
+                          0,
+                          2
+                        )
+                        .toUpperCase()}
+                    </div>
+
+                    <div>
+                      <strong>
+                        {
+                          assignedAgent.name
+                        }
+                      </strong>
+
+                      <span>
+                        {
+                          assignedAgent
+                            .modelName
+                        }
+                      </span>
+                    </div>
+
+                    <span>
+                      →
+                    </span>
+                  </Link>
+
+                  <div className="ab-agent-side-stats">
+
+                    <div>
+                      <span>
+                        REPUTATION
+                      </span>
+
+                      <strong>
+                        {assignedAgent.reputation.toFixed(
+                          1
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        COMPLETED
+                      </span>
+
+                      <strong>
+                        {
+                          assignedAgent.completedJobs
+                        }
+                      </strong>
+                    </div>
+
+                  </div>
+                </>
+              ) : (
+                <div className="ab-unassigned">
+
+                  <span>
+                    -_-
+                  </span>
+
+                  <strong>
+                    No worker assigned
+                  </strong>
+
+                  <p>
+                    Waiting for the requester to
+                    select a machine.
+                  </p>
+
+                </div>
+              )}
+
+            </section>
+
+            <section className="ab-task-side-panel">
+
+              <div className="ab-side-label">
+                CONTRACT ECONOMICS
+              </div>
+
+              <div className="ab-economics-row">
+                <span>
+                  Total bounty
+                </span>
+
+                <strong>
+                  {money(
+                    task.bountyCents
+                  )}
+                </strong>
+              </div>
+
+              <div className="ab-economics-row">
+                <span>
+                  Execution protection
+                </span>
+
+                <strong>
+                  {money(
+                    task.executionFeeCents
+                  )}
+                </strong>
+              </div>
+
+              <div className="ab-economics-row">
+                <span>
+                  Success reward
+                </span>
+
+                <strong>
+                  {money(
+                    task.successRewardCents
+                  )}
+                </strong>
+              </div>
+
+              <div className="ab-economics-row">
+                <span>
+                  Included revisions
+                </span>
+
+                <strong>
+                  {
+                    task.includedRevisions
+                  }
+                </strong>
+              </div>
+
+              <div className="ab-economics-row">
+                <span>
+                  Revisions used
+                </span>
+
+                <strong>
+                  {
+                    task.revisionCount
+                  }
+                </strong>
+              </div>
+
+            </section>
+
+            {payment && (
+              <section className="ab-task-side-panel ab-payment-panel">
+
+                <div className="ab-side-label">
+                  SETTLEMENT
+                </div>
+
+                <div className="ab-payment-check">
+                  ✓
+                </div>
+
+                <strong>
+                  Contract settled
+                </strong>
+
+                <p>
+                  Agent payout
+                </p>
+
+                <b>
+                  {money(
+                    payment.agentPayoutCents
+                  )}
+                </b>
+
+              </section>
+            )}
+
+          </aside>
+
+        </div>
 
       </div>
-
-    </section>
+    </div>
   );
 }

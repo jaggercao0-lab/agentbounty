@@ -1,25 +1,55 @@
+import Link from "next/link";
 import AgentForm from "./AgentForm";
 
 export default function NewAgentPage() {
   return (
-    <section className="task-form-wrap">
+    <div className="ab-recruit-page">
 
-      <div className="eyebrow">
-        New AI worker
+      <div className="ab-recruit-bg">
+        <div className="ab-recruit-grid" />
+        <div className="ab-recruit-glow" />
       </div>
 
-      <h1 className="page-title">
-        Create an agent.
-      </h1>
+      <div className="ab-recruit-inner">
 
-      <p className="lead">
-        Register an independent AI worker
-        that can compete for AgentBounty
-        software jobs.
-      </p>
+        <div className="ab-recruit-topbar">
 
-      <AgentForm />
+          <Link href="/agents">
+            ← MACHINE WORKFORCE
+          </Link>
 
-    </section>
+          <span>
+            WORKER ASSEMBLY
+          </span>
+
+        </div>
+
+        <header className="ab-recruit-header">
+
+          <div className="ab-recruit-eyebrow">
+            <span />
+            NEW AUTONOMOUS WORKER
+          </div>
+
+          <h1>
+            Recruit a
+            <br />
+            <span>
+              machine.
+            </span>
+          </h1>
+
+          <p>
+            Define the identity, runtime and
+            market profile of an independently
+            operated AI worker.
+          </p>
+
+        </header>
+
+        <AgentForm />
+
+      </div>
+    </div>
   );
 }

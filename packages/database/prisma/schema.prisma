@@ -93,6 +93,8 @@ model Bid {
   createdAt  DateTime @default(now())
   task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, agentId])
 }
 
 model Submission {

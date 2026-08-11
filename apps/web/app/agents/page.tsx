@@ -1,195 +1,143 @@
-import Link from "next/link";
 import { db } from "@agentbounty/database";
-import { providerLabel } from "@/lib/providers";
 import { getWebSession } from "@/lib/web-session";
+import { providerLabel } from "@/lib/providers";
+import AgentRoster from "@/components/AgentRoster";
 
 export const dynamic = "force-dynamic";
 
-function isOnline(lastSeenAt: Date | null) {
-  if (!lastSeenAt) return false;
-
-  return (
-    Date.now() -
-      new Date(lastSeenAt).getTime()
-    < 30000
-  );
-}
-
 export default async function AgentsPage() {
+
   const session =
     await getWebSession();
 
   const userId =
     session?.user?.id;
 
-  const agents = await db.agent.findMany({
-    where: {
-      archivedAt: null
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
+  const agents =
+    await db.agent.findMany({
+      where: {
+        archivedAt: null,
+      },
 
-  const agentCards = await Promise.all(
-    agents.map(async agent => {
-      const earnings =
-        await db.payment.aggregate({
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+  const payments =
+    agents.length > 0
+      ? await db.payment.findMany({
           where: {
-            agentId: agent.id,
-            status: "PAID"
+            agentId: {
+              in: agents.map(
+                agent => agent.id
+              ),
+            },
+
+            status: "PAID",
           },
-          _sum: {
-            agentPayoutCents: true
-          }
-        });
+
+          select: {
+            agentId: true,
+            agentPayoutCents: true,
+          },
+        })
+      : [];
+
+  const earnings =
+    new Map<string, number>();
+
+  for (const payment of payments) {
+    earnings.set(
+      payment.agentId,
+      (
+        earnings.get(
+          payment.agentId
+        ) ?? 0
+      ) +
+        payment.agentPayoutCents
+    );
+  }
+
+  const now =
+    Date.now();
+
+  const roster =
+    agents.map(agent => {
+
+      let skills: string[] = [];
+
+      try {
+        const parsed =
+          JSON.parse(
+            agent.skillsJson
+          );
+
+        if (Array.isArray(parsed)) {
+          skills =
+            parsed.filter(
+              item =>
+                typeof item ===
+                "string"
+            );
+        }
+      } catch {
+        skills = [];
+      }
+
+      const online =
+        !!agent.lastSeenAt &&
+        now -
+          agent.lastSeenAt.getTime()
+          <
+          30_000;
 
       return {
-        agent,
-        totalEarnings:
-          earnings._sum.agentPayoutCents || 0
+        id: agent.id,
+        name: agent.name,
+        description:
+          agent.description,
+
+        provider:
+          agent.provider,
+
+        providerLabel:
+          providerLabel(
+            agent.provider
+          ),
+
+        modelName:
+          agent.modelName,
+
+        minimumJobCents:
+          agent.minimumJobCents,
+
+        maxConcurrentJobs:
+          agent.maxConcurrentJobs,
+
+        completedJobs:
+          agent.completedJobs,
+
+        reputation:
+          agent.reputation,
+
+        totalEarningsCents:
+          earnings.get(agent.id) ?? 0,
+
+        online,
+
+        isOwner:
+          userId ===
+          agent.ownerId,
+
+        skills,
       };
-    })
-  );
+    });
 
   return (
-    <section>
-      <div className="market-header">
-
-        <div>
-          <div className="eyebrow">
-            Agent network
-          </div>
-
-          <h1 className="page-title">
-            Agents
-          </h1>
-
-          <p className="lead">
-            Independent AI workers competing
-            for software jobs.
-          </p>
-        </div>
-
-        {userId ? (
-          <Link
-            href="/agents/new"
-            className="primary-button"
-          >
-            + Create agent
-          </Link>
-        ) : (
-          <Link
-            href="/login"
-            className="primary-button"
-          >
-            Sign in to create
-          </Link>
-        )}
-
-      </div>
-
-      <div className="agents-grid">
-
-        {agentCards.map(
-          ({ agent, totalEarnings }) => {
-            const online =
-              isOnline(agent.lastSeenAt);
-
-            return (
-              <Link
-                href={`/agents/${agent.id}`}
-                className="agent-dashboard-card"
-                key={agent.id}
-              >
-
-                <div className="agent-card-top">
-
-                  <div>
-                    <div className="agent-avatar">
-                      🦞
-                    </div>
-
-                    <h2>{agent.name}</h2>
-                  </div>
-
-                  <span className={
-                    online
-                      ? "online-pill"
-                      : "offline-pill"
-                  }>
-                    {online
-                      ? "● Online"
-                      : "● Offline"}
-                  </span>
-
-                </div>
-
-                <p className="muted">
-                  {agent.description}
-                </p>
-
-                <div className="agent-model">
-                  <span>
-                    {providerLabel(agent.provider)}
-                  </span>
-
-                  <strong>
-                    {agent.modelName}
-                  </strong>
-                </div>
-
-                <div className="agent-metrics">
-
-                  <div>
-                    <span>Completed</span>
-                    <strong>
-                      {agent.completedJobs}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Earnings</span>
-                    <strong>
-                      $
-                      {(
-                        totalEarnings / 100
-                      ).toFixed(2)}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Minimum job</span>
-                    <strong>
-                      $
-                      {(
-                        agent.minimumJobCents /
-                        100
-                      ).toFixed(2)}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Reputation</span>
-                    <strong>
-                      {agent.reputation.toFixed(1)}
-                    </strong>
-                  </div>
-
-                </div>
-
-                <div className="view-task">
-                  {agent.ownerId === userId
-                    ? "Manage agent →"
-                    : "View agent →"}
-                </div>
-
-              </Link>
-            );
-          }
-        )}
-
-      </div>
-    </section>
+    <AgentRoster
+      agents={roster}
+      signedIn={Boolean(userId)}
+    />
   );
 }

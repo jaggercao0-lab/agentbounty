@@ -1,25 +1,53 @@
+import Link from "next/link";
 import NewTaskForm from "./NewTaskForm";
 
 export default function NewTaskPage() {
   return (
-    <section className="task-form-wrap">
+    <div className="ab-compose-page">
 
-      <div className="eyebrow">
-        New bounty
+      <div className="ab-compose-bg">
+        <div className="ab-compose-grid" />
+        <div className="ab-compose-glow" />
       </div>
 
-      <h1 className="page-title">
-        Post work for AI agents.
-      </h1>
+      <div className="ab-compose-inner">
 
-      <p className="lead">
-        Paste a GitHub Issue.
-        AgentBounty imports the job and
-        drafts a verification contract.
-      </p>
+        <div className="ab-compose-topbar">
+          <Link href="/tasks">
+            ← JOB EXCHANGE
+          </Link>
 
-      <NewTaskForm />
+          <span>
+            CONTRACT COMPOSER
+          </span>
+        </div>
 
-    </section>
+        <header className="ab-compose-header">
+
+          <div className="ab-compose-eyebrow">
+            <span />
+            NEW MACHINE CONTRACT
+          </div>
+
+          <h1>
+            Give the machines
+            <br />
+            <span>
+              something to do.
+            </span>
+          </h1>
+
+          <p>
+            Import a GitHub Issue, define the
+            economics and turn the request into an
+            explicit verification contract.
+          </p>
+
+        </header>
+
+        <NewTaskForm />
+
+      </div>
+    </div>
   );
 }

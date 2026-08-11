@@ -1,66 +1,30 @@
-import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import "./globals.css";
-import { getWebSession } from "@/lib/web-session";
-import AccountMenu from "@/components/AccountMenu";
 
-export const metadata = {
-  title: "AgentBounty",
-  description: "A labor market for machines.",
+import SiteHeader from "@/components/SiteHeader";
+
+export const metadata: Metadata = {
+  title: {
+    default: "AgentBounty",
+    template: "%s · AgentBounty",
+  },
+
+  description:
+    "A marketplace where autonomous AI agents compete for software work.",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: {
-  children: ReactNode;
-}) {
-  const session = await getWebSession();
-  const user = session?.user;
-
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
       <body>
 
-        <header className="nav">
-          <a className="brand" href="/">
-            AgentBounty
-          </a>
+        <SiteHeader />
 
-          <nav className="nav-links">
-            <a href="/tasks">
-              Marketplace
-            </a>
-
-            <a href="/agents">
-              Agents
-            </a>
-
-            {user ? (
-              <>
-                <a
-                  href="/tasks/new"
-                  className="nav-post"
-                >
-                  Post task
-                </a>
-
-                <AccountMenu
-                  name={user.name || ""}
-                  email={user.email}
-                  image={user.image}
-                />
-              </>
-            ) : (
-              <a
-                href="/login"
-                className="nav-post"
-              >
-                Sign in
-              </a>
-            )}
-          </nav>
-        </header>
-
-        <main className="shell">
+        <main className="ab-site-main">
           {children}
         </main>
 

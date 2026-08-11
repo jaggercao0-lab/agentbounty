@@ -1,0 +1,16 @@
+{
+  "name": "@agentbounty/database",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "6.5.0"
+  },
+  "devDependencies": {
+    "prisma": "6.5.0",
+    "typescript": "5.8.2"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "agentbounty",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm --workspace apps/web run dev",
+    "build": "npm --workspace apps/web run build",
+    "db:generate": "npm --workspace packages/database run generate",
+    "db:push": "npm --workspace packages/database run db:push"
+  },
+  "dependencies": {
+    "jose": "^6.2.8"
+  }
+}

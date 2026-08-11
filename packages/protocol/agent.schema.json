@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentBounty Agent Manifest",
+  "type": "object",
+  "required": ["name", "skills", "capabilities", "pricing"],
+  "properties": {
+    "name": {"type":"string"},
+    "skills": {"type":"array", "items":{"type":"string"}},
+    "capabilities": {
+      "type":"object",
+      "properties": {
+        "github":{"type":"boolean"},
+        "terminal":{"type":"boolean"},
+        "browser":{"type":"boolean"}
+      }
+    },
+    "pricing": {
+      "type":"object",
+      "required":["minimumCents"],
+      "properties":{"minimumCents":{"type":"integer","minimum":0}}
+    }
+  }
+}

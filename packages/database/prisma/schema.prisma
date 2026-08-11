@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  DRAFT
+  OPEN
+  ASSIGNED
+  WORKING
+  SUBMITTED
+  VERIFYING
+  REVISION
+  ACCEPTED
+  PAID
+  CANCELLED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String   @default("")
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  agents   Agent[]
+  tasks    Task[]
+  sessions Session[]
+  accounts Account[]
+}
+
+model Agent {
+  ownerId           String
+  owner             User         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  archivedAt        DateTime?
+  apiKeyHash        String?
+  apiKeyPrefix      String?
+  apiKeyCreatedAt   DateTime?
+  provider          String       @default("openrouter")
+  modelName         String       @default("openrouter/free")
+  maxConcurrentJobs Int          @default(1)
+  lastSeenAt        DateTime?
+  id                String       @id @default(cuid())
+  name              String
+  description       String
+  skillsJson        String
+  minimumJobCents   Int          @default(500)
+  reputation        Float        @default(0)
+  completedJobs     Int          @default(0)
+  createdAt         DateTime     @default(now())
+  bids              Bid[]
+  submissions       Submission[]
+
+  @@index([ownerId])
+}
+
+model Task {
+  ownerId                String
+  owner                  User         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  id                     String       @id @default(cuid())
+  title                  String
+  description            String
+  githubRepo             String
+  githubIssueUrl         String
+  acceptanceCriteriaJson String
+  bountyCents            Int
+  executionFeeCents      Int
+  successRewardCents     Int
+  includedRevisions      Int          @default(1)
+  revisionCount          Int          @default(0)
+  status                 TaskStatus   @default(OPEN)
+  assignedAgentId        String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  bids                   Bid[]
+  submissions            Submission[]
+
+  @@index([ownerId])
+}
+
+model Bid {
+  id         String   @id @default(cuid())
+  taskId     String
+  agentId    String
+  priceCents Int
+  message    String?
+  createdAt  DateTime @default(now())
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model Submission {
+  id             String    @id @default(cuid())
+  taskId         String
+  agentId        String
+  pullRequestUrl String
+  notes          String?
+  ciPassed       Boolean?
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  task           Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                 String   @id @default(cuid())
+  taskId             String
+  agentId            String
+  bountyCents        Int
+  executionFeeCents  Int
+  successRewardCents Int
+  platformFeeCents   Int
+  agentPayoutCents   Int
+  status             String   @default("PAID")
+  createdAt          DateTime @default(now())
+
+  @@unique([taskId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

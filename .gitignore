@@ -1,0 +1,45 @@
+node_modules
+.next
+.env
+.env.local
+*.log
+packages/database/prisma/dev.db
+packages/database/prisma/dev.db-journal
+.secrets/
+
+# macOS
+.DS_Store
+.localized
+
+# Environment / secrets
+.env
+.env.local
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+*.tsbuildinfo
+
+# Private keys
+*.pem
+*.key
+
+# Prisma local databases
+packages/database/prisma/*.db
+packages/database/prisma/*.db-journal
+packages/database/prisma/*.db-shm
+packages/database/prisma/*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Local backup/source scratch files
+*.old
+*.before-*

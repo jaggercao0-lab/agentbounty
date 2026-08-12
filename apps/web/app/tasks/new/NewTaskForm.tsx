@@ -21,6 +21,33 @@ function money(value: string) {
   return `$${amount.toFixed(2)}`;
 }
 
+const VERIFIER_PRESETS = [
+  {
+    rule: "A pull request is submitted",
+    label: "Pull request required",
+    description:
+      "Delivery must include a valid GitHub pull request.",
+  },
+  {
+    rule: "BUILD PASSES",
+    label: "Build must pass",
+    description:
+      "Requires a successful build-related GitHub Check.",
+  },
+  {
+    rule: "TESTS PASS",
+    label: "Tests must pass",
+    description:
+      "Requires successful test-related GitHub Checks.",
+  },
+  {
+    rule: "LINT PASSES",
+    label: "Lint must pass",
+    description:
+      "Requires a successful lint-related GitHub Check.",
+  },
+] as const;
+
 function repoFromIssue(url: string) {
   const match = url.match(
     /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/
@@ -84,6 +111,77 @@ export default function NewTaskForm() {
       Number(bounty || 0) -
         Number(executionFee || 0)
     );
+
+  function matchesVerifierPreset(
+    line: string,
+    rule: string
+  ) {
+    if (
+      rule ===
+      "A pull request is submitted"
+    ) {
+      return line
+        .toLowerCase()
+        .startsWith(
+          "a pull request is submitted"
+        );
+    }
+
+    return line === rule;
+  }
+
+  function isVerifierPresetEnabled(
+    rule: string
+  ) {
+    return criteria.some(
+      line =>
+        matchesVerifierPreset(
+          line,
+          rule
+        )
+    );
+  }
+
+  function setVerifierPreset(
+    rule: string,
+    enabled: boolean
+  ) {
+    const lines =
+      acceptanceCriteria
+        .split("\n")
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    const exists =
+      lines.some(
+        line =>
+          matchesVerifierPreset(
+            line,
+            rule
+          )
+      );
+
+    if (enabled && !exists) {
+      setAcceptanceCriteria(
+        [...lines, rule].join("\n")
+      );
+      return;
+    }
+
+    if (!enabled && exists) {
+      setAcceptanceCriteria(
+        lines
+          .filter(
+            line =>
+              !matchesVerifierPreset(
+                line,
+                rule
+              )
+          )
+          .join("\n")
+      );
+    }
+  }
 
   function importIssue() {
     setImportError("");
@@ -416,6 +514,82 @@ export default function NewTaskForm() {
             <span className="ab-compose-generated">
               AUTO-DRAFTED
             </span>
+
+          </div>
+
+          <div className="ab-compose-verifier-presets">
+
+            <div className="ab-compose-verifier-head">
+              <div>
+                <span>
+                  VERIFICATION PRESETS
+                </span>
+
+                <strong>
+                  Trusted GitHub evidence
+                </strong>
+              </div>
+
+              <b>
+                SAFE MODE
+              </b>
+            </div>
+
+            <div className="ab-compose-verifier-grid">
+
+              {VERIFIER_PRESETS.map(
+                preset => {
+                  const enabled =
+                    isVerifierPresetEnabled(
+                      preset.rule
+                    );
+
+                  return (
+                    <label
+                      key={preset.rule}
+                      className={
+                        enabled
+                          ? "ab-compose-verifier-option ab-compose-verifier-enabled"
+                          : "ab-compose-verifier-option"
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={event =>
+                          setVerifierPreset(
+                            preset.rule,
+                            event.target.checked
+                          )
+                        }
+                      />
+
+                      <span className="ab-compose-verifier-toggle">
+                        {enabled
+                          ? "✓"
+                          : ""}
+                      </span>
+
+                      <span className="ab-compose-verifier-copy">
+                        <strong>
+                          {preset.label}
+                        </strong>
+
+                        <small>
+                          {preset.description}
+                        </small>
+                      </span>
+                    </label>
+                  );
+                }
+              )}
+
+            </div>
+
+            <p className="ab-compose-verifier-note">
+              GitHub Check Runs are used as trusted execution evidence.
+              AgentBounty does not execute arbitrary shell commands supplied by contracts.
+            </p>
 
           </div>
 

@@ -9886,3 +9886,278 @@ textarea::placeholder {
       10px;
   }
 }
+
+
+/* =========================================================
+   CONTRACT COMPOSER · VERIFICATION PRESETS
+   ========================================================= */
+
+.ab-compose-verifier-presets {
+  margin-bottom: 20px;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    rgba(157,138,255,.11);
+
+  border-radius:
+    12px;
+
+  background:
+    rgba(157,138,255,.025);
+}
+
+.ab-compose-verifier-head {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding:
+    13px 14px;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.05);
+}
+
+.ab-compose-verifier-head > div {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.ab-compose-verifier-head span {
+  color:
+    #9d8aff;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    6px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    .14em;
+}
+
+.ab-compose-verifier-head strong {
+  color:
+    rgba(255,255,255,.66);
+
+  font-size:
+    10px;
+}
+
+.ab-compose-verifier-head b {
+  padding:
+    4px 6px;
+
+  border:
+    1px solid
+    rgba(119,230,160,.13);
+
+  border-radius:
+    5px;
+
+  background:
+    rgba(119,230,160,.04);
+
+  color:
+    #77e6a0;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    5px;
+
+  letter-spacing:
+    .1em;
+}
+
+.ab-compose-verifier-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0,1fr));
+
+  gap:
+    1px;
+
+  background:
+    rgba(255,255,255,.045);
+}
+
+.ab-compose-verifier-option {
+  position: relative;
+
+  min-height:
+    72px;
+
+  display: flex;
+
+  align-items:
+    center;
+
+  gap:
+    11px;
+
+  padding:
+    13px;
+
+  background:
+    #0d1016;
+
+  cursor:
+    pointer;
+
+  transition:
+    background .18s ease;
+}
+
+.ab-compose-verifier-option:hover {
+  background:
+    #11151c;
+}
+
+.ab-compose-verifier-enabled {
+  background:
+    rgba(157,138,255,.055);
+}
+
+.ab-compose-verifier-option input {
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+.ab-compose-verifier-toggle {
+  width:
+    24px;
+
+  height:
+    24px;
+
+  flex:
+    0 0 24px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border:
+    1px solid
+    rgba(255,255,255,.1);
+
+  border-radius:
+    7px;
+
+  color:
+    #9d8aff;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    9px;
+}
+
+.ab-compose-verifier-enabled
+.ab-compose-verifier-toggle {
+  border-color:
+    rgba(157,138,255,.3);
+
+  background:
+    rgba(157,138,255,.09);
+}
+
+.ab-compose-verifier-copy {
+  min-width:
+    0;
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  gap:
+    4px;
+}
+
+.ab-compose-verifier-copy strong {
+  color:
+    rgba(255,255,255,.72);
+
+  font-size:
+    10px;
+}
+
+.ab-compose-verifier-copy small {
+  color:
+    rgba(255,255,255,.28);
+
+  font-size:
+    8px;
+
+  line-height:
+    1.45;
+}
+
+.ab-compose-verifier-note {
+  margin:
+    0;
+
+  padding:
+    11px 14px;
+
+  border-top:
+    1px solid
+    rgba(255,255,255,.045);
+
+  color:
+    rgba(255,255,255,.23);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    6px;
+
+  line-height:
+    1.6;
+}
+
+@media (
+  max-width: 720px
+) {
+  .ab-compose-verifier-grid {
+    grid-template-columns:
+      1fr;
+  }
+}

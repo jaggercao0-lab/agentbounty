@@ -8,6 +8,9 @@ export type VerificationCheckType =
   | "FILE_EXISTS"
   | "CONTENT_CONTAINS"
   | "CONTENT_PRESERVED"
+  | "BUILD"
+  | "TESTS"
+  | "LINT"
   | "GITHUB_CHECKS"
   | "UNSUPPORTED";
 
@@ -41,13 +44,19 @@ export function buildVerificationReport(
   pullRequestUrl: string
 ): VerificationReport {
   const passed =
-    checks.filter(check => check.status === "PASS").length;
+    checks.filter(
+      check => check.status === "PASS"
+    ).length;
 
   const failed =
-    checks.filter(check => check.status === "FAIL").length;
+    checks.filter(
+      check => check.status === "FAIL"
+    ).length;
 
   const pending =
-    checks.filter(check => check.status === "PENDING").length;
+    checks.filter(
+      check => check.status === "PENDING"
+    ).length;
 
   let status: VerificationCheckStatus;
 
@@ -61,7 +70,6 @@ export function buildVerificationReport(
 
   return {
     version: "0.3",
-
     status,
 
     passed:
@@ -73,12 +81,11 @@ export function buildVerificationReport(
       total: checks.length,
       passed,
       failed,
-      pending
+      pending,
     },
 
     checks,
-
     pullRequestUrl,
-    verifiedAt: new Date().toISOString()
+    verifiedAt: new Date().toISOString(),
   };
 }

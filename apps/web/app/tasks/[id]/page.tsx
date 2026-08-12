@@ -7,6 +7,7 @@ import { getWebSession } from "@/lib/web-session";
 
 import { hireBid } from "./actions";
 import OwnerTaskActions from "./OwnerTaskActions";
+import VerificationReport from "./VerificationReport";
 
 export const dynamic = "force-dynamic";
 
@@ -453,14 +454,22 @@ export default async function TaskPage({
 
                   <span
                     className={
-                      latestSubmission.verifiedAt
+                      latestSubmission.verificationStatus === "PASS"
                         ? "ab-delivery-state ab-delivery-verified"
-                        : "ab-delivery-state"
+                        : latestSubmission.verificationStatus === "FAIL"
+                          ? "ab-delivery-state ab-delivery-failed"
+                          : latestSubmission.verificationStatus === "PENDING"
+                            ? "ab-delivery-state ab-delivery-pending"
+                            : "ab-delivery-state"
                     }
                   >
-                    {latestSubmission.verifiedAt
+                    {latestSubmission.verificationStatus === "PASS"
                       ? "VERIFIED"
-                      : "AWAITING REVIEW"}
+                      : latestSubmission.verificationStatus === "FAIL"
+                        ? "CHECKS FAILED"
+                        : latestSubmission.verificationStatus === "PENDING"
+                          ? "CHECKS RUNNING"
+                          : "AWAITING REVIEW"}
                   </span>
 
                 </div>
@@ -525,6 +534,20 @@ export default async function TaskPage({
                 )}
 
               </section>
+            )}
+
+            {latestSubmission?.verificationReportJson && (
+              <VerificationReport
+                reportJson={
+                  latestSubmission.verificationReportJson
+                }
+                verificationStatus={
+                  latestSubmission.verificationStatus
+                }
+                taskStatus={
+                  task.status
+                }
+              />
             )}
 
             <section className="ab-task-panel">

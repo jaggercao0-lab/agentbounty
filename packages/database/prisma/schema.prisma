@@ -103,9 +103,11 @@ model Submission {
   agentId        String
   pullRequestUrl String
   notes          String?
-  ciPassed       Boolean?
-  verifiedAt     DateTime?
-  createdAt      DateTime  @default(now())
+  ciPassed               Boolean?
+  verifiedAt             DateTime?
+  verificationStatus     String?
+  verificationReportJson String?
+  createdAt              DateTime  @default(now())
   task           Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }

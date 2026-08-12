@@ -1,7 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import {
+  useRouter,
+} from "next/navigation";
+
+import {
+  useState,
+} from "react";
 
 type Props = {
   taskId: string;
@@ -12,27 +17,40 @@ export default function OwnerTaskActions({
   taskId,
   status,
 }: Props) {
-  const router = useRouter();
+  const router =
+    useRouter();
 
-  const [loading, setLoading] =
-    useState<string | null>(null);
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState<
+      string | null
+    >(null);
 
-  const [message, setMessage] =
+  const [
+    message,
+    setMessage,
+  ] =
     useState("");
 
   async function run(
-    action: "verify-github" | "pay"
+    action:
+      | "verify-github"
+      | "pay"
   ) {
     setLoading(action);
     setMessage("");
 
     try {
-      const response = await fetch(
-        `/api/v1/tasks/${taskId}/${action}`,
-        {
-          method: "POST",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/v1/tasks/${taskId}/${action}`,
+          {
+            method:
+              "POST",
+          }
+        );
 
       const data =
         await response.json();
@@ -42,17 +60,47 @@ export default function OwnerTaskActions({
           data.error ||
             "Action failed."
         );
+
         return;
       }
 
       if (
-        action === "verify-github"
+        action ===
+        "verify-github"
       ) {
-        setMessage(
-          data.passed === false
-            ? "Verification completed but criteria did not pass."
-            : "GitHub verification completed."
-        );
+        if (
+          data.pending ===
+          true
+        ) {
+          setMessage(
+            "GitHub checks are still running. Verification will need to be retried."
+          );
+        } else if (
+          data.passed ===
+          true
+        ) {
+          setMessage(
+            "Contract verified successfully."
+          );
+        } else if (
+          data.status ===
+          "REVISION"
+        ) {
+          setMessage(
+            "Verification failed. A revision has been requested."
+          );
+        } else if (
+          data.status ===
+          "CANCELLED"
+        ) {
+          setMessage(
+            "Verification failed and no revisions remain."
+          );
+        } else {
+          setMessage(
+            "Verification completed but the acceptance contract did not pass."
+          );
+        }
       } else {
         setMessage(
           "Payment released."
@@ -61,7 +109,9 @@ export default function OwnerTaskActions({
 
       router.refresh();
     } catch (error) {
-      console.error(error);
+      console.error(
+        error
+      );
 
       setMessage(
         "Unable to complete action."
@@ -72,8 +122,10 @@ export default function OwnerTaskActions({
   }
 
   if (
-    status !== "SUBMITTED" &&
-    status !== "ACCEPTED"
+    status !==
+      "SUBMITTED" &&
+    status !==
+      "ACCEPTED"
   ) {
     return null;
   }
@@ -82,7 +134,8 @@ export default function OwnerTaskActions({
     <div
       className="panel"
       style={{
-        marginBottom: 18,
+        marginBottom:
+          18,
       }}
     >
       <div className="eyebrow">
@@ -91,38 +144,48 @@ export default function OwnerTaskActions({
 
       <h2
         style={{
-          marginTop: 8,
+          marginTop:
+            8,
         }}
       >
         Manage delivery
       </h2>
 
-      {status === "SUBMITTED" && (
+      {status ===
+        "SUBMITTED" && (
         <button
           type="button"
           className="primary-button"
-          disabled={!!loading}
+          disabled={
+            !!loading
+          }
           onClick={() =>
-            run("verify-github")
+            run(
+              "verify-github"
+            )
           }
         >
           {loading ===
           "verify-github"
             ? "Verifying..."
-            : "Verify on GitHub"}
+            : "Run verification"}
         </button>
       )}
 
-      {status === "ACCEPTED" && (
+      {status ===
+        "ACCEPTED" && (
         <button
           type="button"
           className="primary-button"
-          disabled={!!loading}
+          disabled={
+            !!loading
+          }
           onClick={() =>
             run("pay")
           }
         >
-          {loading === "pay"
+          {loading ===
+          "pay"
             ? "Releasing..."
             : "Release payment"}
         </button>
@@ -132,7 +195,8 @@ export default function OwnerTaskActions({
         <p
           className="muted"
           style={{
-            marginTop: 12,
+            marginTop:
+              12,
           }}
         >
           {message}

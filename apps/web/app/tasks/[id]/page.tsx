@@ -84,7 +84,7 @@ function machineMessage(
       return "revision requested. machine has been sent back into the codebase.";
 
     case "SUBMITTED":
-      return "delivery received. pull request awaiting verification.";
+      return "delivery received. automatic verification is monitoring github evidence...";
 
     case "ACCEPTED":
       return "output verified. contract ready for settlement.";

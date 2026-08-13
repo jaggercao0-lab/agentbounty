@@ -25,7 +25,9 @@ export default function OwnerTaskActions({
     setLoading,
   ] =
     useState<
-      string | null
+      "verify" |
+      "pay" |
+      null
     >(null);
 
   const [
@@ -34,18 +36,17 @@ export default function OwnerTaskActions({
   ] =
     useState("");
 
-  async function run(
-    action:
-      | "verify-github"
-      | "pay"
-  ) {
-    setLoading(action);
+  async function retryVerification() {
+    setLoading(
+      "verify"
+    );
+
     setMessage("");
 
     try {
       const response =
         await fetch(
-          `/api/v1/tasks/${taskId}/${action}`,
+          `/api/v1/tasks/${taskId}/verify-github`,
           {
             method:
               "POST",
@@ -58,52 +59,43 @@ export default function OwnerTaskActions({
       if (!response.ok) {
         setMessage(
           data.error ||
-            "Action failed."
+            "Verification retry failed."
         );
 
         return;
       }
 
       if (
-        action ===
-        "verify-github"
+        data.pending ===
+        true
       ) {
-        if (
-          data.pending ===
-          true
-        ) {
-          setMessage(
-            "GitHub checks are still running. Verification will need to be retried."
-          );
-        } else if (
-          data.passed ===
-          true
-        ) {
-          setMessage(
-            "Contract verified successfully."
-          );
-        } else if (
-          data.status ===
-          "REVISION"
-        ) {
-          setMessage(
-            "Verification failed. A revision has been requested."
-          );
-        } else if (
-          data.status ===
-          "CANCELLED"
-        ) {
-          setMessage(
-            "Verification failed and no revisions remain."
-          );
-        } else {
-          setMessage(
-            "Verification completed but the acceptance contract did not pass."
-          );
-        }
+        setMessage(
+          "GitHub checks are still running. Automatic verification will retry shortly."
+        );
+      } else if (
+        data.passed ===
+        true
+      ) {
+        setMessage(
+          "Contract verified successfully."
+        );
+      } else if (
+        data.status ===
+        "REVISION"
+      ) {
+        setMessage(
+          "Verification failed. A revision has been requested."
+        );
+      } else if (
+        data.status ===
+        "CANCELLED"
+      ) {
+        setMessage(
+          "Verification failed and no revisions remain."
+        );
       } else {
         setMessage(
-          "Payment released."
+          "Verification completed."
         );
       }
 
@@ -114,10 +106,61 @@ export default function OwnerTaskActions({
       );
 
       setMessage(
-        "Unable to complete action."
+        "Unable to retry verification."
       );
     } finally {
-      setLoading(null);
+      setLoading(
+        null
+      );
+    }
+  }
+
+  async function releasePayment() {
+    setLoading(
+      "pay"
+    );
+
+    setMessage("");
+
+    try {
+      const response =
+        await fetch(
+          `/api/v1/tasks/${taskId}/pay`,
+          {
+            method:
+              "POST",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        setMessage(
+          data.error ||
+            "Payment failed."
+        );
+
+        return;
+      }
+
+      setMessage(
+        "Payment released."
+      );
+
+      router.refresh();
+    } catch (error) {
+      console.error(
+        error
+      );
+
+      setMessage(
+        "Unable to release payment."
+      );
+    } finally {
+      setLoading(
+        null
+      );
     }
   }
 
@@ -130,78 +173,179 @@ export default function OwnerTaskActions({
     return null;
   }
 
+  if (
+    status ===
+    "SUBMITTED"
+  ) {
+    return (
+      <section className="ab-auto-verify">
+
+        <div className="ab-auto-verify-head">
+
+          <div className="ab-auto-verify-signal">
+            <i />
+          </div>
+
+          <div>
+            <span>
+              AUTOMATIC VERIFICATION
+            </span>
+
+            <h3>
+              Monitoring delivery
+            </h3>
+          </div>
+
+        </div>
+
+        <div className="ab-auto-verify-terminal">
+
+          <div>
+            <span>
+              STATUS
+            </span>
+
+            <strong>
+              WATCHING
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              SOURCE
+            </span>
+
+            <strong>
+              GITHUB CI
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              POLL
+            </span>
+
+            <strong>
+              ~15 SEC
+            </strong>
+          </div>
+
+        </div>
+
+        <p className="ab-auto-verify-copy">
+          The verification worker is monitoring
+          GitHub checks and will automatically
+          evaluate the acceptance contract when
+          evidence is ready.
+        </p>
+
+        <div className="ab-auto-verify-flow">
+          <span>
+            PR
+          </span>
+
+          <i>
+            →
+          </i>
+
+          <span>
+            CI
+          </span>
+
+          <i>
+            →
+          </i>
+
+          <span>
+            VERIFY
+          </span>
+
+          <i>
+            →
+          </i>
+
+          <span>
+            ACCEPT
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="ab-auto-verify-retry"
+          disabled={
+            !!loading
+          }
+          onClick={
+            retryVerification
+          }
+        >
+          {loading ===
+          "verify"
+            ? "Checking now..."
+            : "Retry now"}
+        </button>
+
+        {message && (
+          <p className="ab-auto-verify-message">
+            {message}
+          </p>
+        )}
+
+      </section>
+    );
+  }
+
   return (
-    <div
-      className="panel"
-      style={{
-        marginBottom:
-          18,
-      }}
-    >
-      <div className="eyebrow">
-        Owner controls
+    <section className="ab-settlement-control">
+
+      <div className="ab-settlement-control-head">
+        <span>
+          OWNER CONTROL
+        </span>
+
+        <h3>
+          Contract verified
+        </h3>
       </div>
 
-      <h2
-        style={{
-          marginTop:
-            8,
-        }}
+      <div className="ab-settlement-ready">
+        <i>
+          ✓
+        </i>
+
+        <div>
+          <strong>
+            READY FOR SETTLEMENT
+          </strong>
+
+          <span>
+            Verification evidence passed.
+          </span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="ab-settlement-button"
+        disabled={
+          !!loading
+        }
+        onClick={
+          releasePayment
+        }
       >
-        Manage delivery
-      </h2>
-
-      {status ===
-        "SUBMITTED" && (
-        <button
-          type="button"
-          className="primary-button"
-          disabled={
-            !!loading
-          }
-          onClick={() =>
-            run(
-              "verify-github"
-            )
-          }
-        >
-          {loading ===
-          "verify-github"
-            ? "Verifying..."
-            : "Run verification"}
-        </button>
-      )}
-
-      {status ===
-        "ACCEPTED" && (
-        <button
-          type="button"
-          className="primary-button"
-          disabled={
-            !!loading
-          }
-          onClick={() =>
-            run("pay")
-          }
-        >
-          {loading ===
-          "pay"
-            ? "Releasing..."
-            : "Release payment"}
-        </button>
-      )}
+        {loading ===
+        "pay"
+          ? "Releasing..."
+          : "Release payment"}
+      </button>
 
       {message && (
-        <p
-          className="muted"
-          style={{
-            marginTop:
-              12,
-          }}
-        >
+        <p className="ab-auto-verify-message">
           {message}
         </p>
       )}
-    </div>
+
+    </section>
   );
 }

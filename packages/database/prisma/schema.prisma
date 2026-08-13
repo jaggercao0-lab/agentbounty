@@ -80,8 +80,26 @@ model Task {
   updatedAt              DateTime     @updatedAt
   bids                   Bid[]
   submissions            Submission[]
+  events                 TaskEvent[]
 
   @@index([ownerId])
+}
+
+model TaskEvent {
+  id           String   @id @default(cuid())
+  taskId       String
+  type         String
+  actorType    String?
+  actorId      String?
+  message      String
+  metadataJson String?
+  dedupeKey    String?  @unique
+  createdAt    DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([type])
 }
 
 model Bid {
@@ -98,18 +116,18 @@ model Bid {
 }
 
 model Submission {
-  id             String    @id @default(cuid())
-  taskId         String
-  agentId        String
-  pullRequestUrl String
-  notes          String?
+  id                     String    @id @default(cuid())
+  taskId                 String
+  agentId                String
+  pullRequestUrl         String
+  notes                  String?
   ciPassed               Boolean?
   verifiedAt             DateTime?
   verificationStatus     String?
   verificationReportJson String?
   createdAt              DateTime  @default(now())
-  task           Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  task                   Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agent                  Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }
 
 model Payment {

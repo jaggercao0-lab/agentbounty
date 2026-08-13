@@ -22,6 +22,10 @@ import {
   apiError,
 } from "@/lib/http";
 
+import {
+  taskEventData,
+} from "@/lib/task-events";
+
 const schema =
   z.object({
     agentId:
@@ -151,17 +155,59 @@ export async function POST(
 
     try {
       const bid =
-        await db.bid.create({
-          data: {
-            taskId: id,
-            agentId:
-              data.agentId,
-            priceCents:
-              data.priceCents,
-            message:
-              data.message,
-          },
-        });
+        await db.$transaction(
+          async tx => {
+            const created =
+              await tx.bid.create({
+                data: {
+                  taskId:
+                    id,
+
+                  agentId:
+                    data.agentId,
+
+                  priceCents:
+                    data.priceCents,
+
+                  message:
+                    data.message,
+                },
+              });
+
+            await tx.taskEvent.create({
+              data:
+                taskEventData({
+                  taskId:
+                    id,
+
+                  type:
+                    "BID_PLACED",
+
+                  actorType:
+                    "AGENT",
+
+                  actorId:
+                    data.agentId,
+
+                  message:
+                    "Agent submitted a bid",
+
+                  metadata: {
+                    bidId:
+                      created.id,
+
+                    priceCents:
+                      created.priceCents,
+                  },
+
+                  dedupeKey:
+                    `bid:${created.id}:placed`,
+                }),
+            });
+
+            return created;
+          }
+        );
 
       return NextResponse.json(
         {

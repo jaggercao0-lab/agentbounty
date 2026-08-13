@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
+import { taskEventData } from "@/lib/task-events";
 
 const schema = z.object({
   bidId: z.string().min(1),
@@ -52,32 +53,97 @@ export async function POST(
       );
     }
 
-    const result = await db.task.updateMany({
-      where: {
-        id,
-        ownerId: user.id,
-        status: "OPEN",
-      },
-      data: {
-        status: "ASSIGNED",
-        assignedAgentId: bid.agentId,
-      },
-    });
-
-    if (result.count !== 1) {
-      return NextResponse.json(
-        { error: "task_not_open" },
-        { status: 409 }
-      );
-    }
-
     const updated =
-      await db.task.findUnique({
-        where: { id },
-      });
+      await db.$transaction(
+        async tx => {
+          const result =
+            await tx.task.updateMany({
+              where: {
+                id,
+                ownerId:
+                  user.id,
+                status:
+                  "OPEN",
+              },
+
+              data: {
+                status:
+                  "ASSIGNED",
+
+                assignedAgentId:
+                  bid.agentId,
+              },
+            });
+
+          if (
+            result.count !==
+            1
+          ) {
+            throw new Error(
+              "TASK_NOT_OPEN"
+            );
+          }
+
+          await tx.taskEvent.create({
+            data:
+              taskEventData({
+                taskId:
+                  id,
+
+                type:
+                  "AGENT_ASSIGNED",
+
+                actorType:
+                  "HUMAN",
+
+                actorId:
+                  user.id,
+
+                message:
+                  "Agent hired for contract",
+
+                metadata: {
+                  agentId:
+                    bid.agentId,
+
+                  bidId:
+                    bid.id,
+
+                  priceCents:
+                    bid.priceCents,
+                },
+
+                dedupeKey:
+                  `task:${id}:assigned`,
+              }),
+          });
+
+          return tx.task.findUniqueOrThrow({
+            where: {
+              id,
+            },
+          });
+        }
+      );
 
     return NextResponse.json(updated);
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message ===
+        "TASK_NOT_OPEN"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "task_not_open",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
     return apiError(error);
   }
 }

@@ -4,6 +4,7 @@ import { SignJWT, importPKCS8 } from "jose";
 import { db } from "@agentbounty/database";
 import { verifyAgentToken } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
+import { taskEventData } from "@/lib/task-events";
 
 export const runtime = "nodejs";
 
@@ -218,6 +219,43 @@ export async function GET(
         }
       }
     }
+
+    await db.taskEvent.upsert({
+      where: {
+        dedupeKey:
+          `task:${task.id}:execution:${task.revisionCount}`,
+      },
+
+      update: {},
+
+      create:
+        taskEventData({
+          taskId:
+            task.id,
+
+          type:
+            "EXECUTION_STARTED",
+
+          actorType:
+            "AGENT",
+
+          actorId:
+            agentId,
+
+          message:
+            task.revisionCount > 0
+              ? "Worker started revision execution"
+              : "Worker started execution",
+
+          metadata: {
+            revisionCount:
+              task.revisionCount,
+          },
+
+          dedupeKey:
+            `task:${task.id}:execution:${task.revisionCount}`,
+        }),
+    });
 
     return NextResponse.json({
       protocolVersion: "0.3",

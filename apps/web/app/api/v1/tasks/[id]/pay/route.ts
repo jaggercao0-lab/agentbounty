@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
+import { taskEventData } from "@/lib/task-events";
 
 export async function POST(
   request: Request,
@@ -100,6 +101,37 @@ export async function POST(
                 increment: 1,
               },
             },
+          });
+
+          await tx.taskEvent.create({
+            data:
+              taskEventData({
+                taskId:
+                  task.id,
+
+                type:
+                  "PAYMENT_RELEASED",
+
+                actorType:
+                  "HUMAN",
+
+                actorId:
+                  user.id,
+
+                message:
+                  "Payment released",
+
+                metadata: {
+                  paymentId:
+                    payment.id,
+
+                  platformFeeCents,
+                  agentPayoutCents,
+                },
+
+                dedupeKey:
+                  `task:${task.id}:payment`,
+              }),
           });
 
           return payment;

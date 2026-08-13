@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
+import { taskEventData } from "@/lib/task-events";
 
 const schema = z.object({
   // Kept temporarily for backwards compatibility
@@ -117,15 +118,55 @@ export async function POST(
           );
         }
 
-        return tx.submission.create({
-          data: {
-            taskId: id,
-            agentId: agent.id,
-            pullRequestUrl:
-              data.pullRequestUrl,
-            notes: data.notes,
-          },
+        const created =
+          await tx.submission.create({
+            data: {
+              taskId:
+                id,
+
+              agentId:
+                agent.id,
+
+              pullRequestUrl:
+                data.pullRequestUrl,
+
+              notes:
+                data.notes,
+            },
+          });
+
+        await tx.taskEvent.create({
+          data:
+            taskEventData({
+              taskId:
+                id,
+
+              type:
+                "DELIVERY_SUBMITTED",
+
+              actorType:
+                "AGENT",
+
+              actorId:
+                agent.id,
+
+              message:
+                "Pull request submitted",
+
+              metadata: {
+                submissionId:
+                  created.id,
+
+                pullRequestUrl:
+                  created.pullRequestUrl,
+              },
+
+              dedupeKey:
+                `submission:${created.id}:submitted`,
+            }),
         });
+
+        return created;
       });
 
     return NextResponse.json(

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@agentbounty/database";
 import { verifyAgentToken } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
+import { taskEventData } from "@/lib/task-events";
 
 export const runtime = "nodejs";
 
@@ -354,7 +355,43 @@ export async function POST(
         data: { status: "SUBMITTED" }
       });
 
-      return created;
+      await tx.taskEvent.create({
+    data:
+      taskEventData({
+        taskId:
+          task.id,
+
+        type:
+          "DELIVERY_SUBMITTED",
+
+        actorType:
+          "AGENT",
+
+        actorId:
+          data.agentId,
+
+        message:
+          "Pull request submitted",
+
+        metadata: {
+          submissionId:
+            created.id,
+
+          pullRequestUrl:
+            pr.html_url,
+
+          branch,
+
+          changedFiles:
+            committedFiles,
+        },
+
+        dedupeKey:
+          `submission:${created.id}:submitted`,
+      }),
+  });
+
+  return created;
     });
 
     return NextResponse.json({

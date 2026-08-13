@@ -8,6 +8,7 @@ import { getWebSession } from "@/lib/web-session";
 import { hireBid } from "./actions";
 import OwnerTaskActions from "./OwnerTaskActions";
 import VerificationReport from "./VerificationReport";
+import ActivityTimeline from "./ActivityTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -130,6 +131,12 @@ export default async function TaskPage({
         submissions: {
           orderBy: {
             createdAt: "desc",
+          },
+        },
+
+        events: {
+          orderBy: {
+            createdAt: "asc",
           },
         },
       },
@@ -549,6 +556,10 @@ export default async function TaskPage({
                 }
               />
             )}
+
+            <ActivityTimeline
+              events={task.events}
+            />
 
             <section className="ab-task-panel">
 

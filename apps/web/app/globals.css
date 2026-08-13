@@ -10636,3 +10636,322 @@ span {
       none;
   }
 }
+
+
+/* =========================================================
+   TASK ACTIVITY LEDGER
+   ========================================================= */
+
+.ab-activity-panel {
+  overflow: hidden;
+}
+
+.ab-activity-list {
+  padding:
+    4px 22px 22px;
+}
+
+.ab-activity-event {
+  display: grid;
+
+  grid-template-columns:
+    34px minmax(0,1fr);
+
+  gap: 13px;
+
+  min-height: 74px;
+}
+
+.ab-activity-rail {
+  position: relative;
+
+  display: flex;
+  justify-content: center;
+}
+
+.ab-activity-node {
+  position: relative;
+  z-index: 2;
+
+  width: 27px;
+  height: 27px;
+
+  display: grid;
+  place-items: center;
+
+  margin-top: 15px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.08);
+
+  border-radius: 8px;
+
+  background:
+    #10141b;
+
+  color:
+    rgba(255,255,255,.42);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.ab-activity-line {
+  position: absolute;
+
+  top: 42px;
+  bottom: -15px;
+
+  width: 1px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(157,138,255,.15),
+      rgba(255,255,255,.035)
+    );
+}
+
+.ab-activity-body {
+  min-width: 0;
+
+  padding:
+    14px 0;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.045);
+}
+
+.ab-activity-event:last-child
+.ab-activity-body {
+  border-bottom: 0;
+}
+
+.ab-activity-event-head {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 14px;
+}
+
+.ab-activity-event-head
+> div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.ab-activity-type {
+  color:
+    rgba(157,138,255,.7);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.ab-activity-event-head strong {
+  color:
+    rgba(255,255,255,.72);
+
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ab-activity-event-head time {
+  flex: 0 0 auto;
+
+  color:
+    rgba(255,255,255,.19);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+
+  white-space: nowrap;
+}
+
+.ab-activity-meta {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+  flex-wrap: wrap;
+
+  margin-top: 8px;
+}
+
+.ab-activity-meta span,
+.ab-activity-meta a {
+  padding:
+    4px 6px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.055);
+
+  border-radius: 5px;
+
+  background:
+    rgba(255,255,255,.018);
+
+  color:
+    rgba(255,255,255,.28);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+
+  text-decoration: none;
+}
+
+.ab-activity-meta a:hover {
+  color:
+    rgba(255,255,255,.62);
+
+  border-color:
+    rgba(157,138,255,.18);
+}
+
+.ab-activity-verification_passed
+.ab-activity-node,
+.ab-activity-payment_released
+.ab-activity-node {
+  color:
+    #77e6a0;
+
+  border-color:
+    rgba(119,230,160,.16);
+
+  background:
+    rgba(119,230,160,.045);
+}
+
+.ab-activity-verification_pending
+.ab-activity-node {
+  color:
+    #e7c96b;
+
+  border-color:
+    rgba(231,201,107,.16);
+
+  background:
+    rgba(231,201,107,.04);
+}
+
+.ab-activity-revision_requested
+.ab-activity-node {
+  color:
+    #e7c96b;
+}
+
+.ab-activity-contract_cancelled
+.ab-activity-node {
+  color:
+    #ff767f;
+
+  border-color:
+    rgba(255,118,127,.16);
+
+  background:
+    rgba(255,118,127,.04);
+}
+
+.ab-activity-execution_started
+.ab-activity-node {
+  color:
+    #9d8aff;
+
+  border-color:
+    rgba(157,138,255,.18);
+
+  background:
+    rgba(157,138,255,.05);
+}
+
+.ab-activity-empty {
+  display: grid;
+  place-items: center;
+
+  min-height: 170px;
+
+  padding: 30px;
+
+  text-align: center;
+}
+
+.ab-activity-empty > span {
+  color:
+    rgba(157,138,255,.5);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  letter-spacing: .4em;
+}
+
+.ab-activity-empty strong {
+  margin-top: 10px;
+
+  color:
+    rgba(255,255,255,.52);
+
+  font-size: 10px;
+}
+
+.ab-activity-empty p {
+  max-width: 330px;
+
+  margin:
+    6px 0 0;
+
+  color:
+    rgba(255,255,255,.22);
+
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+@media (max-width: 650px) {
+  .ab-activity-event-head {
+    flex-direction:
+      column;
+
+    gap: 5px;
+  }
+
+  .ab-activity-event-head time {
+    white-space:
+      normal;
+  }
+}

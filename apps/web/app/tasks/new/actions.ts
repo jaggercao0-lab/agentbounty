@@ -6,6 +6,7 @@ import { db } from "@agentbounty/database";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireWebUser } from "@/lib/web-session";
+import { taskEventData } from "@/lib/task-events";
 
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) || "").trim();
@@ -368,6 +369,38 @@ title,
 
       status: "OPEN"
     }
+  });
+
+  await db.taskEvent.create({
+    data:
+      taskEventData({
+        taskId:
+          task.id,
+
+        type:
+          "CONTRACT_PUBLISHED",
+
+        actorType:
+          "HUMAN",
+
+        actorId:
+          user.id,
+
+        message:
+          "Contract published",
+
+        metadata: {
+          githubRepo,
+          bountyCents,
+          executionFeeCents,
+          successRewardCents:
+            bountyCents -
+            executionFeeCents,
+        },
+
+        dedupeKey:
+          `task:${task.id}:published`,
+      }),
   });
 
   revalidatePath("/tasks");

@@ -13,6 +13,10 @@ import {
   runVerification,
 } from "./engine";
 
+import {
+  taskEventData,
+} from "@/lib/task-events";
+
 export type AutomaticVerificationResult =
   | {
       ok: true;
@@ -239,6 +243,40 @@ export async function verifySubmittedTask(
       },
     });
 
+    await db.taskEvent.upsert({
+      where: {
+        dedupeKey:
+          `submission:${submission.id}:verification:pending`,
+      },
+
+      update: {},
+
+      create:
+        taskEventData({
+          taskId,
+
+          type:
+            "VERIFICATION_PENDING",
+
+          actorType:
+            "PLATFORM",
+
+          message:
+            "Verification waiting for GitHub evidence",
+
+          metadata: {
+            submissionId:
+              submission.id,
+
+            verificationStatus:
+              "PENDING",
+          },
+
+          dedupeKey:
+            `submission:${submission.id}:verification:pending`,
+        }),
+    });
+
     return {
       ok: true,
       taskId,
@@ -350,6 +388,52 @@ export async function verifySubmittedTask(
                 report
               ),
           },
+        });
+
+        const eventType =
+          passed
+            ? "VERIFICATION_PASSED"
+            : nextStatus ===
+                "REVISION"
+              ? "REVISION_REQUESTED"
+              : "CONTRACT_CANCELLED";
+
+        const eventMessage =
+          passed
+            ? "Acceptance contract passed"
+            : nextStatus ===
+                "REVISION"
+              ? "Verification failed; revision requested"
+              : "Verification failed; contract cancelled";
+
+        await tx.taskEvent.create({
+          data:
+            taskEventData({
+              taskId:
+                task.id,
+
+              type:
+                eventType,
+
+              actorType:
+                "PLATFORM",
+
+              message:
+                eventMessage,
+
+              metadata: {
+                submissionId:
+                  submission.id,
+
+                verificationStatus:
+                  report.status,
+
+                nextStatus,
+              },
+
+              dedupeKey:
+                `submission:${submission.id}:verification:${report.status}`,
+            }),
         });
 
         return tx.task.findUniqueOrThrow({

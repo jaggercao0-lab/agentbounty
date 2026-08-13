@@ -15,6 +15,7 @@ WEB_HOST = "127.0.0.1"
 WEB_PORT = 3000
 
 STARTUP_TIMEOUT_SECONDS = 30
+SHUTDOWN_TIMEOUT_SECONDS = 5
 
 
 def start_process(command):
@@ -25,7 +26,10 @@ def start_process(command):
     )
 
 
-def stop_process(process):
+def terminate_process(process):
+    if process is None:
+        return
+
     if process.poll() is not None:
         return
 
@@ -33,6 +37,22 @@ def stop_process(process):
         os.killpg(
             process.pid,
             signal.SIGTERM,
+        )
+    except ProcessLookupError:
+        pass
+
+
+def kill_process(process):
+    if process is None:
+        return
+
+    if process.poll() is not None:
+        return
+
+    try:
+        os.killpg(
+            process.pid,
+            signal.SIGKILL,
         )
     except ProcessLookupError:
         pass
@@ -52,7 +72,8 @@ def wait_for_web(process):
     while time.time() < deadline:
         if process.poll() is not None:
             raise RuntimeError(
-                f"web process exited with code {process.returncode}"
+                "web process exited "
+                f"with code {process.returncode}"
             )
 
         try:
@@ -67,14 +88,85 @@ def wait_for_web(process):
                     "Web server ready.",
                     flush=True,
                 )
+
                 return
 
         except OSError:
             time.sleep(0.25)
 
     raise RuntimeError(
-        "web server did not become ready within "
-        f"{STARTUP_TIMEOUT_SECONDS}s"
+        "web server did not become ready "
+        f"within {STARTUP_TIMEOUT_SECONDS}s"
+    )
+
+
+def shutdown_processes(processes):
+    print(
+        "Stopping services...",
+        flush=True,
+    )
+
+    for process in processes:
+        terminate_process(
+            process
+        )
+
+    deadline = (
+        time.time()
+        + SHUTDOWN_TIMEOUT_SECONDS
+    )
+
+    while (
+        time.time() <
+        deadline
+    ):
+        running = [
+            process
+            for process in processes
+            if (
+                process is not None
+                and
+                process.poll()
+                is None
+            )
+        ]
+
+        if not running:
+            break
+
+        time.sleep(0.1)
+
+    for process in processes:
+        if (
+            process is not None
+            and
+            process.poll()
+            is None
+        ):
+            kill_process(
+                process
+            )
+
+    for process in processes:
+        if process is None:
+            continue
+
+        try:
+            process.wait(
+                timeout=1
+            )
+
+        except (
+            subprocess.TimeoutExpired,
+            KeyboardInterrupt,
+        ):
+            kill_process(
+                process
+            )
+
+    print(
+        "AgentBounty stopped.",
+        flush=True,
     )
 
 
@@ -94,18 +186,21 @@ def main():
         flush=True,
     )
 
-    web = start_process(
-        [
-            "npm",
-            "run",
-            "dev",
-        ]
-    )
-
+    web = None
     verifier = None
 
     try:
-        wait_for_web(web)
+        web = start_process(
+            [
+                "npm",
+                "run",
+                "dev",
+            ]
+        )
+
+        wait_for_web(
+            web
+        )
 
         print(
             "Starting verification worker...",
@@ -119,31 +214,30 @@ def main():
             ]
         )
 
-        processes = [
-            (
-                "web",
-                web,
-            ),
-            (
-                "verification",
-                verifier,
-            ),
-        ]
-
         while True:
-            for name, process in processes:
-                code = process.poll()
+            if (
+                web.poll()
+                is not None
+            ):
+                raise RuntimeError(
+                    "web process exited "
+                    f"with code {web.returncode}"
+                )
 
-                if code is not None:
-                    raise RuntimeError(
-                        f"{name} process exited with code {code}"
-                    )
+            if (
+                verifier.poll()
+                is not None
+            ):
+                raise RuntimeError(
+                    "verification process exited "
+                    f"with code {verifier.returncode}"
+                )
 
             time.sleep(1)
 
     except KeyboardInterrupt:
         print(
-            "\nStopping AgentBounty...",
+            "\nShutdown requested.",
             flush=True,
         )
 
@@ -154,35 +248,21 @@ def main():
         )
 
     finally:
-        processes = [web]
-
-        if verifier is not None:
-            processes.append(
-                verifier
+        # Ignore additional Control+C signals while cleanup
+        # is already in progress.
+        try:
+            signal.signal(
+                signal.SIGINT,
+                signal.SIG_IGN,
             )
+        except ValueError:
+            pass
 
-        for process in processes:
-            stop_process(
-                process
-            )
-
-        for process in processes:
-            try:
-                process.wait(
-                    timeout=5
-                )
-            except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(
-                        process.pid,
-                        signal.SIGKILL,
-                    )
-                except ProcessLookupError:
-                    pass
-
-        print(
-            "AgentBounty stopped.",
-            flush=True,
+        shutdown_processes(
+            [
+                verifier,
+                web,
+            ]
         )
 
 

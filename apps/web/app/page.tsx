@@ -2,6 +2,7 @@ import { db } from "@agentbounty/database";
 
 import AgentBountyHero from "@/components/AgentBountyHero";
 import "./homepage.css";
+import "./homepage-polish.css";
 
 export const dynamic = "force-dynamic";
 

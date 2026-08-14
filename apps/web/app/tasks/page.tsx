@@ -1,6 +1,7 @@
 import { db } from "@agentbounty/database";
 import MarketplaceBoard from "@/components/MarketplaceBoard";
 import "./marketplace-v2.css";
+import "./marketplace-polish.css";
 
 export const dynamic = "force-dynamic";
 

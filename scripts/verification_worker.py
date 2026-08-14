@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import os
 import time
 import urllib.request
 import urllib.error
@@ -15,30 +16,62 @@ ENV_PATH = (
 )
 
 PLATFORM_URL = (
-    "http://localhost:3000"
+    os.environ.get(
+        "AGENTBOUNTY_PLATFORM_URL",
+        "http://localhost:3000",
+    )
+    .strip()
+    .rstrip("/")
 )
 
-INTERVAL_SECONDS = 15
+INTERVAL_SECONDS = int(
+    os.environ.get(
+        "AGENTBOUNTY_VERIFICATION_INTERVAL_SECONDS",
+        "15",
+    )
+)
 
 
 def load_internal_key():
-    for raw in ENV_PATH.read_text().splitlines():
-        line = raw.strip()
+    env_value = (
+        os.environ.get(
+            "AGENTBOUNTY_INTERNAL_KEY",
+            ""
+        )
+        .strip()
+    )
 
-        if (
-            not line
-            or line.startswith("#")
-            or "=" not in line
+    if env_value:
+        return env_value
+
+    if ENV_PATH.exists():
+        for raw in (
+            ENV_PATH
+            .read_text()
+            .splitlines()
         ):
-            continue
+            line = raw.strip()
 
-        key, value = line.split("=", 1)
+            if (
+                not line
+                or line.startswith("#")
+                or "=" not in line
+            ):
+                continue
 
-        if (
-            key ==
-            "AGENTBOUNTY_INTERNAL_KEY"
-        ):
-            return value
+            key, value = line.split(
+                "=",
+                1
+            )
+
+            if (
+                key ==
+                "AGENTBOUNTY_INTERNAL_KEY"
+            ):
+                value = value.strip()
+
+                if value:
+                    return value
 
     raise RuntimeError(
         "AGENTBOUNTY_INTERNAL_KEY missing"
@@ -46,7 +79,9 @@ def load_internal_key():
 
 
 def run_once():
-    internal_key = load_internal_key()
+    internal_key = (
+        load_internal_key()
+    )
 
     request = urllib.request.Request(
         PLATFORM_URL +
@@ -55,6 +90,7 @@ def run_once():
         headers={
             "x-internal-key":
                 internal_key,
+
             "Content-Type":
                 "application/json",
         },
@@ -64,20 +100,26 @@ def run_once():
         request,
         timeout=60,
     ) as response:
-        return json.load(response)
+        return json.load(
+            response
+        )
 
 
 def main():
     print(
-        "AgentBounty Verification Worker"
+        "AgentBounty Verification Worker",
+        flush=True,
     )
 
     print(
-        f"Polling every {INTERVAL_SECONDS}s"
+        f"Platform: {PLATFORM_URL}",
+        flush=True,
     )
 
     print(
-        "Press Control+C to stop."
+        f"Polling every "
+        f"{INTERVAL_SECONDS}s",
+        flush=True,
     )
 
     while True:
@@ -91,7 +133,10 @@ def main():
 
             if scanned:
                 print(
-                    f"\n[verification] scanned {scanned} task(s)"
+                    f"[verification] "
+                    f"scanned "
+                    f"{scanned} task(s)",
+                    flush=True,
                 )
 
                 for item in data.get(
@@ -127,12 +172,14 @@ def main():
                     print(
                         f"  {task_id}: "
                         f"{result}"
-                        f"{suffix}"
+                        f"{suffix}",
+                        flush=True,
                     )
 
         except KeyboardInterrupt:
             print(
-                "\nVerification worker stopped."
+                "Verification worker stopped.",
+                flush=True,
             )
             break
 
@@ -146,12 +193,17 @@ def main():
             )
 
             print(
-                f"[verification] HTTP {exc.code}: {body}"
+                f"[verification] "
+                f"HTTP {exc.code}: "
+                f"{body}",
+                flush=True,
             )
 
         except Exception as exc:
             print(
-                f"[verification] error: {exc}"
+                f"[verification] "
+                f"error: {exc}",
+                flush=True,
             )
 
         time.sleep(

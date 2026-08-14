@@ -1,0 +1,504 @@
+/* Contract Detail V2 polish — data-led command center, not decorative sci-fi. */
+
+.ab-task-page {
+  background:
+    radial-gradient(circle at 84% 7%, rgba(139,124,246,.105), transparent 25%),
+    radial-gradient(circle at 11% 37%, rgba(79,209,197,.055), transparent 23%),
+    linear-gradient(180deg, rgba(255,255,255,.008), transparent 18%),
+    #090b0e;
+}
+
+.ab-task-grid {
+  opacity: .42;
+  background-size: 52px 52px;
+}
+
+.ab-task-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0 7%, rgba(110,231,183,.022) 7% 7.06%, transparent 7.06% 91%, rgba(139,124,246,.022) 91% 91.06%, transparent 91.06%),
+    linear-gradient(180deg, rgba(255,255,255,.012), transparent 28%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.8) 55%, transparent 100%);
+}
+
+.ab-task-topbar {
+  position: relative;
+}
+
+.ab-task-topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 112px;
+  height: 1px;
+  background: linear-gradient(90deg, #6ee7b7, #8b7cf6, transparent);
+  box-shadow: 0 0 18px rgba(110,231,183,.18);
+}
+
+.ab-task-header {
+  position: relative;
+}
+
+.ab-task-header::after {
+  content: "";
+  position: absolute;
+  right: 24%;
+  top: 28%;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(139,124,246,.055), transparent 68%);
+  filter: blur(4px);
+}
+
+.ab-task-header-copy,
+.ab-task-bounty-box {
+  position: relative;
+  z-index: 1;
+}
+
+.ab-task-header h1 {
+  font-size: clamp(50px, 5vw, 74px);
+  text-wrap: balance;
+  text-shadow: 0 14px 46px rgba(0,0,0,.38);
+}
+
+.ab-task-status {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.012);
+}
+
+.ab-task-status i {
+  box-shadow: 0 0 0 0 currentColor;
+  animation: abContractStatusPulse 2.4s ease-out infinite;
+}
+
+.ab-task-bounty-box {
+  border-color: #3a4552;
+  background:
+    linear-gradient(135deg, rgba(139,124,246,.045), transparent 38%),
+    linear-gradient(315deg, rgba(110,231,183,.028), transparent 34%),
+    rgba(14,17,22,.94);
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.28),
+    inset 0 1px 0 rgba(255,255,255,.025);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.ab-task-bounty-box:hover {
+  transform: translateY(-2px);
+  border-color: #4a5868;
+  box-shadow:
+    0 34px 100px rgba(0,0,0,.34),
+    0 0 34px rgba(139,124,246,.045),
+    inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.ab-task-bounty-box::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -38%;
+  width: 22%;
+  height: 100%;
+  pointer-events: none;
+  transform: skewX(-16deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.035), transparent);
+  animation: abBountySweep 7s ease-in-out infinite;
+}
+
+.ab-task-bounty-box > strong {
+  color: #f6f8fa;
+  font-size: 39px;
+  text-shadow: 0 0 24px rgba(110,231,183,.08);
+}
+
+/* Macro contract lifecycle */
+.ab-task-lifecycle {
+  overflow: hidden;
+  border-color: #323d49;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.014), transparent 60%),
+    rgba(10,13,17,.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.018),
+    0 18px 55px rgba(0,0,0,.16);
+}
+
+.ab-task-lifecycle::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 7%;
+  right: 7%;
+  top: 49px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(110,231,183,.18), rgba(139,124,246,.18));
+  opacity: .55;
+}
+
+.ab-life-step {
+  z-index: 1;
+  background: rgba(8,11,14,.34);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.ab-life-step:hover {
+  background: rgba(255,255,255,.018);
+}
+
+.ab-life-node {
+  background: #0b1015;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.014);
+}
+
+.ab-life-done .ab-life-node {
+  box-shadow:
+    0 0 0 4px rgba(110,231,183,.025),
+    0 0 22px rgba(110,231,183,.09),
+    inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+/* Current visible macro phase, derived from the real contract status. */
+.ab-task-page:has(.ab-task-status-open) .ab-life-step:nth-child(2),
+.ab-task-page:has(.ab-task-status-assigned) .ab-life-step:nth-child(3),
+.ab-task-page:has(.ab-task-status-working) .ab-life-step:nth-child(3),
+.ab-task-page:has(.ab-task-status-revision) .ab-life-step:nth-child(3),
+.ab-task-page:has(.ab-task-status-submitted) .ab-life-step:nth-child(5),
+.ab-task-page:has(.ab-task-status-verifying) .ab-life-step:nth-child(5),
+.ab-task-page:has(.ab-task-status-accepted) .ab-life-step:nth-child(6) {
+  background:
+    radial-gradient(circle at 22% 50%, rgba(139,124,246,.09), transparent 46%),
+    linear-gradient(180deg, rgba(139,124,246,.055), rgba(139,124,246,.012));
+  box-shadow: inset 0 -2px 0 rgba(139,124,246,.42);
+}
+
+.ab-task-page:has(.ab-task-status-open) .ab-life-step:nth-child(2) .ab-life-node,
+.ab-task-page:has(.ab-task-status-assigned) .ab-life-step:nth-child(3) .ab-life-node,
+.ab-task-page:has(.ab-task-status-working) .ab-life-step:nth-child(3) .ab-life-node,
+.ab-task-page:has(.ab-task-status-revision) .ab-life-step:nth-child(3) .ab-life-node,
+.ab-task-page:has(.ab-task-status-submitted) .ab-life-step:nth-child(5) .ab-life-node,
+.ab-task-page:has(.ab-task-status-verifying) .ab-life-step:nth-child(5) .ab-life-node,
+.ab-task-page:has(.ab-task-status-accepted) .ab-life-step:nth-child(6) .ab-life-node {
+  border-color: #9d91ff;
+  color: #c8c1ff;
+  background: rgba(139,124,246,.11);
+  box-shadow:
+    0 0 0 5px rgba(139,124,246,.055),
+    0 0 26px rgba(139,124,246,.22);
+  animation: abCurrentPhase 2s ease-in-out infinite;
+}
+
+.ab-task-page:has(.ab-task-status-open) .ab-life-step:nth-child(2) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-assigned) .ab-life-step:nth-child(3) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-working) .ab-life-step:nth-child(3) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-revision) .ab-life-step:nth-child(3) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-submitted) .ab-life-step:nth-child(5) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-verifying) .ab-life-step:nth-child(5) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-accepted) .ab-life-step:nth-child(6) .ab-life-copy strong {
+  color: #fff;
+}
+
+.ab-task-page:has(.ab-task-status-paid) .ab-task-lifecycle {
+  box-shadow:
+    inset 0 -2px 0 rgba(110,231,183,.28),
+    0 20px 70px rgba(0,0,0,.18);
+}
+
+/* Panels gain depth only on interaction. */
+.ab-task-panel,
+.ab-task-side-panel,
+.ab-auto-verify,
+.ab-settlement-control,
+.ab-verify-panel {
+  border-color: #303b47;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.013), transparent 18%),
+    rgba(12,16,20,.9);
+  box-shadow:
+    0 20px 65px rgba(0,0,0,.1),
+    inset 0 1px 0 rgba(255,255,255,.018);
+  transition: border-color 170ms ease, transform 170ms ease, box-shadow 170ms ease;
+}
+
+.ab-task-panel:hover,
+.ab-task-side-panel:hover,
+.ab-verify-panel:hover {
+  border-color: #3d4957;
+  box-shadow:
+    0 24px 72px rgba(0,0,0,.17),
+    0 0 26px rgba(139,124,246,.025),
+    inset 0 1px 0 rgba(255,255,255,.022);
+}
+
+.ab-task-panel::after,
+.ab-task-side-panel::after,
+.ab-verify-panel::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  right: 10px;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid rgba(139,124,246,.24);
+  border-right: 1px solid rgba(110,231,183,.24);
+}
+
+.ab-task-criterion {
+  transition: background 150ms ease, padding-left 150ms ease;
+}
+
+.ab-task-criterion:hover {
+  padding-left: 5px;
+  background: linear-gradient(90deg, rgba(110,231,183,.025), transparent 72%);
+}
+
+.ab-task-criterion:hover > span {
+  color: #82dfba;
+}
+
+/* Delivery evidence */
+.ab-task-delivery > div {
+  position: relative;
+  transition: background 160ms ease;
+}
+
+.ab-task-delivery > div:hover {
+  background: rgba(255,255,255,.015);
+}
+
+.ab-delivery-pending {
+  box-shadow: 0 0 16px rgba(245,158,11,.06);
+}
+
+.ab-delivery-verified {
+  box-shadow: 0 0 18px rgba(34,197,94,.07);
+}
+
+/* Verification command surface */
+.ab-verify-panel {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(139,124,246,.055), transparent 30%),
+    linear-gradient(180deg, rgba(255,255,255,.012), transparent 20%),
+    rgba(10,14,18,.94);
+}
+
+.ab-verify-panel::before {
+  width: 112px;
+  background: linear-gradient(90deg, #6ee7b7, #8b7cf6, transparent);
+  box-shadow: 0 0 22px rgba(110,231,183,.18);
+}
+
+.ab-verify-progress {
+  height: 3px;
+  background: #141a20;
+}
+
+.ab-verify-progress > div {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 18px rgba(110,231,183,.16);
+}
+
+.ab-verify-progress > div::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 32%;
+  transform: translateX(-130%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.36), transparent);
+  animation: abVerifySweep 2.8s ease-in-out infinite;
+}
+
+.ab-verify-pending {
+  box-shadow:
+    0 24px 80px rgba(0,0,0,.18),
+    0 0 42px rgba(245,158,11,.035),
+    inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.ab-verify-pass {
+  box-shadow:
+    0 24px 80px rgba(0,0,0,.18),
+    0 0 42px rgba(110,231,183,.04),
+    inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.ab-verify-check {
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.ab-verify-check:hover {
+  transform: translateX(3px);
+  background: rgba(255,255,255,.014);
+}
+
+.ab-verify-check-pass:hover {
+  background: linear-gradient(90deg, rgba(110,231,183,.028), transparent 60%);
+}
+
+.ab-verify-check-fail:hover {
+  background: linear-gradient(90deg, rgba(239,68,68,.03), transparent 60%);
+}
+
+.ab-verify-check-pending:hover {
+  background: linear-gradient(90deg, rgba(245,158,11,.03), transparent 60%);
+}
+
+/* Activity Ledger becomes a live rail, without fake telemetry. */
+.ab-activity-event {
+  transition: background 150ms ease;
+}
+
+.ab-activity-event:hover {
+  background: linear-gradient(90deg, rgba(139,124,246,.022), transparent 72%);
+}
+
+.ab-activity-node {
+  box-shadow:
+    0 0 0 4px rgba(139,124,246,.018),
+    0 0 18px rgba(139,124,246,.05);
+}
+
+.ab-activity-verification_passed .ab-activity-node,
+.ab-activity-payment_released .ab-activity-node {
+  color: #82dfba;
+  border-color: rgba(110,231,183,.36);
+  box-shadow: 0 0 20px rgba(110,231,183,.1);
+}
+
+.ab-activity-revision_requested .ab-activity-node {
+  color: #e2b25e;
+  border-color: rgba(245,158,11,.35);
+  box-shadow: 0 0 20px rgba(245,158,11,.08);
+}
+
+.ab-activity-contract_cancelled .ab-activity-node {
+  color: #ec9191;
+  border-color: rgba(239,68,68,.35);
+}
+
+/* Bid book */
+.ab-task-bid {
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.ab-task-bid:hover {
+  background:
+    linear-gradient(90deg, rgba(110,231,183,.022), rgba(139,124,246,.018) 55%, transparent),
+    rgba(255,255,255,.009);
+}
+
+.ab-bid-avatar,
+.ab-assigned-avatar {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.015),
+    0 0 20px rgba(139,124,246,.045);
+}
+
+.ab-bid-price strong {
+  text-shadow: 0 0 18px rgba(110,231,183,.06);
+}
+
+/* Sidebar */
+.ab-task-sidebar {
+  top: 80px;
+}
+
+.ab-assigned-agent {
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.ab-assigned-agent:hover {
+  transform: translateX(2px);
+  background: linear-gradient(90deg, rgba(139,124,246,.035), transparent);
+}
+
+.ab-payment-panel {
+  background:
+    radial-gradient(circle at 85% 20%, rgba(110,231,183,.08), transparent 44%),
+    rgba(10,17,15,.9);
+  border-color: rgba(110,231,183,.25);
+}
+
+.ab-payment-check {
+  box-shadow:
+    0 0 0 6px rgba(110,231,183,.035),
+    0 0 26px rgba(110,231,183,.12);
+}
+
+.ab-settlement-button,
+.ab-hire-button,
+.ab-auto-verify-retry {
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.ab-settlement-button:hover,
+.ab-hire-button:hover,
+.ab-auto-verify-retry:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+
+@keyframes abContractStatusPulse {
+  0% { box-shadow: 0 0 0 0 currentColor; opacity: .95; }
+  65%, 100% { box-shadow: 0 0 0 7px transparent; opacity: .72; }
+}
+
+@keyframes abCurrentPhase {
+  0%, 100% {
+    box-shadow: 0 0 0 5px rgba(139,124,246,.045), 0 0 20px rgba(139,124,246,.15);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(139,124,246,.07), 0 0 30px rgba(139,124,246,.25);
+  }
+}
+
+@keyframes abBountySweep {
+  0%, 58% { transform: translateX(0) skewX(-16deg); opacity: 0; }
+  64% { opacity: 1; }
+  78% { transform: translateX(720%) skewX(-16deg); opacity: 0; }
+  100% { transform: translateX(720%) skewX(-16deg); opacity: 0; }
+}
+
+@keyframes abVerifySweep {
+  0%, 18% { transform: translateX(-130%); opacity: 0; }
+  28% { opacity: .7; }
+  72% { opacity: .7; }
+  82%, 100% { transform: translateX(430%); opacity: 0; }
+}
+
+@media (max-width: 900px) {
+  .ab-task-header h1 {
+    font-size: clamp(42px, 10vw, 60px);
+  }
+
+  .ab-task-header::after {
+    display: none;
+  }
+
+  .ab-task-lifecycle::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-task-status i,
+  .ab-task-bounty-box::after,
+  .ab-verify-progress > div::after,
+  .ab-task-page:has(.ab-task-status-open) .ab-life-step:nth-child(2) .ab-life-node,
+  .ab-task-page:has(.ab-task-status-assigned) .ab-life-step:nth-child(3) .ab-life-node,
+  .ab-task-page:has(.ab-task-status-working) .ab-life-step:nth-child(3) .ab-life-node,
+  .ab-task-page:has(.ab-task-status-revision) .ab-life-step:nth-child(3) .ab-life-node,
+  .ab-task-page:has(.ab-task-status-submitted) .ab-life-step:nth-child(5) .ab-life-node,
+  .ab-task-page:has(.ab-task-status-verifying) .ab-life-step:nth-child(5) .ab-life-node,
+  .ab-task-page:has(.ab-task-status-accepted) .ab-life-step:nth-child(6) .ab-life-node {
+    animation: none !important;
+  }
+}

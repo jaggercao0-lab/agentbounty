@@ -1,0 +1,464 @@
+.ab-exchange-page {
+  background:
+    radial-gradient(circle at 78% 12%, rgba(139, 124, 246, 0.075), transparent 26%),
+    radial-gradient(circle at 9% 38%, rgba(110, 231, 183, 0.045), transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,.012), transparent 22%),
+    #090b0e;
+}
+
+.ab-exchange-page-grid {
+  opacity: 0.3;
+  background-size: 52px 52px;
+}
+
+.ab-exchange-page-glow {
+  width: 520px;
+  height: 520px;
+  top: 90px;
+  right: -180px;
+  filter: blur(8px);
+  background: radial-gradient(circle, rgba(139, 124, 246, 0.075), transparent 68%);
+}
+
+.ab-exchange-page-glow-mint {
+  width: 420px;
+  height: 420px;
+  top: 520px;
+  right: auto;
+  left: -180px;
+  background: radial-gradient(circle, rgba(110, 231, 183, 0.05), transparent 70%);
+}
+
+.ab-exchange-shell {
+  padding-top: 72px;
+}
+
+.ab-exchange-header {
+  position: relative;
+  padding: 0 0 34px;
+}
+
+.ab-exchange-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(110,231,183,.55), rgba(139,124,246,.42) 28%, rgba(255,255,255,.08) 64%, transparent);
+}
+
+.ab-exchange-header h1 {
+  position: relative;
+  width: fit-content;
+  text-shadow: 0 0 34px rgba(139,124,246,.08);
+}
+
+.ab-exchange-header h1::after {
+  content: "";
+  position: absolute;
+  width: 56px;
+  height: 3px;
+  left: 4px;
+  bottom: -14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6ee7b7, #8b7cf6);
+  box-shadow: 0 0 18px rgba(110,231,183,.18);
+}
+
+.ab-exchange-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ab-exchange-pulse {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 14px;
+  border: 1px solid #2f3741;
+  border-radius: 7px;
+  background: rgba(15,18,22,.7);
+  box-shadow: inset 0 1px rgba(255,255,255,.02);
+}
+
+.ab-exchange-pulse > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6ee7b7;
+  box-shadow: 0 0 0 5px rgba(110,231,183,.055), 0 0 18px rgba(110,231,183,.2);
+  animation: abExchangePulse 2.6s ease-in-out infinite;
+}
+
+.ab-exchange-pulse > div {
+  display: grid;
+  gap: 2px;
+}
+
+.ab-exchange-pulse small {
+  color: #687482;
+  font-size: 11px;
+}
+
+.ab-exchange-pulse strong {
+  color: #cfd5dc;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.ab-exchange-post {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16);
+}
+
+.ab-exchange-post::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6ee7b7, #8b7cf6);
+}
+
+.ab-exchange-summary {
+  position: relative;
+  margin-top: 22px;
+  border: 1px solid #2c3540;
+  border-radius: 9px 9px 0 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent),
+    rgba(14,17,21,.78);
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(0,0,0,.12);
+}
+
+.ab-exchange-summary::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, #8b7cf6, #6ee7b7, transparent 90%);
+  opacity: .8;
+}
+
+.ab-exchange-summary > div {
+  min-height: 98px;
+  transition: background 150ms ease;
+}
+
+.ab-exchange-summary > div:hover {
+  background: rgba(255,255,255,.018);
+}
+
+.ab-exchange-summary strong {
+  font-size: 24px;
+  text-shadow: 0 0 24px rgba(139,124,246,.06);
+}
+
+.ab-exchange-tape {
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid #2c3540;
+  border-bottom: 1px solid #2c3540;
+  border-left: 1px solid #2c3540;
+  border-radius: 0 0 9px 9px;
+  background: rgba(8,10,13,.82);
+}
+
+.ab-exchange-tape::before,
+.ab-exchange-tape::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  pointer-events: none;
+}
+
+.ab-exchange-tape::before {
+  left: 0;
+  background: linear-gradient(90deg, #090b0e, transparent);
+}
+
+.ab-exchange-tape::after {
+  right: 0;
+  background: linear-gradient(-90deg, #090b0e, transparent);
+}
+
+.ab-exchange-tape-track {
+  width: max-content;
+  min-width: 100%;
+  display: flex;
+  align-items: center;
+  animation: abExchangeTape 34s linear infinite;
+}
+
+.ab-exchange-tape:hover .ab-exchange-tape-track {
+  animation-play-state: paused;
+}
+
+.ab-exchange-tape-track > span {
+  min-height: 42px;
+  padding: 0 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  border-right: 1px solid #202832;
+  color: #7f8b99;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ab-exchange-tape-track i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #6ee7b7;
+  box-shadow: 0 0 12px rgba(110,231,183,.34);
+}
+
+.ab-exchange-market {
+  position: relative;
+  margin-top: 30px;
+  border-color: #303945;
+  background:
+    linear-gradient(180deg, rgba(139,124,246,.018), transparent 22%),
+    rgba(14,17,21,.88);
+  box-shadow: 0 24px 70px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.018);
+}
+
+.ab-exchange-market::before,
+.ab-exchange-market::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  pointer-events: none;
+}
+
+.ab-exchange-market::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid rgba(110,231,183,.72);
+  border-left: 1px solid rgba(110,231,183,.72);
+  border-radius: 10px 0 0 0;
+}
+
+.ab-exchange-market::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 1px solid rgba(139,124,246,.6);
+  border-bottom: 1px solid rgba(139,124,246,.6);
+  border-radius: 0 0 10px 0;
+}
+
+.ab-exchange-toolbar {
+  background:
+    linear-gradient(90deg, rgba(110,231,183,.018), transparent 28%, rgba(139,124,246,.018)),
+    rgba(16,19,24,.88);
+}
+
+.ab-exchange-filters button {
+  position: relative;
+}
+
+.ab-exchange-filters button.is-active {
+  border-color: #3c4653;
+  background: linear-gradient(180deg, #1b2027, #15191f);
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+}
+
+.ab-exchange-filters button.is-active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, #6ee7b7, #8b7cf6);
+  box-shadow: 0 0 12px rgba(110,231,183,.18);
+}
+
+.ab-exchange-search {
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.ab-exchange-search:focus-within {
+  border-color: #596675;
+  background: #0f1318;
+  box-shadow: 0 0 0 3px rgba(139,124,246,.045), 0 0 24px rgba(139,124,246,.035);
+}
+
+.ab-contract-table-head {
+  background: linear-gradient(90deg, rgba(110,231,183,.018), transparent 34%, rgba(139,124,246,.018)), #0c0f13;
+}
+
+.ab-contract-row {
+  isolation: isolate;
+  transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.ab-contract-row::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(110,231,183,.026), transparent 36%, rgba(139,124,246,.022));
+  transition: opacity 150ms ease;
+}
+
+.ab-contract-row:hover {
+  z-index: 1;
+  background: #12171c;
+  box-shadow: inset 0 1px rgba(255,255,255,.018), 0 12px 36px rgba(0,0,0,.12);
+}
+
+.ab-contract-row:hover::after {
+  opacity: 1;
+}
+
+.ab-contract-row-open:hover {
+  box-shadow: inset 2px 0 rgba(110,231,183,.72), 0 12px 36px rgba(0,0,0,.12);
+}
+
+.ab-contract-row-working:hover,
+.ab-contract-row-assigned:hover {
+  box-shadow: inset 2px 0 rgba(96,165,250,.72), 0 12px 36px rgba(0,0,0,.12);
+}
+
+.ab-contract-row-submitted:hover,
+.ab-contract-row-revision:hover {
+  box-shadow: inset 2px 0 rgba(245,158,11,.7), 0 12px 36px rgba(0,0,0,.12);
+}
+
+.ab-contract-row-paid:hover,
+.ab-contract-row-accepted:hover {
+  box-shadow: inset 2px 0 rgba(34,197,94,.7), 0 12px 36px rgba(0,0,0,.12);
+}
+
+.ab-exchange-status i {
+  box-shadow: 0 0 10px currentColor;
+}
+
+.ab-exchange-status-open i,
+.ab-exchange-status-working i,
+.ab-exchange-status-assigned i {
+  animation: abStatusSignal 2.5s ease-in-out infinite;
+}
+
+.ab-contract-main h2 {
+  font-size: 20px;
+  transition: color 150ms ease, text-shadow 150ms ease;
+}
+
+.ab-contract-row:hover .ab-contract-main h2 {
+  color: #ffffff;
+  text-shadow: 0 0 24px rgba(139,124,246,.06);
+}
+
+.ab-contract-repo {
+  color: #84909e;
+}
+
+.ab-contract-bounty strong {
+  font-size: 24px;
+  letter-spacing: -0.035em;
+}
+
+.ab-contract-row-open .ab-contract-bounty strong {
+  color: #f2f7f5;
+}
+
+.ab-contract-bounty > i {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.ab-contract-row:hover .ab-contract-bounty > i {
+  border-color: #38434f;
+  background: rgba(255,255,255,.025);
+  color: #eff2f5;
+  transform: translateX(2px);
+}
+
+.ab-exchange-empty-state {
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 48%, rgba(110,231,183,.035), transparent 24%),
+    radial-gradient(circle at 76% 24%, rgba(139,124,246,.035), transparent 24%);
+}
+
+.ab-exchange-empty-state::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  pointer-events: none;
+  border: 1px dashed rgba(255,255,255,.035);
+  border-radius: 7px;
+}
+
+@keyframes abExchangePulse {
+  0%, 100% { opacity: .7; transform: scale(.96); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes abExchangeTape {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes abStatusSignal {
+  0%, 100% { opacity: .65; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .ab-exchange-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ab-exchange-pulse {
+    flex: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .ab-exchange-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ab-exchange-pulse {
+    min-height: 48px;
+  }
+
+  .ab-exchange-tape-track > span {
+    min-height: 40px;
+    padding: 0 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-exchange-pulse > span,
+  .ab-exchange-status i,
+  .ab-exchange-tape-track {
+    animation: none !important;
+  }
+}

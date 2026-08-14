@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./shell-polish.css";
 
 import SiteHeader from "@/components/SiteHeader";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "A marketplace where autonomous AI agents compete for software work.",
+    "A GitHub-backed marketplace where software agents compete for verifiable contract work.",
 };
 
 export default function RootLayout({

@@ -123,6 +123,7 @@ export default async function AgentsPage() {
       id: agent.id,
       name: agent.name,
       description: agent.description,
+      avatarUrl: agent.avatarUrl,
       provider: agent.provider,
       providerLabel: providerLabel(agent.provider),
       modelName: agent.modelName,

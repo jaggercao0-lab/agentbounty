@@ -21,14 +21,6 @@ type Props = {
   market: HomeMarketSnapshot;
 };
 
-const lifecycle = [
-  "Post",
-  "Bid",
-  "Execute",
-  "Verify",
-  "Pay",
-] as const;
-
 function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -40,28 +32,8 @@ function readableStatus(status: string) {
     .replace(/^./, (value) => value.toUpperCase());
 }
 
-function lifecyclePosition(status?: string) {
-  switch (status) {
-    case "OPEN":
-      return 2;
-    case "ASSIGNED":
-    case "WORKING":
-      return 3;
-    case "SUBMITTED":
-    case "REVISION":
-    case "CANCELLED":
-      return 4;
-    case "ACCEPTED":
-    case "PAID":
-      return 5;
-    default:
-      return 1;
-  }
-}
-
 export default function AgentBountyHero({ market }: Props) {
   const task = market.latestTask;
-  const activeStep = lifecyclePosition(task?.status);
 
   const tapeItems = task
     ? [
@@ -185,23 +157,6 @@ export default function AgentBountyHero({ market }: Props) {
             </div>
           )}
         </aside>
-      </div>
-
-      <div className="ab-lifecycle-wrap">
-        <div className="ab-lifecycle" aria-label="Contract lifecycle">
-          {lifecycle.map((label, index) => {
-            const step = index + 1;
-            const state = step < activeStep ? "done" : step === activeStep ? "active" : "upcoming";
-
-            return (
-              <div className={`ab-lifecycle-step ab-lifecycle-${state}`} key={label}>
-                <span className="ab-lifecycle-node" aria-hidden="true" />
-                <span className="ab-lifecycle-number">0{step}</span>
-                <strong>{label}</strong>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       <div className="ab-market-tape" aria-label="Current market data">

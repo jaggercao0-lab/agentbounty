@@ -1,0 +1,565 @@
+.ab-nav {
+  background: rgba(11, 13, 16, 0.96);
+  border-bottom: 1px solid #222831;
+  backdrop-filter: blur(10px);
+}
+
+.ab-nav-inner {
+  max-width: 1440px;
+}
+
+.ab-nav-brand {
+  gap: 10px;
+}
+
+.ab-nav-brand > strong {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ab-nav-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid #303743;
+  background: #12161b;
+  color: #e9edf2;
+  box-shadow: none;
+}
+
+.ab-nav-logo::before {
+  display: none !important;
+}
+
+.ab-nav-links {
+  gap: 26px;
+}
+
+.ab-nav-links a,
+.ab-nav-signin,
+.ab-account-signout {
+  color: #9da6b3;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ab-nav-links a:hover,
+.ab-nav-signin:hover,
+.ab-account-signout:hover {
+  color: #f3f4f6;
+}
+
+.ab-account-copy strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ab-account-copy span,
+.ab-nav-network {
+  display: none !important;
+}
+
+.ab-home-hero {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  min-height: auto;
+  overflow: hidden;
+  background: #0b0d10;
+  border-bottom: 1px solid #1f252d;
+}
+
+.ab-home-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,.55) 65%, transparent 100%);
+}
+
+.ab-home-purple-glow,
+.ab-home-green-glow,
+.ab-home-ticker,
+.ab-home-online,
+.ab-terminal-live,
+.ab-terminal-divider,
+.ab-terminal-message {
+  display: none !important;
+}
+
+.ab-home-inner {
+  position: relative;
+  z-index: 1;
+  width: min(100% - 48px, 1440px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(430px, 0.95fr);
+  gap: clamp(56px, 7vw, 112px);
+  align-items: center;
+  padding: clamp(72px, 8vw, 118px) 0 56px;
+}
+
+.ab-home-copy {
+  max-width: 760px;
+}
+
+.ab-home-kicker {
+  margin: 0 0 18px;
+  color: #8d96a3;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.ab-home-heading {
+  max-width: 720px;
+  margin: 0;
+  color: #f3f4f6;
+  font-size: clamp(48px, 5vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+  font-weight: 650;
+}
+
+.ab-home-gradient {
+  color: inherit !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.ab-home-description {
+  max-width: 650px;
+  margin: 28px 0 0;
+  color: #a5aeb9;
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.ab-home-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.ab-home-primary,
+.ab-home-secondary {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.ab-home-primary {
+  background: #f3f4f6;
+  color: #0b0d10;
+  border: 1px solid #f3f4f6;
+  box-shadow: none;
+}
+
+.ab-home-primary:hover {
+  background: #dfe3e8;
+  border-color: #dfe3e8;
+}
+
+.ab-home-secondary {
+  background: transparent;
+  color: #c1c7d0;
+  border: 1px solid #303743;
+}
+
+.ab-home-secondary:hover {
+  color: #f3f4f6;
+  border-color: #4a5563;
+  background: #11151a;
+}
+
+.ab-home-flow {
+  list-style: none;
+  margin: 50px 0 0;
+  padding: 22px 0 0;
+  border-top: 1px solid #242a32;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.ab-home-flow li {
+  display: grid;
+  gap: 7px;
+}
+
+.ab-home-flow strong {
+  color: #697382;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ab-home-flow span {
+  color: #b5bdc7;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ab-home-flow i {
+  display: none !important;
+}
+
+.ab-home-terminal {
+  border: 1px solid #29303a;
+  border-radius: 10px;
+  background: #101318;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.ab-terminal-head {
+  min-height: 70px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #252c35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ab-terminal-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.ab-terminal-head strong {
+  color: #edf0f4;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ab-terminal-head small {
+  color: #737d8a;
+  font-size: 12px;
+}
+
+.ab-terminal-head > a {
+  color: #aab3bf;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ab-terminal-head > a:hover {
+  color: #f3f4f6;
+}
+
+.ab-market-contract {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid #252c35;
+  transition: background 150ms ease;
+}
+
+.ab-market-contract:hover {
+  background: #14181e;
+}
+
+.ab-market-contract > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.ab-market-contract span:first-child {
+  color: #7f8996;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ab-market-contract strong {
+  color: #edf0f4;
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-market-contract small {
+  color: #727c89;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-market-contract-arrow {
+  flex: none;
+  color: #727c89;
+  font-size: 16px;
+}
+
+.ab-market-snapshot-list {
+  margin: 0;
+  padding: 6px 20px 10px;
+}
+
+.ab-market-snapshot-list > div {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid #20262e;
+}
+
+.ab-market-snapshot-list > div:last-child {
+  border-bottom: 0;
+}
+
+.ab-market-snapshot-list dt {
+  color: #858f9c;
+  font-size: 13px;
+}
+
+.ab-market-snapshot-list dd {
+  margin: 0;
+  max-width: 60%;
+  color: #dce1e7;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-market-money {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px !important;
+  color: #f3f4f6 !important;
+}
+
+.ab-market-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: 1px solid #343c47;
+  background: #171b21;
+  color: #c1c8d1;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ab-market-status-paid,
+.ab-market-status-accepted {
+  border-color: rgba(34,197,94,.28);
+  background: rgba(34,197,94,.08);
+  color: #77d996;
+}
+
+.ab-market-status-submitted,
+.ab-market-status-revision {
+  border-color: rgba(245,158,11,.3);
+  background: rgba(245,158,11,.07);
+  color: #e6b45d;
+}
+
+.ab-market-status-cancelled {
+  border-color: rgba(239,68,68,.3);
+  background: rgba(239,68,68,.07);
+  color: #ef8c8c;
+}
+
+.ab-live-empty {
+  padding: 36px 20px;
+}
+
+.ab-live-empty strong {
+  display: block;
+  color: #edf0f4;
+  font-size: 15px;
+}
+
+.ab-live-empty p {
+  margin: 8px 0 18px;
+  color: #7f8996;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ab-live-empty a {
+  color: #d7dce2;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ab-home-features {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  background: #0b0d10;
+}
+
+.ab-home-features-inner {
+  width: min(100% - 48px, 1440px);
+  margin: 0 auto;
+  padding: 72px 0 96px;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(48px, 8vw, 120px);
+  border-top: 1px solid #1f252d;
+}
+
+.ab-home-features-intro p {
+  margin: 0 0 12px;
+  color: #7f8996;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ab-home-features-intro h2 {
+  max-width: 430px;
+  margin: 0;
+  color: #eef1f4;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+
+.ab-home-feature-list {
+  border-top: 1px solid #29303a;
+}
+
+.ab-feature-card,
+.ab-feature-card.ab-feature-highlight {
+  min-height: 0;
+  margin: 0;
+  padding: 22px 0;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 18px;
+  border: 0;
+  border-bottom: 1px solid #252c35;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ab-feature-index {
+  position: static;
+  color: #606a77;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ab-feature-icon,
+.ab-feature-card small {
+  display: none !important;
+}
+
+.ab-feature-card h2,
+.ab-feature-card h3 {
+  margin: 0;
+  color: #e8ecf1;
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.ab-feature-card p {
+  max-width: 680px;
+  margin: 7px 0 0;
+  color: #89939f;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+@media (max-width: 980px) {
+  .ab-home-inner {
+    grid-template-columns: 1fr;
+    gap: 52px;
+  }
+
+  .ab-home-terminal {
+    max-width: 720px;
+  }
+
+  .ab-home-features-inner {
+    grid-template-columns: 1fr;
+    gap: 38px;
+  }
+}
+
+@media (max-width: 700px) {
+  .ab-home-inner,
+  .ab-home-features-inner {
+    width: min(100% - 32px, 1440px);
+  }
+
+  .ab-home-inner {
+    padding-top: 56px;
+  }
+
+  .ab-home-heading {
+    font-size: clamp(42px, 13vw, 54px);
+  }
+
+  .ab-home-description {
+    font-size: 16px;
+  }
+
+  .ab-home-buttons {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ab-home-primary,
+  .ab-home-secondary {
+    width: 100%;
+  }
+
+  .ab-home-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 20px;
+  }
+
+  .ab-terminal-head {
+    align-items: flex-start;
+  }
+
+  .ab-terminal-head > a {
+    display: none;
+  }
+
+  .ab-home-features-inner {
+    padding: 56px 0 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-home-primary,
+  .ab-home-secondary,
+  .ab-market-contract {
+    transition: none;
+  }
+}

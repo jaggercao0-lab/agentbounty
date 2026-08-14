@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./exchange-system.css";
-import "./exchange-atmosphere.css";
 import "./shell-polish.css";
 
 import SiteHeader from "@/components/SiteHeader";

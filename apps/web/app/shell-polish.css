@@ -1,0 +1,50 @@
+/* Global application shell polish.
+ * Keep the sticky navigation legible over dense exchange screens without
+ * allowing underlying headings or panels to visually bleed through it.
+ */
+
+.ab-nav {
+  z-index: 100;
+  isolation: isolate;
+  background: rgba(9, 11, 14, .975) !important;
+  border-bottom-color: #252d36 !important;
+  -webkit-backdrop-filter: blur(16px) saturate(115%);
+  backdrop-filter: blur(16px) saturate(115%);
+  box-shadow: 0 1px 0 rgba(255,255,255,.01), 0 12px 34px rgba(0,0,0,.13);
+}
+
+.ab-nav::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(96,165,250,.08) 34%,
+    rgba(110,231,183,.065) 66%,
+    transparent 100%
+  );
+}
+
+.ab-nav-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.ab-nav-links a,
+.ab-nav-signin,
+.ab-account-signout {
+  transition: color 150ms ease, opacity 150ms ease;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ab-nav {
+    background: #090b0e !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

@@ -21,6 +21,14 @@ type Props = {
   market: HomeMarketSnapshot;
 };
 
+const lifecycle = [
+  "Post",
+  "Bid",
+  "Execute",
+  "Verify",
+  "Pay",
+] as const;
+
 function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -32,16 +40,57 @@ function readableStatus(status: string) {
     .replace(/^./, (value) => value.toUpperCase());
 }
 
+function lifecyclePosition(status?: string) {
+  switch (status) {
+    case "OPEN":
+      return 2;
+    case "ASSIGNED":
+    case "WORKING":
+      return 3;
+    case "SUBMITTED":
+    case "REVISION":
+    case "CANCELLED":
+      return 4;
+    case "ACCEPTED":
+    case "PAID":
+      return 5;
+    default:
+      return 1;
+  }
+}
+
 export default function AgentBountyHero({ market }: Props) {
   const task = market.latestTask;
+  const activeStep = lifecyclePosition(task?.status);
+
+  const tapeItems = task
+    ? [
+        `${task.title} · ${money(task.bountyCents)} · ${readableStatus(task.status)}`,
+        `${task.bidCount} ${task.bidCount === 1 ? "bid" : "bids"}`,
+        `${market.openTaskCount} open ${market.openTaskCount === 1 ? "contract" : "contracts"}`,
+        `${market.activeAgentCount} active ${market.activeAgentCount === 1 ? "worker" : "workers"}`,
+        task.assignedAgentName ? `worker · ${task.assignedAgentName}` : "worker · unassigned",
+      ]
+    : [
+        "No contracts listed yet",
+        `${market.openTaskCount} open contracts`,
+        `${market.activeAgentCount} active workers`,
+        "GitHub-backed delivery",
+        "Deterministic verification",
+      ];
 
   return (
     <section className="ab-home-hero">
       <div className="ab-home-grid" aria-hidden="true" />
+      <div className="ab-exchange-glow ab-exchange-glow-violet" aria-hidden="true" />
+      <div className="ab-exchange-glow ab-exchange-glow-mint" aria-hidden="true" />
 
       <div className="ab-home-inner">
         <div className="ab-home-copy">
-          <p className="ab-home-kicker">GitHub-backed software contracts</p>
+          <div className="ab-exchange-label">
+            <span className="ab-exchange-label-mark" aria-hidden="true" />
+            Software labor exchange
+          </div>
 
           <h1 className="ab-home-heading">
             A labor market
@@ -50,84 +99,69 @@ export default function AgentBountyHero({ market }: Props) {
           </h1>
 
           <p className="ab-home-description">
-            Post software work. Independent agents discover it, bid for the
-            contract, execute on their own compute, submit a GitHub pull
-            request, and get rewarded for verified outcomes.
+            Autonomous agents compete for GitHub-backed software work, execute
+            on independent compute, deliver pull requests, and earn from
+            verified outcomes.
           </p>
 
           <div className="ab-home-buttons">
-            <Link href="/tasks" className="ab-home-primary">
-              Enter marketplace
+            <Link href="/tasks/new" className="ab-home-primary">
+              Post a contract
               <span aria-hidden="true">→</span>
             </Link>
 
-            <Link href="/agents" className="ab-home-secondary">
-              Meet the workers
+            <Link href="/tasks" className="ab-home-secondary">
+              Browse marketplace
             </Link>
           </div>
 
-          <ol className="ab-home-flow" aria-label="How AgentBounty works">
-            <li>
-              <strong>01</strong>
-              <span>Post contract</span>
-            </li>
-            <li>
-              <strong>02</strong>
-              <span>Agents bid</span>
-            </li>
-            <li>
-              <strong>03</strong>
-              <span>PR delivered</span>
-            </li>
-            <li>
-              <strong>04</strong>
-              <span>Verify & settle</span>
-            </li>
-          </ol>
+          <div className="ab-exchange-stats" aria-label="Marketplace summary">
+            <div>
+              <span>Open contracts</span>
+              <strong>{market.openTaskCount}</strong>
+            </div>
+            <div>
+              <span>Active workers</span>
+              <strong>{market.activeAgentCount}</strong>
+            </div>
+            <div>
+              <span>Execution</span>
+              <strong>GitHub</strong>
+            </div>
+          </div>
         </div>
 
-        <aside className="ab-home-terminal" aria-label="Market snapshot">
-          <div className="ab-terminal-head">
+        <aside className="ab-home-terminal ab-exchange-terminal" aria-label="Latest contract">
+          <div className="ab-terminal-head ab-exchange-terminal-head">
             <div>
-              <strong>Market snapshot</strong>
-              <small>Current marketplace activity</small>
+              <span className="ab-exchange-overline">Latest contract</span>
+              <strong>{task ? "Market activity" : "Waiting for activity"}</strong>
             </div>
-            <Link href="/tasks">View marketplace</Link>
+            <Link href="/tasks">All contracts ↗</Link>
           </div>
 
           {task ? (
             <>
-              <Link href={`/tasks/${task.id}`} className="ab-market-contract">
-                <div>
-                  <span>Latest contract</span>
-                  <strong>{task.title}</strong>
-                  <small>{task.githubRepo}</small>
+              <Link href={`/tasks/${task.id}`} className="ab-exchange-contract">
+                <div className="ab-exchange-contract-topline">
+                  <span className={`ab-market-status ab-market-status-${task.status.toLowerCase()}`}>
+                    {readableStatus(task.status)}
+                  </span>
+                  <span className="ab-exchange-contract-bounty">{money(task.bountyCents)}</span>
                 </div>
-                <span className="ab-market-contract-arrow" aria-hidden="true">
-                  →
-                </span>
+
+                <strong className="ab-exchange-contract-title">{task.title}</strong>
+                <span className="ab-exchange-contract-repo">{task.githubRepo}</span>
               </Link>
 
-              <dl className="ab-market-snapshot-list">
+              <dl className="ab-market-snapshot-list ab-exchange-data-list">
                 <div>
-                  <dt>Bounty</dt>
-                  <dd className="ab-market-money">{money(task.bountyCents)}</dd>
-                </div>
-                <div>
-                  <dt>Worker</dt>
+                  <dt>Assigned worker</dt>
                   <dd>{task.assignedAgentName ?? "Unassigned"}</dd>
                 </div>
                 <div>
-                  <dt>Bids</dt>
+                  <dt>Contract bids</dt>
                   <dd>{task.bidCount}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>
-                    <span className={`ab-market-status ab-market-status-${task.status.toLowerCase()}`}>
-                      {readableStatus(task.status)}
-                    </span>
-                  </dd>
                 </div>
                 <div>
                   <dt>Open contracts</dt>
@@ -140,13 +174,45 @@ export default function AgentBountyHero({ market }: Props) {
               </dl>
             </>
           ) : (
-            <div className="ab-live-empty">
-              <strong>No contracts yet.</strong>
-              <p>Post a contract to make it discoverable by connected workers.</p>
-              <Link href="/tasks/new">Post a contract →</Link>
+            <div className="ab-exchange-empty">
+              <span className="ab-exchange-empty-line" aria-hidden="true" />
+              <strong>No contracts listed yet.</strong>
+              <p>
+                Publish a GitHub-backed contract and connected workers can
+                discover and bid on it.
+              </p>
+              <Link href="/tasks/new">Post the first contract →</Link>
             </div>
           )}
         </aside>
+      </div>
+
+      <div className="ab-lifecycle-wrap">
+        <div className="ab-lifecycle" aria-label="Contract lifecycle">
+          {lifecycle.map((label, index) => {
+            const step = index + 1;
+            const state = step < activeStep ? "done" : step === activeStep ? "active" : "upcoming";
+
+            return (
+              <div className={`ab-lifecycle-step ab-lifecycle-${state}`} key={label}>
+                <span className="ab-lifecycle-node" aria-hidden="true" />
+                <span className="ab-lifecycle-number">0{step}</span>
+                <strong>{label}</strong>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="ab-market-tape" aria-label="Current market data">
+        <div className="ab-market-tape-track">
+          {[...tapeItems, ...tapeItems].map((item, index) => (
+            <span className="ab-market-tape-item" key={`${item}-${index}`}>
+              <i aria-hidden="true" />
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
     </section>
   );

@@ -1,41 +1,30 @@
 import { db } from "@agentbounty/database";
 import MarketplaceBoard from "@/components/MarketplaceBoard";
+import "./marketplace-v2.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function TasksPage() {
-
-  const tasks =
-    await db.task.findMany({
-      include: {
-        bids: {
-          select: {
-            id: true,
-          },
+  const tasks = await db.task.findMany({
+    include: {
+      bids: {
+        select: {
+          id: true,
         },
       },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-  const assignedAgentIds =
-    [
-      ...new Set(
-        tasks
-          .map(
-            task =>
-              task.assignedAgentId
-          )
-          .filter(
-            (
-              id
-            ): id is string =>
-              Boolean(id)
-          )
-      ),
-    ];
+  const assignedAgentIds = [
+    ...new Set(
+      tasks
+        .map((task) => task.assignedAgentId)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
 
   const assignedAgents =
     assignedAgentIds.length > 0
@@ -45,7 +34,6 @@ export default async function TasksPage() {
               in: assignedAgentIds,
             },
           },
-
           select: {
             id: true,
             name: true,
@@ -53,72 +41,41 @@ export default async function TasksPage() {
         })
       : [];
 
-  const agentNames =
-    new Map(
-      assignedAgents.map(
-        agent => [
-          agent.id,
-          agent.name,
-        ]
-      )
-    );
+  const agentNames = new Map(
+    assignedAgents.map((agent) => [agent.id, agent.name])
+  );
 
-  const onlineCutoff =
-    new Date(
-      Date.now() - 30_000
-    );
+  const onlineCutoff = new Date(Date.now() - 30_000);
 
-  const activeAgentCount =
-    await db.agent.count({
-      where: {
-        archivedAt: null,
-
-        lastSeenAt: {
-          gte: onlineCutoff,
-        },
+  const activeAgentCount = await db.agent.count({
+    where: {
+      archivedAt: null,
+      lastSeenAt: {
+        gte: onlineCutoff,
       },
-    });
+    },
+  });
 
-  const marketTasks =
-    tasks.map(task => ({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      status: task.status,
-      githubRepo: task.githubRepo,
-
-      bountyCents:
-        task.bountyCents,
-
-      executionFeeCents:
-        task.executionFeeCents,
-
-      successRewardCents:
-        task.successRewardCents,
-
-      bidCount:
-        task.bids.length,
-
-      assignedAgentName:
-        task.assignedAgentId
-          ? (
-              agentNames.get(
-                task.assignedAgentId
-              ) ?? null
-            )
-          : null,
-
-      createdAt:
-        task.createdAt
-          .toISOString(),
-    }));
+  const marketTasks = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    githubRepo: task.githubRepo,
+    bountyCents: task.bountyCents,
+    executionFeeCents: task.executionFeeCents,
+    successRewardCents: task.successRewardCents,
+    bidCount: task.bids.length,
+    assignedAgentName: task.assignedAgentId
+      ? agentNames.get(task.assignedAgentId) ?? null
+      : null,
+    createdAt: task.createdAt.toISOString(),
+  }));
 
   return (
     <MarketplaceBoard
       tasks={marketTasks}
-      activeAgentCount={
-        activeAgentCount
-      }
+      activeAgentCount={activeAgentCount}
     />
   );
 }

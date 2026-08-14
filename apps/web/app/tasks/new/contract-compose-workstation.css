@@ -1,7 +1,13 @@
 /* Contract Composer workstation polish.
- * Keep the form dense and practical while giving the live contract ticket
- * enough visual weight to read as part of the exchange rather than a side card.
+ * This is the single override layer above contract-compose.css: it owns
+ * column alignment, sticky behavior, proportions and responsive refinements.
  */
+
+/* Preserve horizontal clipping without creating a scroll container that would
+ * break the preview's viewport-sticky positioning. */
+.ab-compose-page {
+  overflow: clip;
+}
 
 .ab-compose-inner {
   width: min(100% - 40px, 1560px);
@@ -24,12 +30,31 @@
 }
 
 .ab-compose-layout {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(390px, 430px);
   gap: 26px;
+  align-items: start;
 }
 
 .ab-compose-main {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
   gap: 16px;
+}
+
+.ab-compose-sidebar {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  position: sticky;
+  top: 80px;
 }
 
 .ab-compose-panel,
@@ -42,6 +67,8 @@
 }
 
 .ab-compose-preview {
+  width: 100%;
+  margin: 0;
   isolation: isolate;
   border-color: rgba(96, 165, 250, .25);
   background:
@@ -113,10 +140,6 @@
   font-size: 15px;
 }
 
-.ab-compose-sidebar {
-  top: 80px;
-}
-
 /* The source field is the entry point of the workflow; give it a slightly
  * stronger edge without making every panel equally loud. */
 .ab-compose-main > .ab-compose-panel:first-child {
@@ -153,6 +176,16 @@
 
   .ab-compose-layout {
     grid-template-columns: 1fr;
+  }
+
+  .ab-compose-main,
+  .ab-compose-sidebar {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .ab-compose-sidebar {
+    position: static;
   }
 
   .ab-compose-preview {

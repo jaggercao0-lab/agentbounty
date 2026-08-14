@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 export type RosterAgent = {
   id: string;
@@ -13,12 +17,37 @@ export type RosterAgent = {
   minimumJobCents: number;
   maxConcurrentJobs: number;
   completedJobs: number;
-  reputation: number;
+
+  reliabilityScore:
+    | number
+    | null;
+
+  successRate:
+    | number
+    | null;
+
+  firstPassSuccessRate:
+    | number
+    | null;
+
+  revisionRate:
+    | number
+    | null;
+
+  trackedJobs: number;
+
   totalEarningsCents: number;
   online: boolean;
   isOwner: boolean;
   skills: string[];
 };
+
+type SortMode =
+  | "recommended"
+  | "reliability"
+  | "experience"
+  | "cheapest"
+  | "earnings";
 
 type Props = {
   agents: RosterAgent[];
@@ -29,10 +58,150 @@ function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function rate(
+  value:
+    | number
+    | null
+) {
+  return value === null
+    ? "—"
+    : `${Math.round(value)}%`;
+}
+
+function reliabilityLabel(
+  value:
+    | number
+    | null
+) {
+  if (value === null) {
+    return "UNPROVEN";
+  }
+
+  if (value >= 90) {
+    return "ELITE";
+  }
+
+  if (value >= 80) {
+    return "STRONG";
+  }
+
+  if (value >= 70) {
+    return "ESTABLISHED";
+  }
+
+  return "DEVELOPING";
+}
+
 export default function AgentRoster({
   agents,
   signedIn,
 }: Props) {
+  const [
+    sortMode,
+    setSortMode,
+  ] =
+    useState<SortMode>(
+      "recommended"
+    );
+
+  const sortedAgents =
+    useMemo(() => {
+      const result =
+        [...agents];
+
+      result.sort(
+        (
+          a,
+          b
+        ) => {
+          if (
+            sortMode ===
+            "reliability"
+          ) {
+            return (
+              (
+                b.reliabilityScore ??
+                -1
+              ) -
+              (
+                a.reliabilityScore ??
+                -1
+              )
+            );
+          }
+
+          if (
+            sortMode ===
+            "experience"
+          ) {
+            return (
+              b.completedJobs -
+              a.completedJobs
+            );
+          }
+
+          if (
+            sortMode ===
+            "cheapest"
+          ) {
+            return (
+              a.minimumJobCents -
+              b.minimumJobCents
+            );
+          }
+
+          if (
+            sortMode ===
+            "earnings"
+          ) {
+            return (
+              b.totalEarningsCents -
+              a.totalEarningsCents
+            );
+          }
+
+          // Recommended:
+          // online first, then verified reliability,
+          // then experience.
+          const onlineDifference =
+            Number(b.online) -
+            Number(a.online);
+
+          if (
+            onlineDifference !== 0
+          ) {
+            return onlineDifference;
+          }
+
+          const reliabilityDifference =
+            (
+              b.reliabilityScore ??
+              -1
+            ) -
+            (
+              a.reliabilityScore ??
+              -1
+            );
+
+          if (
+            reliabilityDifference !== 0
+          ) {
+            return reliabilityDifference;
+          }
+
+          return (
+            b.completedJobs -
+            a.completedJobs
+          );
+        }
+      );
+
+      return result;
+    }, [
+      agents,
+      sortMode,
+    ]);
+
   const onlineCount =
     agents.filter(
       agent => agent.online
@@ -197,11 +366,61 @@ export default function AgentRoster({
             WORKER SIGNALS
           </div>
 
-          <span>
-            {agents.length}
-            {" "}
-            registered
-          </span>
+          <div className="ab-agents-sort">
+
+            <span>
+              SORT
+            </span>
+
+            {[
+              [
+                "recommended",
+                "Recommended",
+              ],
+              [
+                "reliability",
+                "Reliability",
+              ],
+              [
+                "experience",
+                "Experience",
+              ],
+              [
+                "cheapest",
+                "Cheapest",
+              ],
+              [
+                "earnings",
+                "Earnings",
+              ],
+            ].map(
+              (
+                [
+                  value,
+                  label,
+                ]
+              ) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setSortMode(
+                      value as SortMode
+                    )
+                  }
+                  className={
+                    sortMode ===
+                    value
+                      ? "ab-agents-sort-active"
+                      : ""
+                  }
+                >
+                  {label}
+                </button>
+              )
+            )}
+
+          </div>
 
         </div>
 
@@ -248,7 +467,7 @@ export default function AgentRoster({
               },
             }}
           >
-            {agents.map(
+            {sortedAgents.map(
               (agent, index) => (
                 <motion.div
                   key={agent.id}
@@ -384,6 +603,61 @@ export default function AgentRoster({
                       )}
                     </div>
 
+                    <div className="ab-agent-reliability">
+
+                      <div className="ab-agent-reliability-score">
+
+                        <span>
+                          RELIABILITY
+                        </span>
+
+                        <strong>
+                          {agent.reliabilityScore ===
+                          null
+                            ? "NEW"
+                            : agent.reliabilityScore}
+                        </strong>
+
+                        <small>
+                          / 100
+                        </small>
+
+                      </div>
+
+                      <div className="ab-agent-reliability-copy">
+
+                        <div>
+                          <strong>
+                            {reliabilityLabel(
+                              agent.reliabilityScore
+                            )}
+                          </strong>
+
+                          <span>
+                            {agent.trackedJobs}
+                            {" "}
+                            TRACKED
+                          </span>
+                        </div>
+
+                        <p>
+                          {rate(
+                            agent.successRate
+                          )}
+                          {" "}
+                          success
+                          {" · "}
+                          {rate(
+                            agent.firstPassSuccessRate
+                          )}
+                          {" "}
+                          first-pass
+                        </p>
+
+                      </div>
+
+                    </div>
+
                     <div className="ab-agent-metrics">
 
                       <div>
@@ -398,11 +672,13 @@ export default function AgentRoster({
 
                       <div>
                         <span>
-                          REPUTATION
+                          SUCCESS
                         </span>
 
                         <strong>
-                          {agent.reputation.toFixed(1)}
+                          {rate(
+                            agent.successRate
+                          )}
                         </strong>
                       </div>
 

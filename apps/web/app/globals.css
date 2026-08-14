@@ -10955,3 +10955,546 @@ span {
       normal;
   }
 }
+
+
+/* =========================================================
+   AGENT REPUTATION TELEMETRY
+   ========================================================= */
+
+.ab-reputation-panel {
+  overflow: hidden;
+
+  border-color:
+    rgba(157,138,255,.14);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(157,138,255,.025),
+      rgba(255,255,255,.008)
+    );
+}
+
+.ab-reputation-sample {
+  color:
+    rgba(255,255,255,.25);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+  letter-spacing: .09em;
+}
+
+.ab-reputation-score-row {
+  display: grid;
+
+  grid-template-columns:
+    135px minmax(0,1fr);
+
+  gap: 18px;
+
+  padding:
+    22px;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.045);
+}
+
+.ab-reputation-score {
+  min-height: 118px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  border:
+    1px solid
+    rgba(157,138,255,.14);
+
+  border-radius: 13px;
+
+  background:
+    radial-gradient(
+      circle at 50% 20%,
+      rgba(157,138,255,.09),
+      rgba(255,255,255,.012)
+    );
+}
+
+.ab-reputation-score > span {
+  color:
+    rgba(157,138,255,.72);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.ab-reputation-score > strong {
+  margin-top: 7px;
+
+  color:
+    rgba(255,255,255,.93);
+
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 720;
+}
+
+.ab-reputation-score > small {
+  margin-top: 4px;
+
+  color:
+    rgba(255,255,255,.21);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+}
+
+.ab-reputation-score-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ab-reputation-score-copy > strong {
+  color:
+    rgba(255,255,255,.74);
+
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ab-reputation-score-copy > p {
+  max-width: 520px;
+
+  margin:
+    7px 0 0;
+
+  color:
+    rgba(255,255,255,.28);
+
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.ab-reputation-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  padding:
+    0 22px 22px;
+}
+
+.ab-reputation-grid > div {
+  min-height: 92px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  padding:
+    16px;
+
+  border-right:
+    1px solid
+    rgba(255,255,255,.045);
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.045);
+}
+
+.ab-reputation-grid > div:nth-child(3n) {
+  border-right: 0;
+}
+
+.ab-reputation-grid > div:nth-last-child(-n+3) {
+  border-bottom: 0;
+}
+
+.ab-reputation-grid span {
+  color:
+    rgba(255,255,255,.22);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+  letter-spacing: .1em;
+}
+
+.ab-reputation-grid strong {
+  margin-top: 7px;
+
+  color:
+    rgba(255,255,255,.75);
+
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.ab-reputation-grid small {
+  margin-top: 4px;
+
+  color:
+    rgba(255,255,255,.18);
+
+  font-size: 7px;
+}
+
+@media (max-width: 700px) {
+  .ab-reputation-score-row {
+    grid-template-columns:
+      1fr;
+  }
+
+  .ab-reputation-grid {
+    grid-template-columns:
+      repeat(2,1fr);
+  }
+
+  .ab-reputation-grid > div:nth-child(3n) {
+    border-right:
+      1px solid
+      rgba(255,255,255,.045);
+  }
+
+  .ab-reputation-grid > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .ab-reputation-grid > div:nth-last-child(-n+3) {
+    border-bottom:
+      1px solid
+      rgba(255,255,255,.045);
+  }
+
+  .ab-reputation-grid > div:nth-last-child(-n+2) {
+    border-bottom: 0;
+  }
+}
+
+
+/* =========================================================
+   AGENT ROSTER — REPUTATION
+   ========================================================= */
+
+.ab-agent-reliability {
+  display: grid;
+
+  grid-template-columns:
+    92px minmax(0,1fr);
+
+  gap: 14px;
+
+  margin-top: 18px;
+
+  padding:
+    12px;
+
+  border:
+    1px solid
+    rgba(157,138,255,.10);
+
+  border-radius:
+    10px;
+
+  background:
+    linear-gradient(
+      110deg,
+      rgba(157,138,255,.045),
+      rgba(255,255,255,.012)
+    );
+}
+
+.ab-agent-reliability-score {
+  display: grid;
+
+  grid-template-columns:
+    auto auto;
+
+  align-items:
+    end;
+
+  align-content:
+    center;
+
+  column-gap: 3px;
+
+  min-height:
+    54px;
+
+  padding-right:
+    12px;
+
+  border-right:
+    1px solid
+    rgba(255,255,255,.055);
+}
+
+.ab-agent-reliability-score > span {
+  grid-column:
+    1 / -1;
+
+  margin-bottom:
+    3px;
+
+  color:
+    rgba(157,138,255,.65);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    5px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    .12em;
+}
+
+.ab-agent-reliability-score > strong {
+  color:
+    rgba(255,255,255,.88);
+
+  font-size:
+    25px;
+
+  line-height:
+    .9;
+
+  font-weight:
+    720;
+}
+
+.ab-agent-reliability-score > small {
+  padding-bottom:
+    2px;
+
+  color:
+    rgba(255,255,255,.17);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    5px;
+}
+
+.ab-agent-reliability-copy {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ab-agent-reliability-copy > div {
+  display: flex;
+
+  align-items: center;
+
+  justify-content:
+    space-between;
+
+  gap: 10px;
+}
+
+.ab-agent-reliability-copy strong {
+  color:
+    rgba(255,255,255,.62);
+
+  font-size:
+    9px;
+
+  font-weight:
+    700;
+}
+
+.ab-agent-reliability-copy span {
+  color:
+    rgba(255,255,255,.19);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    5px;
+
+  letter-spacing:
+    .08em;
+}
+
+.ab-agent-reliability-copy p {
+  margin:
+    5px 0 0;
+
+  color:
+    rgba(255,255,255,.28);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size:
+    6px;
+}
+
+@media (
+  max-width: 520px
+) {
+  .ab-agent-reliability {
+    grid-template-columns:
+      1fr;
+  }
+
+  .ab-agent-reliability-score {
+    border-right:
+      0;
+
+    border-bottom:
+      1px solid
+      rgba(255,255,255,.055);
+
+    padding:
+      0 0 10px;
+  }
+}
+
+
+/* =========================================================
+   AGENT DIRECTORY SORTING
+   ========================================================= */
+
+.ab-agents-sort {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ab-agents-sort > span {
+  margin-right: 5px;
+
+  color:
+    rgba(255,255,255,.17);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+  letter-spacing: .12em;
+}
+
+.ab-agents-sort button {
+  min-height: 28px;
+
+  padding:
+    0 9px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.055);
+
+  border-radius: 6px;
+
+  background:
+    rgba(255,255,255,.018);
+
+  color:
+    rgba(255,255,255,.27);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+
+  cursor: pointer;
+
+  transition:
+    color .15s ease,
+    background .15s ease,
+    border-color .15s ease;
+}
+
+.ab-agents-sort button:hover {
+  color:
+    rgba(255,255,255,.60);
+
+  border-color:
+    rgba(255,255,255,.10);
+}
+
+.ab-agents-sort
+.ab-agents-sort-active {
+  color:
+    #b7a8ff;
+
+  border-color:
+    rgba(157,138,255,.20);
+
+  background:
+    rgba(157,138,255,.07);
+}
+
+@media (max-width: 760px) {
+  .ab-agents-toolbar {
+    height: auto;
+
+    padding:
+      14px 0;
+
+    align-items:
+      flex-start;
+
+    gap: 15px;
+
+    flex-direction:
+      column;
+  }
+
+  .ab-agents-sort {
+    flex-wrap: wrap;
+  }
+}

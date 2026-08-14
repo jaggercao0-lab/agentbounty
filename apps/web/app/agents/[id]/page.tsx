@@ -7,11 +7,74 @@ import ConnectAgent from "./ConnectAgent";
 
 import { providerLabel } from "@/lib/providers";
 import { getWebSession } from "@/lib/web-session";
+import { calculateAgentReputation } from "@/lib/agent-reputation";
 
 export const dynamic = "force-dynamic";
 
 function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+function duration(
+  milliseconds:
+    | number
+    | null
+) {
+  if (
+    milliseconds ===
+    null
+  ) {
+    return "—";
+  }
+
+  const seconds =
+    Math.max(
+      0,
+      Math.round(
+        milliseconds /
+        1000
+      )
+    );
+
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes =
+    Math.floor(
+      seconds / 60
+    );
+
+  const remainingSeconds =
+    seconds % 60;
+
+  if (minutes < 60) {
+    return remainingSeconds
+      ? `${minutes}m ${remainingSeconds}s`
+      : `${minutes}m`;
+  }
+
+  const hours =
+    Math.floor(
+      minutes / 60
+    );
+
+  const remainingMinutes =
+    minutes % 60;
+
+  return remainingMinutes
+    ? `${hours}h ${remainingMinutes}m`
+    : `${hours}h`;
+}
+
+function rate(
+  value:
+    | number
+    | null
+) {
+  return value === null
+    ? "—"
+    : `${Math.round(value)}%`;
 }
 
 function workerMessage(
@@ -70,21 +133,33 @@ export default async function AgentPage({
   const tasks =
     await db.task.findMany({
       where: {
-        assignedAgentId: id,
+        assignedAgentId:
+          id,
+      },
+
+      include: {
+        events: {
+          orderBy: {
+            createdAt:
+              "asc",
+          },
+        },
       },
 
       orderBy: {
-        createdAt: "desc",
+        createdAt:
+          "desc",
       },
     });
 
-  const totalEarnings =
-    payments.reduce(
-      (sum, payment) =>
-        sum +
-        payment.agentPayoutCents,
-      0
+  const reputation =
+    calculateAgentReputation(
+      tasks,
+      payments
     );
+
+  const totalEarnings =
+    reputation.totalEarningsCents;
 
   const online =
     Boolean(agent.lastSeenAt) &&
@@ -288,6 +363,182 @@ export default async function AgentPage({
         <div className="ab-worker-layout">
 
           <main className="ab-worker-main">
+
+            <section className="ab-worker-panel ab-reputation-panel">
+
+              <div className="ab-worker-panel-head">
+
+                <div>
+                  <span>
+                    REPUTATION TELEMETRY
+                  </span>
+
+                  <h2>
+                    Verified performance
+                  </h2>
+                </div>
+
+                <span className="ab-reputation-sample">
+                  {reputation.resolvedJobs}
+                  {" "}
+                  TRACKED OUTCOME
+                  {reputation.resolvedJobs ===
+                  1
+                    ? ""
+                    : "S"}
+                </span>
+
+              </div>
+
+              <div className="ab-reputation-score-row">
+
+                <div className="ab-reputation-score">
+
+                  <span>
+                    RELIABILITY
+                  </span>
+
+                  <strong>
+                    {reputation.reliabilityScore ===
+                    null
+                      ? "NEW"
+                      : reputation.reliabilityScore}
+                  </strong>
+
+                  <small>
+                    / 100
+                  </small>
+
+                </div>
+
+                <div className="ab-reputation-score-copy">
+
+                  <strong>
+                    {reputation.reliabilityScore ===
+                    null
+                      ? "Insufficient verified history"
+                      : reputation.reliabilityScore >=
+                          90
+                        ? "Elite reliability"
+                        : reputation.reliabilityScore >=
+                            80
+                          ? "Strong reliability"
+                          : reputation.reliabilityScore >=
+                              70
+                            ? "Established reliability"
+                            : "Developing reliability"}
+                  </strong>
+
+                  <p>
+                    Score is derived from verified outcomes,
+                    first-pass success and revision history.
+                    New workers are confidence-adjusted until
+                    more contract history exists.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="ab-reputation-grid">
+
+                <div>
+                  <span>
+                    SUCCESS RATE
+                  </span>
+
+                  <strong>
+                    {rate(
+                      reputation.successRate
+                    )}
+                  </strong>
+
+                  <small>
+                    verified outcomes
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    FIRST-PASS
+                  </span>
+
+                  <strong>
+                    {rate(
+                      reputation.firstPassSuccessRate
+                    )}
+                  </strong>
+
+                  <small>
+                    no revision required
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    REVISION RATE
+                  </span>
+
+                  <strong>
+                    {rate(
+                      reputation.revisionRate
+                    )}
+                  </strong>
+
+                  <small>
+                    tracked contracts
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    AVG EXECUTION
+                  </span>
+
+                  <strong>
+                    {duration(
+                      reputation.averageExecutionMs
+                    )}
+                  </strong>
+
+                  <small>
+                    work → delivery
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    AVG VERIFICATION
+                  </span>
+
+                  <strong>
+                    {duration(
+                      reputation.averageVerificationMs
+                    )}
+                  </strong>
+
+                  <small>
+                    delivery → verdict
+                  </small>
+                </div>
+
+                <div>
+                  <span>
+                    TRACKED JOBS
+                  </span>
+
+                  <strong>
+                    {reputation.trackedJobs}
+                  </strong>
+
+                  <small>
+                    ledger enabled
+                  </small>
+                </div>
+
+              </div>
+
+            </section>
 
             <section className="ab-worker-panel">
 

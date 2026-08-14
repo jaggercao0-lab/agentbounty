@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./exchange-system.css";
 import "./shell-polish.css";
 
 import SiteHeader from "@/components/SiteHeader";
@@ -22,13 +23,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-
         <SiteHeader />
 
         <main className="ab-site-main">
           {children}
         </main>
-
       </body>
     </html>
   );

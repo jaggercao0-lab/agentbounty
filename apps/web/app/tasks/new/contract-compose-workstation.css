@@ -1,0 +1,175 @@
+/* Contract Composer workstation polish.
+ * Keep the form dense and practical while giving the live contract ticket
+ * enough visual weight to read as part of the exchange rather than a side card.
+ */
+
+.ab-compose-inner {
+  width: min(100% - 40px, 1560px);
+}
+
+.ab-compose-header {
+  max-width: 860px;
+  padding: 38px 0 34px;
+}
+
+.ab-compose-header h1 {
+  font-size: clamp(48px, 4.45vw, 68px);
+}
+
+.ab-compose-header p {
+  max-width: 720px;
+  margin-top: 18px;
+  font-size: 17px;
+  line-height: 1.62;
+}
+
+.ab-compose-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(390px, 430px);
+  gap: 26px;
+}
+
+.ab-compose-main {
+  gap: 16px;
+}
+
+.ab-compose-panel,
+.ab-compose-preview {
+  border-color: #303a45;
+}
+
+.ab-compose-panel-head {
+  min-height: 74px;
+}
+
+.ab-compose-preview {
+  isolation: isolate;
+  border-color: rgba(96, 165, 250, .25);
+  background:
+    linear-gradient(180deg, rgba(96,165,250,.025), transparent 24%),
+    rgba(13,16,20,.96);
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.28),
+    0 0 0 1px rgba(96,165,250,.018);
+}
+
+.ab-compose-preview::before {
+  width: 104px;
+  background: linear-gradient(90deg, #60a5fa, #6ee7b7, transparent);
+  box-shadow: 0 0 22px rgba(96,165,250,.22);
+}
+
+.ab-compose-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 7%, rgba(96,165,250,.07), transparent 30%),
+    radial-gradient(circle at 12% 75%, rgba(110,231,183,.035), transparent 28%);
+}
+
+.ab-compose-preview-head {
+  min-height: 60px;
+  padding-inline: 20px;
+}
+
+.ab-compose-preview-job {
+  min-height: 178px;
+  padding: 25px 20px 24px;
+}
+
+.ab-compose-preview-job h2 {
+  margin-top: 13px;
+  font-size: 26px;
+  line-height: 1.12;
+}
+
+.ab-compose-preview-job p {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.ab-compose-preview-money > div,
+.ab-compose-preview-info > div {
+  min-height: 88px;
+  padding: 16px 18px;
+}
+
+.ab-compose-preview-money strong {
+  font-size: 23px;
+}
+
+.ab-compose-preview-info strong {
+  font-size: 18px;
+}
+
+.ab-compose-publish {
+  min-height: 52px;
+  margin: 20px;
+  width: calc(100% - 40px);
+  padding-inline: 17px;
+  font-size: 15px;
+}
+
+.ab-compose-sidebar {
+  top: 80px;
+}
+
+/* The source field is the entry point of the workflow; give it a slightly
+ * stronger edge without making every panel equally loud. */
+.ab-compose-main > .ab-compose-panel:first-child {
+  border-color: rgba(96,165,250,.3);
+  background:
+    linear-gradient(180deg, rgba(96,165,250,.018), transparent 28%),
+    rgba(14,17,21,.92);
+}
+
+.ab-compose-main > .ab-compose-panel:first-child::before {
+  width: 96px;
+}
+
+/* Keep the composer comfortably dense on laptop widths. */
+@media (max-width: 1280px) {
+  .ab-compose-inner {
+    width: min(100% - 36px, 1480px);
+  }
+
+  .ab-compose-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(350px, 390px);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 980px) {
+  .ab-compose-inner {
+    width: min(100% - 30px, 900px);
+  }
+
+  .ab-compose-header {
+    padding: 34px 0 30px;
+  }
+
+  .ab-compose-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-compose-preview {
+    max-width: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .ab-compose-inner {
+    width: min(100% - 24px, 720px);
+  }
+
+  .ab-compose-header h1 {
+    font-size: clamp(42px, 12vw, 56px);
+  }
+
+  .ab-compose-preview-job {
+    min-height: 0;
+  }
+}

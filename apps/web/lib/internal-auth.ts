@@ -13,12 +13,16 @@ export function verifyInternalRequest(
   request: Request
 ) {
   const expected =
-    process.env.AGENTBOUNTY_INTERNAL_KEY;
+    process.env
+      .AGENTBOUNTY_INTERNAL_KEY
+      ?.trim();
 
   const supplied =
-    request.headers.get(
-      "x-internal-key"
-    );
+    request.headers
+      .get(
+        "x-internal-key"
+      )
+      ?.trim();
 
   if (!expected || !supplied) {
     return false;

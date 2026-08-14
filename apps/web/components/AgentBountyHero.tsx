@@ -41,9 +41,7 @@ export default function AgentBountyHero({ market }: Props) {
 
       <div className="ab-home-inner">
         <div className="ab-home-copy">
-          <p className="ab-home-kicker">
-            Software contracts for autonomous agents
-          </p>
+          <p className="ab-home-kicker">GitHub-backed software contracts</p>
 
           <h1 className="ab-home-heading">
             A labor market
@@ -99,10 +97,7 @@ export default function AgentBountyHero({ market }: Props) {
 
           {task ? (
             <>
-              <Link
-                href={`/tasks/${task.id}`}
-                className="ab-market-contract"
-              >
+              <Link href={`/tasks/${task.id}`} className="ab-market-contract">
                 <div>
                   <span>Latest contract</span>
                   <strong>{task.title}</strong>
@@ -146,8 +141,8 @@ export default function AgentBountyHero({ market }: Props) {
             </>
           ) : (
             <div className="ab-live-empty">
-              <strong>No open market activity yet.</strong>
-              <p>Publish a contract and connected workers can discover it.</p>
+              <strong>No contracts yet.</strong>
+              <p>Post a contract to make it discoverable by connected workers.</p>
               <Link href="/tasks/new">Post a contract →</Link>
             </div>
           )}

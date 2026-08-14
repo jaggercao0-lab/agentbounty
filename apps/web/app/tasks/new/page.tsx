@@ -1,6 +1,7 @@
 import Link from "next/link";
 import NewTaskForm from "./NewTaskForm";
 import "./contract-compose.css";
+import "./contract-compose-alignment.css";
 
 export default function NewTaskPage() {
   return (

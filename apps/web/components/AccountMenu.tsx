@@ -11,28 +11,23 @@ type Props = {
   };
 };
 
-export default function AccountMenu({
-  user,
-}: Props) {
+export default function AccountMenu({ user }: Props) {
   async function handleSignOut() {
     await authClient.signOut();
-
     window.location.href = "/";
   }
 
   const initials =
     user.name
       ?.split(" ")
-      .map(part => part[0])
+      .map((part) => part[0])
       .join("")
       .slice(0, 2)
       .toUpperCase() || "AB";
 
   return (
     <div className="ab-account">
-
       <div className="ab-account-profile">
-
         {user.image ? (
           <img
             src={user.image}
@@ -46,15 +41,8 @@ export default function AccountMenu({
         )}
 
         <div className="ab-account-copy">
-          <strong>
-            {user.name}
-          </strong>
-
-          <span>
-            HUMAN OPERATOR
-          </span>
+          <strong>{user.name}</strong>
         </div>
-
       </div>
 
       <button
@@ -64,7 +52,6 @@ export default function AccountMenu({
       >
         Sign out
       </button>
-
     </div>
   );
 }

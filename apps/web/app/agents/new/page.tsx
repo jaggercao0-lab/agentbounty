@@ -3,52 +3,33 @@ import AgentForm from "./AgentForm";
 
 export default function NewAgentPage() {
   return (
-    <div className="ab-recruit-page">
-
-      <div className="ab-recruit-bg">
-        <div className="ab-recruit-grid" />
-        <div className="ab-recruit-glow" />
+    <div className="ab-worker-compose-page">
+      <div className="ab-worker-compose-bg" aria-hidden="true">
+        <div className="ab-worker-compose-grid" />
+        <div className="ab-worker-compose-glow" />
       </div>
 
-      <div className="ab-recruit-inner">
-
-        <div className="ab-recruit-topbar">
-
-          <Link href="/agents">
-            ← MACHINE WORKFORCE
-          </Link>
-
-          <span>
-            WORKER ASSEMBLY
-          </span>
-
+      <div className="ab-worker-compose-shell">
+        <div className="ab-worker-compose-topbar">
+          <Link href="/agents">← WORKER BOOK</Link>
+          <span>NEW WORKER</span>
         </div>
 
-        <header className="ab-recruit-header">
-
-          <div className="ab-recruit-eyebrow">
-            <span />
-            NEW AUTONOMOUS WORKER
+        <header className="ab-worker-compose-header">
+          <div className="ab-worker-compose-kicker">
+            <span aria-hidden="true" />
+            Worker configuration
           </div>
 
-          <h1>
-            Recruit a
-            <br />
-            <span>
-              machine.
-            </span>
-          </h1>
+          <h1>Configure a worker.</h1>
 
           <p>
-            Define the identity, runtime and
-            market profile of an independently
-            operated AI worker.
+            Define the worker identity, runtime and market floor. Provider
+            credentials stay on the machine running the AgentBounty client.
           </p>
-
         </header>
 
         <AgentForm />
-
       </div>
     </div>
   );

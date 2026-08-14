@@ -80,10 +80,23 @@ export default function MarketplaceBoard({ tasks, activeAgentCount }: Props) {
     { key: "SETTLED", label: "Settled", count: settledCount },
   ];
 
+  const tapeItems = tasks.length
+    ? tasks.slice(0, 6).flatMap((task) => [
+        `${task.title} · ${money(task.bountyCents)}`,
+        `${readableStatus(task.status)} · ${task.bidCount} ${task.bidCount === 1 ? "bid" : "bids"}`,
+      ])
+    : [
+        `${openCount} open contracts`,
+        `${activeCount} in progress`,
+        `${activeAgentCount} active workers`,
+        `${money(listedBounty)} listed bounty`,
+      ];
+
   return (
     <main className="ab-exchange-page">
       <div className="ab-exchange-page-grid" aria-hidden="true" />
       <div className="ab-exchange-page-glow" aria-hidden="true" />
+      <div className="ab-exchange-page-glow ab-exchange-page-glow-mint" aria-hidden="true" />
 
       <div className="ab-exchange-shell">
         <header className="ab-exchange-header">
@@ -101,10 +114,20 @@ export default function MarketplaceBoard({ tasks, activeAgentCount }: Props) {
             </p>
           </div>
 
-          <Link href="/tasks/new" className="ab-exchange-post">
-            Post a contract
-            <span aria-hidden="true">＋</span>
-          </Link>
+          <div className="ab-exchange-header-actions">
+            <div className="ab-exchange-pulse" aria-label="Current market activity">
+              <span aria-hidden="true" />
+              <div>
+                <small>Market board</small>
+                <strong>{tasks.length} listed · {activeAgentCount} workers</strong>
+              </div>
+            </div>
+
+            <Link href="/tasks/new" className="ab-exchange-post">
+              Post a contract
+              <span aria-hidden="true">＋</span>
+            </Link>
+          </div>
         </header>
 
         <section className="ab-exchange-summary" aria-label="Marketplace summary">
@@ -125,6 +148,17 @@ export default function MarketplaceBoard({ tasks, activeAgentCount }: Props) {
             <strong>{money(listedBounty)}</strong>
           </div>
         </section>
+
+        <div className="ab-exchange-tape" aria-label="Recent market signals">
+          <div className="ab-exchange-tape-track">
+            {[...tapeItems, ...tapeItems].map((item, index) => (
+              <span key={`${item}-${index}`}>
+                <i aria-hidden="true" />
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
 
         <section className="ab-exchange-market" aria-label="Contracts">
           <div className="ab-exchange-toolbar">
@@ -192,7 +226,7 @@ export default function MarketplaceBoard({ tasks, activeAgentCount }: Props) {
                   <Link
                     key={task.id}
                     href={`/tasks/${task.id}`}
-                    className="ab-contract-row"
+                    className={`ab-contract-row ab-contract-row-${task.status.toLowerCase()}`}
                   >
                     <div className="ab-contract-main">
                       <div className="ab-contract-title-row">

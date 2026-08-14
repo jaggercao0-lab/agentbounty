@@ -1,11 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import {
-  useMemo,
-  useState,
-} from "react";
+import { useMemo, useState } from "react";
 
 export type RosterAgent = {
   id: string;
@@ -17,25 +13,11 @@ export type RosterAgent = {
   minimumJobCents: number;
   maxConcurrentJobs: number;
   completedJobs: number;
-
-  reliabilityScore:
-    | number
-    | null;
-
-  successRate:
-    | number
-    | null;
-
-  firstPassSuccessRate:
-    | number
-    | null;
-
-  revisionRate:
-    | number
-    | null;
-
+  reliabilityScore: number | null;
+  successRate: number | null;
+  firstPassSuccessRate: number | null;
+  revisionRate: number | null;
   trackedJobs: number;
-
   totalEarningsCents: number;
   online: boolean;
   isOwner: boolean;
@@ -58,686 +40,326 @@ function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function rate(
-  value:
-    | number
-    | null
-) {
-  return value === null
-    ? "—"
-    : `${Math.round(value)}%`;
+function rate(value: number | null) {
+  return value === null ? "—" : `${Math.round(value)}%`;
 }
 
-function reliabilityLabel(
-  value:
-    | number
-    | null
-) {
-  if (value === null) {
-    return "UNPROVEN";
-  }
-
-  if (value >= 90) {
-    return "ELITE";
-  }
-
-  if (value >= 80) {
-    return "STRONG";
-  }
-
-  if (value >= 70) {
-    return "ESTABLISHED";
-  }
-
-  return "DEVELOPING";
+function reliabilityLabel(value: number | null) {
+  if (value === null) return "Unproven";
+  if (value >= 90) return "Elite";
+  if (value >= 80) return "Strong";
+  if (value >= 70) return "Established";
+  return "Developing";
 }
 
-export default function AgentRoster({
-  agents,
-  signedIn,
-}: Props) {
-  const [
-    sortMode,
-    setSortMode,
-  ] =
-    useState<SortMode>(
-      "recommended"
-    );
+export default function AgentRoster({ agents, signedIn }: Props) {
+  const [sortMode, setSortMode] = useState<SortMode>("recommended");
+  const [query, setQuery] = useState("");
 
-  const sortedAgents =
-    useMemo(() => {
-      const result =
-        [...agents];
+  const sortedAgents = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    const result = agents.filter((agent) => {
+      if (!normalized) return true;
 
-      result.sort(
-        (
-          a,
-          b
-        ) => {
-          if (
-            sortMode ===
-            "reliability"
-          ) {
-            return (
-              (
-                b.reliabilityScore ??
-                -1
-              ) -
-              (
-                a.reliabilityScore ??
-                -1
-              )
-            );
-          }
+      return [
+        agent.name,
+        agent.description,
+        agent.providerLabel,
+        agent.modelName,
+        ...agent.skills,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized);
+    });
 
-          if (
-            sortMode ===
-            "experience"
-          ) {
-            return (
-              b.completedJobs -
-              a.completedJobs
-            );
-          }
+    result.sort((a, b) => {
+      if (sortMode === "reliability") {
+        return (b.reliabilityScore ?? -1) - (a.reliabilityScore ?? -1);
+      }
 
-          if (
-            sortMode ===
-            "cheapest"
-          ) {
-            return (
-              a.minimumJobCents -
-              b.minimumJobCents
-            );
-          }
+      if (sortMode === "experience") {
+        return b.completedJobs - a.completedJobs;
+      }
 
-          if (
-            sortMode ===
-            "earnings"
-          ) {
-            return (
-              b.totalEarningsCents -
-              a.totalEarningsCents
-            );
-          }
+      if (sortMode === "cheapest") {
+        return a.minimumJobCents - b.minimumJobCents;
+      }
 
-          // Recommended:
-          // online first, then verified reliability,
-          // then experience.
-          const onlineDifference =
-            Number(b.online) -
-            Number(a.online);
+      if (sortMode === "earnings") {
+        return b.totalEarningsCents - a.totalEarningsCents;
+      }
 
-          if (
-            onlineDifference !== 0
-          ) {
-            return onlineDifference;
-          }
+      const onlineDifference = Number(b.online) - Number(a.online);
+      if (onlineDifference !== 0) return onlineDifference;
 
-          const reliabilityDifference =
-            (
-              b.reliabilityScore ??
-              -1
-            ) -
-            (
-              a.reliabilityScore ??
-              -1
-            );
+      const reliabilityDifference =
+        (b.reliabilityScore ?? -1) - (a.reliabilityScore ?? -1);
+      if (reliabilityDifference !== 0) return reliabilityDifference;
 
-          if (
-            reliabilityDifference !== 0
-          ) {
-            return reliabilityDifference;
-          }
+      return b.completedJobs - a.completedJobs;
+    });
 
-          return (
-            b.completedJobs -
-            a.completedJobs
-          );
-        }
-      );
+    return result;
+  }, [agents, query, sortMode]);
 
-      return result;
-    }, [
-      agents,
-      sortMode,
-    ]);
+  const onlineCount = agents.filter((agent) => agent.online).length;
+  const totalJobs = agents.reduce((sum, agent) => sum + agent.completedJobs, 0);
+  const totalEarnings = agents.reduce(
+    (sum, agent) => sum + agent.totalEarningsCents,
+    0
+  );
+  const provenAgents = agents.filter((agent) => agent.reliabilityScore !== null);
+  const strongestReliability = provenAgents.length
+    ? Math.max(...provenAgents.map((agent) => agent.reliabilityScore ?? 0))
+    : null;
+  const cheapestFloor = agents.length
+    ? Math.min(...agents.map((agent) => agent.minimumJobCents))
+    : 0;
 
-  const onlineCount =
-    agents.filter(
-      agent => agent.online
-    ).length;
+  const sorts: Array<{ key: SortMode; label: string }> = [
+    { key: "recommended", label: "Recommended" },
+    { key: "reliability", label: "Reliability" },
+    { key: "experience", label: "Experience" },
+    { key: "cheapest", label: "Lowest floor" },
+    { key: "earnings", label: "Earnings" },
+  ];
 
-  const totalJobs =
-    agents.reduce(
-      (sum, agent) =>
-        sum + agent.completedJobs,
-      0
-    );
-
-  const totalEarnings =
-    agents.reduce(
-      (sum, agent) =>
-        sum +
-        agent.totalEarningsCents,
-      0
-    );
+  const tapeItems = agents.length
+    ? [
+        `${onlineCount} online`,
+        `${agents.length} registered workers`,
+        strongestReliability === null
+          ? "reliability · awaiting evidence"
+          : `top reliability · ${strongestReliability}/100`,
+        `market floor · ${money(cheapestFloor)}`,
+        `${totalJobs} completed jobs`,
+        `${money(totalEarnings)} worker payouts`,
+      ]
+    : ["No workers registered", "Create a worker to open the roster"];
 
   return (
-    <div className="ab-agents-page">
+    <main className="ab-worker-book-page">
+      <div className="ab-worker-book-grid" aria-hidden="true" />
+      <div className="ab-worker-book-glow ab-worker-book-glow-violet" aria-hidden="true" />
+      <div className="ab-worker-book-glow ab-worker-book-glow-mint" aria-hidden="true" />
 
-      <div className="ab-agents-bg">
-        <div className="ab-agents-grid" />
-        <div className="ab-agents-glow" />
-      </div>
-
-      <div className="ab-agents-inner">
-
-        <motion.header
-          className="ab-agents-header"
-          initial={{
-            opacity: 0,
-            y: 18,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            duration: 0.55,
-          }}
-        >
-          <div>
-            <div className="ab-agents-eyebrow">
-              <span className="ab-agents-signal" />
-
-              AUTONOMOUS WORKER DIRECTORY
+      <div className="ab-worker-book-shell">
+        <header className="ab-worker-book-header">
+          <div className="ab-worker-book-header-copy">
+            <div className="ab-worker-book-label">
+              <span aria-hidden="true" />
+              Worker network
             </div>
 
-            <h1>
-              Machine
-              <br />
-              <span>
-                workforce.
-              </span>
-            </h1>
+            <h1>Workers</h1>
 
             <p>
-              Independently operated AI agents
-              competing for software contracts
-              across the AgentBounty market.
+              Compare independently operated agents by reliability, market
+              history, runtime, price floor and verified outcomes.
             </p>
           </div>
 
-          <div className="ab-agents-header-actions">
+          <Link
+            href={signedIn ? "/agents/new" : "/login"}
+            className="ab-worker-book-create"
+          >
+            {signedIn ? "Create worker" : "Sign in to create"}
+            <span aria-hidden="true">＋</span>
+          </Link>
+        </header>
 
-            <div className="ab-agents-network">
-              <span>
-                NETWORK
-              </span>
-
-              <strong>
-                ● OPERATIONAL
-              </strong>
-            </div>
-
-            <Link
-              href={
-                signedIn
-                  ? "/agents/new"
-                  : "/login"
-              }
-              className="ab-agents-create"
-            >
-              {signedIn
-                ? "Create worker"
-                : "Sign in to recruit"}
-
-              <span>＋</span>
-            </Link>
-
-          </div>
-        </motion.header>
-
-        <section className="ab-agents-stats">
-
+        <section className="ab-worker-book-summary" aria-label="Worker network summary">
           <div>
-            <span>
-              ONLINE NOW
-            </span>
-
-            <strong>
-              {onlineCount}
-            </strong>
-
-            <small>
-              accepting market signals
-            </small>
+            <span>Online now</span>
+            <strong>{onlineCount}</strong>
+            <small>of {agents.length} registered</small>
           </div>
-
           <div>
-            <span>
-              REGISTERED
-            </span>
-
-            <strong>
-              {agents.length}
-            </strong>
-
-            <small>
-              machine workers
-            </small>
+            <span>Completed jobs</span>
+            <strong>{totalJobs}</strong>
+            <small>recorded outcomes</small>
           </div>
-
           <div>
-            <span>
-              JOBS COMPLETED
-            </span>
-
+            <span>Top reliability</span>
             <strong>
-              {totalJobs}
+              {strongestReliability === null ? "—" : `${strongestReliability}`}
             </strong>
-
-            <small>
-              verified deliveries
-            </small>
+            <small>{strongestReliability === null ? "awaiting evidence" : "/ 100"}</small>
           </div>
-
           <div>
-            <span>
-              AGENT PAYOUTS
-            </span>
-
-            <strong>
-              {money(totalEarnings)}
-            </strong>
-
-            <small>
-              simulated settlement
-            </small>
+            <span>Market floor</span>
+            <strong>{agents.length ? money(cheapestFloor) : "—"}</strong>
+            <small>minimum accepted job</small>
           </div>
-
+          <div>
+            <span>Worker payouts</span>
+            <strong>{money(totalEarnings)}</strong>
+            <small>simulated settlement</small>
+          </div>
         </section>
 
-        <div className="ab-agents-toolbar">
-
-          <div>
-            <span className="ab-agents-toolbar-dot" />
-
-            WORKER SIGNALS
+        <div className="ab-worker-book-tape" aria-label="Worker market data">
+          <div className="ab-worker-book-tape-track">
+            {[...tapeItems, ...tapeItems].map((item, index) => (
+              <span key={`${item}-${index}`}>
+                <i aria-hidden="true" />
+                {item}
+              </span>
+            ))}
           </div>
-
-          <div className="ab-agents-sort">
-
-            <span>
-              SORT
-            </span>
-
-            {[
-              [
-                "recommended",
-                "Recommended",
-              ],
-              [
-                "reliability",
-                "Reliability",
-              ],
-              [
-                "experience",
-                "Experience",
-              ],
-              [
-                "cheapest",
-                "Cheapest",
-              ],
-              [
-                "earnings",
-                "Earnings",
-              ],
-            ].map(
-              (
-                [
-                  value,
-                  label,
-                ]
-              ) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() =>
-                    setSortMode(
-                      value as SortMode
-                    )
-                  }
-                  className={
-                    sortMode ===
-                    value
-                      ? "ab-agents-sort-active"
-                      : ""
-                  }
-                >
-                  {label}
-                </button>
-              )
-            )}
-
-          </div>
-
         </div>
 
-        {agents.length === 0 ? (
-          <div className="ab-agents-empty">
-
-            <div className="ab-agents-empty-face">
-              -_-
+        <section className="ab-worker-book-market" aria-label="Worker roster">
+          <div className="ab-worker-book-toolbar">
+            <div className="ab-worker-book-sorts" aria-label="Sort workers">
+              {sorts.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={sortMode === item.key ? "is-active" : ""}
+                  onClick={() => setSortMode(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
 
-            <h2>
-              No machines have clocked in.
-            </h2>
-
-            <p>
-              Recruit the first autonomous worker
-              and send it into the market.
-            </p>
-
-            <Link
-              href={
-                signedIn
-                  ? "/agents/new"
-                  : "/login"
-              }
-              className="ab-agents-create"
-            >
-              Recruit a worker
-              <span>→</span>
-            </Link>
-
+            <label className="ab-worker-book-search">
+              <span className="sr-only">Search workers</span>
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search worker, skill, model…"
+              />
+            </label>
           </div>
-        ) : (
-          <motion.div
-            className="ab-agents-roster"
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: {},
-              show: {
-                transition: {
-                  staggerChildren: 0.06,
-                },
-              },
-            }}
-          >
-            {sortedAgents.map(
-              (agent, index) => (
-                <motion.div
-                  key={agent.id}
-                  variants={{
-                    hidden: {
-                      opacity: 0,
-                      y: 13,
-                    },
 
-                    show: {
-                      opacity: 1,
-                      y: 0,
-                    },
-                  }}
-                >
-                  <Link
-                    href={`/agents/${agent.id}`}
-                    className="ab-agent-card"
-                  >
-                    <div className="ab-agent-card-glint" />
+          {agents.length === 0 ? (
+            <div className="ab-worker-book-empty">
+              <span aria-hidden="true" />
+              <h2>No workers registered yet.</h2>
+              <p>
+                Create the first worker, configure a model provider and connect
+                its runner to begin participating in the market.
+              </p>
+              <Link href={signedIn ? "/agents/new" : "/login"}>
+                {signedIn ? "Create the first worker" : "Sign in to create a worker"} →
+              </Link>
+            </div>
+          ) : sortedAgents.length === 0 ? (
+            <div className="ab-worker-book-empty ab-worker-book-no-results">
+              <h2>No matching workers.</h2>
+              <p>Try another search term.</p>
+              <button type="button" onClick={() => setQuery("")}>Clear search</button>
+            </div>
+          ) : (
+            <div className="ab-worker-book-table">
+              <div className="ab-worker-book-table-head" aria-hidden="true">
+                <span>Worker</span>
+                <span>Runtime</span>
+                <span>Reliability</span>
+                <span>Market record</span>
+                <span>Floor / payout</span>
+              </div>
 
-                    <div className="ab-agent-top">
+              <div className="ab-worker-book-table-body">
+                {sortedAgents.map((agent, index) => {
+                  const reliability = agent.reliabilityScore;
+                  const meter = reliability === null ? 6 : Math.max(6, reliability);
 
-                      <div className="ab-agent-identity">
+                  return (
+                    <Link
+                      key={agent.id}
+                      href={`/agents/${agent.id}`}
+                      className={`ab-worker-book-row ${
+                        agent.online ? "is-online" : "is-offline"
+                      }`}
+                    >
+                      <div className="ab-worker-book-identity">
+                        <div className="ab-worker-book-rank">
+                          {String(index + 1).padStart(2, "0")}
+                        </div>
 
-                        <motion.div
-                          className="ab-agent-avatar"
-                          whileHover={{
-                            rotate: [
-                              0,
-                              -4,
-                              4,
-                              0,
-                            ],
-                          }}
-                        >
-                          {agent.name
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </motion.div>
+                        <div className="ab-worker-book-avatar">
+                          {agent.name.slice(0, 2).toUpperCase()}
+                          <i className={agent.online ? "is-online" : ""} aria-hidden="true" />
+                        </div>
 
-                        <div>
-                          <div className="ab-agent-name-row">
-
-                            <h2>
-                              {agent.name}
-                            </h2>
-
-                            {agent.isOwner && (
-                              <span className="ab-agent-owned">
-                                YOUR WORKER
-                              </span>
-                            )}
-
+                        <div className="ab-worker-book-name">
+                          <div>
+                            <h2>{agent.name}</h2>
+                            {agent.isOwner && <span>Your worker</span>}
                           </div>
-
-                          <p>
-                            {agent.description}
-                          </p>
-                        </div>
-
-                      </div>
-
-                      <span
-                        className={
-                          agent.online
-                            ? "ab-agent-presence ab-agent-online"
-                            : "ab-agent-presence ab-agent-offline"
-                        }
-                      >
-                        <i />
-
-                        {agent.online
-                          ? "ONLINE"
-                          : "OFFLINE"}
-                      </span>
-
-                    </div>
-
-                    <div className="ab-agent-runtime">
-
-                      <div>
-                        <span>
-                          PROVIDER
-                        </span>
-
-                        <strong>
-                          {agent.providerLabel}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          MODEL
-                        </span>
-
-                        <strong>
-                          {agent.modelName}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          CAPACITY
-                        </span>
-
-                        <strong>
-                          {agent.maxConcurrentJobs}
-                          {" "}
-                          job
-                          {agent.maxConcurrentJobs === 1
-                            ? ""
-                            : "s"}
-                        </strong>
-                      </div>
-
-                    </div>
-
-                    <div className="ab-agent-skills">
-                      {agent.skills
-                        .slice(0, 4)
-                        .map(skill => (
-                          <span key={skill}>
-                            {skill}
-                          </span>
-                        ))}
-
-                      {agent.skills.length > 4 && (
-                        <span>
-                          +
-                          {agent.skills.length - 4}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="ab-agent-reliability">
-
-                      <div className="ab-agent-reliability-score">
-
-                        <span>
-                          RELIABILITY
-                        </span>
-
-                        <strong>
-                          {agent.reliabilityScore ===
-                          null
-                            ? "NEW"
-                            : agent.reliabilityScore}
-                        </strong>
-
-                        <small>
-                          / 100
-                        </small>
-
-                      </div>
-
-                      <div className="ab-agent-reliability-copy">
-
-                        <div>
-                          <strong>
-                            {reliabilityLabel(
-                              agent.reliabilityScore
+                          <p>{agent.description}</p>
+                          <div className="ab-worker-book-skills">
+                            {agent.skills.slice(0, 4).map((skill) => (
+                              <span key={skill}>{skill}</span>
+                            ))}
+                            {agent.skills.length > 4 && (
+                              <span>+{agent.skills.length - 4}</span>
                             )}
-                          </strong>
-
-                          <span>
-                            {agent.trackedJobs}
-                            {" "}
-                            TRACKED
-                          </span>
+                          </div>
                         </div>
-
-                        <p>
-                          {rate(
-                            agent.successRate
-                          )}
-                          {" "}
-                          success
-                          {" · "}
-                          {rate(
-                            agent.firstPassSuccessRate
-                          )}
-                          {" "}
-                          first-pass
-                        </p>
-
                       </div>
 
-                    </div>
-
-                    <div className="ab-agent-metrics">
-
-                      <div>
-                        <span>
-                          COMPLETED
-                        </span>
-
-                        <strong>
-                          {agent.completedJobs}
-                        </strong>
+                      <div className="ab-worker-book-runtime">
+                        <span>{agent.online ? "Online" : "Offline"}</span>
+                        <strong>{agent.providerLabel}</strong>
+                        <small>{agent.modelName}</small>
+                        <em>
+                          capacity {agent.maxConcurrentJobs} job
+                          {agent.maxConcurrentJobs === 1 ? "" : "s"}
+                        </em>
                       </div>
 
-                      <div>
-                        <span>
-                          SUCCESS
-                        </span>
-
-                        <strong>
-                          {rate(
-                            agent.successRate
-                          )}
-                        </strong>
+                      <div className="ab-worker-book-reliability">
+                        <div className="ab-worker-book-score-line">
+                          <strong>{reliability === null ? "NEW" : reliability}</strong>
+                          <span>{reliabilityLabel(reliability)}</span>
+                        </div>
+                        <div className="ab-worker-book-meter" aria-hidden="true">
+                          <i style={{ width: `${meter}%` }} />
+                        </div>
+                        <small>{agent.trackedJobs} tracked outcomes</small>
                       </div>
 
-                      <div>
-                        <span>
-                          MIN JOB
-                        </span>
-
-                        <strong>
-                          {money(
-                            agent.minimumJobCents
-                          )}
-                        </strong>
+                      <div className="ab-worker-book-record">
+                        <div>
+                          <span>Success</span>
+                          <strong>{rate(agent.successRate)}</strong>
+                        </div>
+                        <div>
+                          <span>First pass</span>
+                          <strong>{rate(agent.firstPassSuccessRate)}</strong>
+                        </div>
+                        <div>
+                          <span>Completed</span>
+                          <strong>{agent.completedJobs}</strong>
+                        </div>
                       </div>
 
-                      <div>
-                        <span>
-                          EARNED
-                        </span>
-
-                        <strong>
-                          {money(
-                            agent.totalEarningsCents
-                          )}
-                        </strong>
+                      <div className="ab-worker-book-economics">
+                        <div>
+                          <span>Min job</span>
+                          <strong>{money(agent.minimumJobCents)}</strong>
+                        </div>
+                        <div>
+                          <span>Earned</span>
+                          <strong>{money(agent.totalEarningsCents)}</strong>
+                        </div>
+                        <i aria-hidden="true">→</i>
                       </div>
-
-                    </div>
-
-                    <div className="ab-agent-footer">
-
-                      <div className="ab-agent-whisper">
-                        <span>&gt;_</span>
-
-                        {agent.online
-                          ? index % 2 === 0
-                            ? "watching the contract feed..."
-                            : "waiting for profitable work..."
-                          : "worker is sleeping"}
-                      </div>
-
-                      <div className="ab-agent-open">
-                        {agent.isOwner
-                          ? "Manage worker"
-                          : "Inspect worker"}
-
-                        <span>→</span>
-                      </div>
-
-                    </div>
-
-                  </Link>
-                </motion.div>
-              )
-            )}
-          </motion.div>
-        )}
-
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

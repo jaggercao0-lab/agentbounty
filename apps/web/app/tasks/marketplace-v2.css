@@ -1,0 +1,656 @@
+.ab-exchange-page {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  min-height: calc(100vh - 64px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 86% 8%, rgba(139, 124, 246, 0.045), transparent 26%),
+    radial-gradient(circle at 8% 42%, rgba(110, 231, 183, 0.025), transparent 24%),
+    #0b0d10;
+}
+
+.ab-exchange-page-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black 0%, rgba(0, 0, 0, 0.7) 55%, transparent 100%);
+}
+
+.ab-exchange-page-glow {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  top: 120px;
+  right: -120px;
+  pointer-events: none;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(139, 124, 246, 0.055), transparent 70%);
+}
+
+.ab-exchange-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100% - 48px, 1440px);
+  margin: 0 auto;
+  padding: 64px 0 96px;
+}
+
+.ab-exchange-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 48px;
+  padding-bottom: 36px;
+}
+
+.ab-exchange-header-copy {
+  max-width: 760px;
+}
+
+.ab-exchange-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #a7b0bd;
+  font-size: 15px;
+  font-weight: 550;
+}
+
+.ab-exchange-section-label > span {
+  width: 18px;
+  height: 2px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #6ee7b7, #8b7cf6);
+}
+
+.ab-exchange-header h1 {
+  margin: 16px 0 0;
+  color: #f3f4f6;
+  font-size: clamp(52px, 5vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+  font-weight: 650;
+}
+
+.ab-exchange-header p {
+  max-width: 700px;
+  margin: 24px 0 0;
+  color: #aab3bf;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.ab-exchange-post {
+  flex: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 0 18px;
+  border: 1px solid #edf0f4;
+  border-radius: 7px;
+  background: #edf0f4;
+  color: #0b0d10;
+  font-size: 15px;
+  font-weight: 650;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.ab-exchange-post:hover {
+  background: #dfe4e9;
+  border-color: #dfe4e9;
+  transform: translateY(-1px);
+}
+
+.ab-exchange-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid #2a313a;
+  border-bottom: 1px solid #2a313a;
+}
+
+.ab-exchange-summary > div {
+  min-height: 92px;
+  padding: 18px 22px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  border-right: 1px solid #2a313a;
+}
+
+.ab-exchange-summary > div:first-child {
+  padding-left: 0;
+}
+
+.ab-exchange-summary > div:last-child {
+  border-right: 0;
+}
+
+.ab-exchange-summary span {
+  color: #7f8996;
+  font-size: 14px;
+}
+
+.ab-exchange-summary strong {
+  color: #eef1f4;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-exchange-market {
+  margin-top: 44px;
+  border: 1px solid #2a313a;
+  border-radius: 10px;
+  background: rgba(15, 18, 22, 0.82);
+  overflow: hidden;
+}
+
+.ab-exchange-toolbar {
+  min-height: 66px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #2a313a;
+  background: rgba(17, 20, 25, 0.72);
+}
+
+.ab-exchange-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.ab-exchange-filters button {
+  min-height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #929ca9;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ab-exchange-filters button span {
+  min-width: 20px;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #191e24;
+  color: #727c89;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.ab-exchange-filters button:hover {
+  color: #e2e6eb;
+  background: #15191f;
+}
+
+.ab-exchange-filters button.is-active {
+  border-color: #343d48;
+  background: #181d23;
+  color: #f0f2f5;
+}
+
+.ab-exchange-filters button.is-active span {
+  color: #b8c1cc;
+  background: #222831;
+}
+
+.ab-exchange-search {
+  width: min(360px, 40vw);
+  min-height: 40px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #303844;
+  border-radius: 6px;
+  background: #0d1014;
+  color: #687383;
+}
+
+.ab-exchange-search:focus-within {
+  border-color: #566171;
+}
+
+.ab-exchange-search > span:not(.sr-only) {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ab-exchange-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e8ebef;
+  font: inherit;
+  font-size: 14px;
+}
+
+.ab-exchange-search input::placeholder {
+  color: #66717f;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ab-contract-table-head {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(180px, 0.62fr) minmax(180px, 0.55fr) minmax(180px, 0.5fr);
+  align-items: center;
+  padding: 0 18px;
+  border-bottom: 1px solid #252c35;
+  background: #0d1014;
+  color: #687383;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ab-contract-table-head span:not(:first-child) {
+  padding-left: 18px;
+}
+
+.ab-contract-row {
+  position: relative;
+  min-height: 154px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(180px, 0.62fr) minmax(180px, 0.55fr) minmax(180px, 0.5fr);
+  border-bottom: 1px solid #252c35;
+  background: rgba(14, 17, 21, 0.62);
+  transition: background 150ms ease;
+}
+
+.ab-contract-row:last-child {
+  border-bottom: 0;
+}
+
+.ab-contract-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(#6ee7b7, #8b7cf6);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.ab-contract-row:hover {
+  background: #13171c;
+}
+
+.ab-contract-row:hover::before {
+  opacity: 0.75;
+}
+
+.ab-contract-main,
+.ab-contract-market-data,
+.ab-contract-worker,
+.ab-contract-bounty {
+  min-width: 0;
+  padding: 20px 18px;
+}
+
+.ab-contract-market-data,
+.ab-contract-worker,
+.ab-contract-bounty {
+  border-left: 1px solid #252c35;
+}
+
+.ab-contract-main {
+  padding-left: 18px;
+}
+
+.ab-contract-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ab-contract-title-row time {
+  color: #697482;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.ab-exchange-status {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  border: 1px solid #333b46;
+  border-radius: 5px;
+  background: #171b21;
+  color: #c0c8d2;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.ab-exchange-status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.ab-exchange-status-open {
+  border-color: rgba(110, 231, 183, 0.26);
+  background: rgba(110, 231, 183, 0.06);
+  color: #83dfbb;
+}
+
+.ab-exchange-status-assigned,
+.ab-exchange-status-working {
+  border-color: rgba(96, 165, 250, 0.26);
+  background: rgba(96, 165, 250, 0.07);
+  color: #86b7f4;
+}
+
+.ab-exchange-status-submitted,
+.ab-exchange-status-revision {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.07);
+  color: #dfaf58;
+}
+
+.ab-exchange-status-accepted,
+.ab-exchange-status-paid {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.07);
+  color: #78d695;
+}
+
+.ab-exchange-status-cancelled {
+  border-color: rgba(239, 68, 68, 0.26);
+  background: rgba(239, 68, 68, 0.07);
+  color: #e98b8b;
+}
+
+.ab-contract-main h2 {
+  margin: 13px 0 5px;
+  color: #edf0f4;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 650;
+}
+
+.ab-contract-repo {
+  display: block;
+  color: #7f8a97;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-contract-main p {
+  display: -webkit-box;
+  max-width: 720px;
+  margin: 11px 0 0;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: #8f99a6;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ab-contract-market-data {
+  display: grid;
+  align-content: center;
+  gap: 20px;
+}
+
+.ab-contract-market-data > div,
+.ab-contract-worker,
+.ab-contract-bounty {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+}
+
+.ab-contract-market-data span,
+.ab-contract-worker span,
+.ab-contract-bounty span {
+  color: #6f7a87;
+  font-size: 12px;
+}
+
+.ab-contract-market-data strong,
+.ab-contract-worker strong {
+  color: #dce1e7;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.ab-contract-market-data strong {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-contract-worker strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-contract-bounty {
+  position: relative;
+}
+
+.ab-contract-bounty strong {
+  color: #f0f2f5;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-contract-bounty small {
+  color: #717c89;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ab-contract-bounty > i {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  color: #606b78;
+  font-style: normal;
+  font-size: 18px;
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.ab-contract-row:hover .ab-contract-bounty > i {
+  color: #dce2e8;
+  transform: translateX(2px);
+}
+
+.ab-exchange-empty-state {
+  min-height: 340px;
+  padding: 64px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.ab-exchange-empty-rule {
+  width: 44px;
+  height: 2px;
+  margin-bottom: 26px;
+  background: linear-gradient(90deg, #8b7cf6, #6ee7b7);
+}
+
+.ab-exchange-empty-state h2 {
+  margin: 0;
+  color: #edf0f4;
+  font-size: 28px;
+  letter-spacing: -0.025em;
+}
+
+.ab-exchange-empty-state p {
+  max-width: 570px;
+  margin: 14px 0 22px;
+  color: #89939f;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.ab-exchange-empty-state a,
+.ab-exchange-empty-state button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #dce1e7;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ab-exchange-no-results {
+  min-height: 260px;
+}
+
+@media (max-width: 1100px) {
+  .ab-contract-table-head {
+    display: none;
+  }
+
+  .ab-contract-row {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 0.38fr);
+  }
+
+  .ab-contract-market-data,
+  .ab-contract-worker {
+    display: none;
+  }
+
+  .ab-contract-bounty {
+    border-left: 1px solid #252c35;
+  }
+}
+
+@media (max-width: 760px) {
+  .ab-exchange-shell {
+    width: min(100% - 32px, 1440px);
+    padding-top: 48px;
+    padding-bottom: 72px;
+  }
+
+  .ab-exchange-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .ab-exchange-header h1 {
+    font-size: clamp(46px, 14vw, 60px);
+  }
+
+  .ab-exchange-header p {
+    font-size: 16px;
+  }
+
+  .ab-exchange-post {
+    width: 100%;
+  }
+
+  .ab-exchange-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ab-exchange-summary > div {
+    padding-left: 14px;
+    border-bottom: 1px solid #2a313a;
+  }
+
+  .ab-exchange-summary > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .ab-exchange-summary > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+
+  .ab-exchange-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ab-exchange-search {
+    width: 100%;
+  }
+
+  .ab-contract-row {
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .ab-contract-bounty {
+    min-height: 94px;
+    border-top: 1px solid #252c35;
+    border-left: 0;
+  }
+
+  .ab-contract-main,
+  .ab-contract-bounty {
+    padding: 18px;
+  }
+
+  .ab-exchange-empty-state {
+    min-height: 300px;
+    padding: 48px 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-exchange-post,
+  .ab-contract-row,
+  .ab-contract-row::before,
+  .ab-contract-bounty > i {
+    transition: none;
+  }
+}

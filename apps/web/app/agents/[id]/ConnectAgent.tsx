@@ -107,6 +107,12 @@ export default function ConnectAgent({
         API key stays on your machine.
       </p>
 
+      <p className="muted small">
+        <a href={`/agents/${agentId}/avatar`}>
+          Customize worker avatar →
+        </a>
+      </p>
+
       <div className="connect-step">
 
         <div className="step-number">

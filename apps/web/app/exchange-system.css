@@ -1,0 +1,108 @@
+/* Shared interaction primitives for the AgentBounty exchange UI.
+ * Page CSS owns layout and visual hierarchy; this file only normalizes
+ * browser behavior, accessibility signals and small cross-page details.
+ */
+
+:root {
+  --ab-bg: #090b0e;
+  --ab-panel: #0e1115;
+  --ab-panel-raised: #11161b;
+  --ab-border: #2d3641;
+  --ab-border-strong: #384451;
+  --ab-text: #edf1f4;
+  --ab-text-muted: #8994a1;
+  --ab-mint: #6ee7b7;
+  --ab-blue: #60a5fa;
+  --ab-violet: #8b7cf6;
+  --ab-radius-sm: 5px;
+  --ab-radius-md: 8px;
+  --ab-radius-lg: 10px;
+  --ab-shell-max: 1560px;
+}
+
+html {
+  background: var(--ab-bg);
+  color-scheme: dark;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  background: var(--ab-bg);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(96, 165, 250, .24);
+  color: #fff;
+}
+
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid rgba(96, 165, 250, .78);
+  outline-offset: 3px;
+}
+
+:where(button, input, textarea, select):disabled {
+  cursor: not-allowed;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #384451 #0b0e12;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #0b0e12;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid #0b0e12;
+  border-radius: 999px;
+  background: #384451;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #4a5664;
+}
+
+@media (max-width: 760px) {
+  :where(input, textarea, select) {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

@@ -1,0 +1,327 @@
+/* Status-driven contract atmosphere.
+ * The page keeps one structural design while the live contract state changes
+ * the accent signal, current lifecycle stage and subtle ambient light.
+ */
+
+.ab-task-page {
+  --contract-accent: #8b7cf6;
+  --contract-accent-rgb: 139, 124, 246;
+  --contract-accent-secondary: #6ee7b7;
+  --contract-accent-secondary-rgb: 110, 231, 183;
+}
+
+.ab-task-page:has(.ab-task-status-open) {
+  --contract-accent: #6ee7b7;
+  --contract-accent-rgb: 110, 231, 183;
+  --contract-accent-secondary: #60a5fa;
+  --contract-accent-secondary-rgb: 96, 165, 250;
+}
+
+.ab-task-page:has(.ab-task-status-assigned),
+.ab-task-page:has(.ab-task-status-working) {
+  --contract-accent: #60a5fa;
+  --contract-accent-rgb: 96, 165, 250;
+  --contract-accent-secondary: #8b7cf6;
+  --contract-accent-secondary-rgb: 139, 124, 246;
+}
+
+.ab-task-page:has(.ab-task-status-submitted),
+.ab-task-page:has(.ab-task-status-verifying) {
+  --contract-accent: #f2b84b;
+  --contract-accent-rgb: 242, 184, 75;
+  --contract-accent-secondary: #8b7cf6;
+  --contract-accent-secondary-rgb: 139, 124, 246;
+}
+
+.ab-task-page:has(.ab-task-status-revision) {
+  --contract-accent: #f59e0b;
+  --contract-accent-rgb: 245, 158, 11;
+  --contract-accent-secondary: #ef6f6c;
+  --contract-accent-secondary-rgb: 239, 111, 108;
+}
+
+.ab-task-page:has(.ab-task-status-accepted),
+.ab-task-page:has(.ab-task-status-paid) {
+  --contract-accent: #4ade80;
+  --contract-accent-rgb: 74, 222, 128;
+  --contract-accent-secondary: #6ee7b7;
+  --contract-accent-secondary-rgb: 110, 231, 183;
+}
+
+.ab-task-page:has(.ab-task-status-cancelled) {
+  --contract-accent: #ef6f6c;
+  --contract-accent-rgb: 239, 111, 108;
+  --contract-accent-secondary: #f59e0b;
+  --contract-accent-secondary-rgb: 245, 158, 11;
+}
+
+/* Ambient field */
+.ab-task-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 86% 8%, rgba(var(--contract-accent-rgb), .13), transparent 27%),
+    radial-gradient(circle at 12% 47%, rgba(var(--contract-accent-secondary-rgb), .055), transparent 25%);
+  transition: background 320ms ease;
+}
+
+.ab-task-page .ab-task-glow {
+  background: radial-gradient(circle, rgba(var(--contract-accent-rgb), .105), transparent 70%);
+  transition: background 320ms ease;
+}
+
+.ab-task-page .ab-task-topbar::after,
+.ab-task-page .ab-task-bounty-box::before,
+.ab-task-page .ab-task-panel::before,
+.ab-task-page .ab-task-side-panel::before,
+.ab-task-page .ab-auto-verify::before,
+.ab-task-page .ab-settlement-control::before,
+.ab-task-page .ab-verify-panel::before {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--contract-accent-rgb), .98),
+    rgba(var(--contract-accent-secondary-rgb), .86),
+    transparent
+  );
+  box-shadow: 0 0 18px rgba(var(--contract-accent-rgb), .2);
+}
+
+/* Give the bounty block a stronger market signal without turning it neon. */
+.ab-task-page .ab-task-bounty-box {
+  border-color: rgba(var(--contract-accent-rgb), .24);
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.24),
+    0 0 0 1px rgba(var(--contract-accent-rgb), .02),
+    inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+.ab-task-page .ab-task-bounty-box > strong {
+  text-shadow: 0 0 28px rgba(var(--contract-accent-rgb), .11);
+}
+
+.ab-task-page .ab-task-bounty-box::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--contract-accent-rgb), .07),
+    rgba(var(--contract-accent-secondary-rgb), .055),
+    transparent
+  );
+}
+
+/* Lifecycle base */
+.ab-task-page .ab-task-lifecycle {
+  isolation: isolate;
+  overflow: hidden;
+  border-top-color: rgba(var(--contract-accent-rgb), .22);
+}
+
+.ab-task-page .ab-task-lifecycle::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(var(--contract-accent-rgb), .025), transparent 28%, transparent 72%, rgba(var(--contract-accent-secondary-rgb), .02));
+}
+
+.ab-task-page .ab-life-step {
+  z-index: 1;
+}
+
+/* Neutralize the old adjacency heuristic. The active stage is now mapped from
+ * the real contract status below, so WORKING and VERIFYING never highlight a
+ * hidden PR step by accident. */
+.ab-task-page .ab-life-done + .ab-life-step:not(.ab-life-done) {
+  background: transparent;
+}
+
+.ab-task-page .ab-life-done + .ab-life-step:not(.ab-life-done) .ab-life-node {
+  border-color: #3b4652;
+  color: #667280;
+  box-shadow: none;
+}
+
+.ab-task-page .ab-life-done + .ab-life-step:not(.ab-life-done) .ab-life-copy strong {
+  color: #8994a1;
+}
+
+/* Current-stage signal */
+.ab-task-page:has(.ab-task-status-open) .ab-task-lifecycle > .ab-life-step:nth-child(2),
+.ab-task-page:has(.ab-task-status-assigned) .ab-task-lifecycle > .ab-life-step:nth-child(3),
+.ab-task-page:has(.ab-task-status-working) .ab-task-lifecycle > .ab-life-step:nth-child(3),
+.ab-task-page:has(.ab-task-status-revision) .ab-task-lifecycle > .ab-life-step:nth-child(3),
+.ab-task-page:has(.ab-task-status-submitted) .ab-task-lifecycle > .ab-life-step:nth-child(5),
+.ab-task-page:has(.ab-task-status-verifying) .ab-task-lifecycle > .ab-life-step:nth-child(5),
+.ab-task-page:has(.ab-task-status-accepted) .ab-task-lifecycle > .ab-life-step:nth-child(6) {
+  background:
+    radial-gradient(circle at 18% 50%, rgba(var(--contract-accent-rgb), .09), transparent 36%),
+    linear-gradient(180deg, rgba(var(--contract-accent-rgb), .055), transparent 76%);
+}
+
+.ab-task-page:has(.ab-task-status-open) .ab-task-lifecycle > .ab-life-step:nth-child(2) .ab-life-node,
+.ab-task-page:has(.ab-task-status-assigned) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-node,
+.ab-task-page:has(.ab-task-status-working) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-node,
+.ab-task-page:has(.ab-task-status-revision) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-node,
+.ab-task-page:has(.ab-task-status-submitted) .ab-task-lifecycle > .ab-life-step:nth-child(5) .ab-life-node,
+.ab-task-page:has(.ab-task-status-verifying) .ab-task-lifecycle > .ab-life-step:nth-child(5) .ab-life-node,
+.ab-task-page:has(.ab-task-status-accepted) .ab-task-lifecycle > .ab-life-step:nth-child(6) .ab-life-node {
+  border-color: rgba(var(--contract-accent-rgb), .9);
+  background: rgba(var(--contract-accent-rgb), .095);
+  color: var(--contract-accent);
+  box-shadow:
+    0 0 0 5px rgba(var(--contract-accent-rgb), .055),
+    0 0 26px rgba(var(--contract-accent-rgb), .18);
+  animation: abContractCurrentNode 2.15s ease-in-out infinite;
+}
+
+.ab-task-page:has(.ab-task-status-open) .ab-task-lifecycle > .ab-life-step:nth-child(2) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-assigned) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-working) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-revision) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-submitted) .ab-task-lifecycle > .ab-life-step:nth-child(5) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-verifying) .ab-task-lifecycle > .ab-life-step:nth-child(5) .ab-life-copy strong,
+.ab-task-page:has(.ab-task-status-accepted) .ab-task-lifecycle > .ab-life-step:nth-child(6) .ab-life-copy strong {
+  color: #f3f6f8;
+  text-shadow: 0 0 18px rgba(var(--contract-accent-rgb), .12);
+}
+
+.ab-task-page:has(.ab-task-status-open) .ab-task-lifecycle > .ab-life-step:nth-child(2) .ab-life-copy span,
+.ab-task-page:has(.ab-task-status-assigned) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-copy span,
+.ab-task-page:has(.ab-task-status-working) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-copy span,
+.ab-task-page:has(.ab-task-status-revision) .ab-task-lifecycle > .ab-life-step:nth-child(3) .ab-life-copy span,
+.ab-task-page:has(.ab-task-status-submitted) .ab-task-lifecycle > .ab-life-step:nth-child(5) .ab-life-copy span,
+.ab-task-page:has(.ab-task-status-verifying) .ab-task-lifecycle > .ab-life-step:nth-child(5) .ab-life-copy span,
+.ab-task-page:has(.ab-task-status-accepted) .ab-task-lifecycle > .ab-life-step:nth-child(6) .ab-life-copy span {
+  color: var(--contract-accent);
+}
+
+/* Paid gets a completed-market state instead of an active pulse. */
+.ab-task-page:has(.ab-task-status-paid) .ab-task-lifecycle {
+  border-color: rgba(74,222,128,.22);
+  box-shadow: inset 0 0 45px rgba(74,222,128,.025);
+}
+
+.ab-task-page:has(.ab-task-status-paid) .ab-life-done .ab-life-node {
+  border-color: rgba(74,222,128,.55);
+  background: rgba(74,222,128,.09);
+  color: #78dfa0;
+}
+
+/* Cancelled reads as stopped rather than animated danger. */
+.ab-task-page:has(.ab-task-status-cancelled) .ab-task-lifecycle {
+  border-top-color: rgba(239,111,108,.34);
+  opacity: .82;
+}
+
+/* Panels gain depth on interaction. */
+.ab-task-page .ab-task-panel,
+.ab-task-page .ab-task-side-panel,
+.ab-task-page .ab-verify-panel {
+  transition:
+    border-color 170ms ease,
+    background 170ms ease,
+    box-shadow 170ms ease,
+    transform 170ms ease;
+}
+
+.ab-task-page .ab-task-panel:hover,
+.ab-task-page .ab-task-side-panel:hover,
+.ab-task-page .ab-verify-panel:hover {
+  border-color: rgba(var(--contract-accent-rgb), .24);
+  background:
+    linear-gradient(180deg, rgba(var(--contract-accent-rgb), .018), transparent 22%),
+    rgba(15,18,23,.91);
+  box-shadow: 0 18px 56px rgba(0,0,0,.15);
+}
+
+/* Sidebar gets a tiny state marker so the accent remains visible lower down. */
+.ab-task-page .ab-task-sidebar::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 20px;
+  width: 1px;
+  height: 72px;
+  background: linear-gradient(var(--contract-accent), transparent);
+  box-shadow: 0 0 13px rgba(var(--contract-accent-rgb), .2);
+  opacity: .75;
+  pointer-events: none;
+}
+
+/* Verification becomes the visual focal point while evidence is pending. */
+.ab-task-page:has(.ab-task-status-submitted) .ab-verify-panel,
+.ab-task-page:has(.ab-task-status-verifying) .ab-verify-panel,
+.ab-task-page:has(.ab-task-status-revision) .ab-verify-panel {
+  border-color: rgba(var(--contract-accent-rgb), .28);
+  box-shadow:
+    0 24px 80px rgba(0,0,0,.18),
+    0 0 40px rgba(var(--contract-accent-rgb), .025);
+}
+
+.ab-task-page:has(.ab-task-status-submitted) .ab-verify-progress,
+.ab-task-page:has(.ab-task-status-verifying) .ab-verify-progress {
+  position: relative;
+  overflow: hidden;
+}
+
+.ab-task-page:has(.ab-task-status-submitted) .ab-verify-progress::after,
+.ab-task-page:has(.ab-task-status-verifying) .ab-verify-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -30%;
+  width: 28%;
+  background: linear-gradient(90deg, transparent, rgba(var(--contract-accent-rgb), .24), transparent);
+  animation: abContractVerifyScan 2.6s linear infinite;
+  pointer-events: none;
+}
+
+/* Market rows respond to the contract's active signal. */
+.ab-task-page .ab-task-bid:hover {
+  background:
+    linear-gradient(90deg, rgba(var(--contract-accent-rgb), .035), transparent 36%),
+    #12171c;
+  box-shadow: inset 2px 0 0 rgba(var(--contract-accent-rgb), .72);
+}
+
+.ab-task-page .ab-hire-button,
+.ab-task-page .ab-settlement-button,
+.ab-task-page .ab-auto-verify-retry {
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.ab-task-page .ab-hire-button:hover,
+.ab-task-page .ab-settlement-button:hover,
+.ab-task-page .ab-auto-verify-retry:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 9px 28px rgba(var(--contract-accent-rgb), .11);
+}
+
+@keyframes abContractCurrentNode {
+  0%, 100% {
+    box-shadow:
+      0 0 0 5px rgba(var(--contract-accent-rgb), .045),
+      0 0 20px rgba(var(--contract-accent-rgb), .12);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(var(--contract-accent-rgb), .025),
+      0 0 34px rgba(var(--contract-accent-rgb), .23);
+  }
+}
+
+@keyframes abContractVerifyScan {
+  from { transform: translateX(0); }
+  to { transform: translateX(470%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-task-page .ab-life-node,
+  .ab-task-page .ab-verify-progress::after {
+    animation: none !important;
+  }
+}

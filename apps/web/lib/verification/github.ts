@@ -1,9 +1,8 @@
-import fs from "fs";
-
 import {
   SignJWT,
   importPKCS8,
 } from "jose";
+import { getGitHubPrivateKey } from "@/lib/github-app-key";
 
 const GITHUB_API_VERSION =
   "2026-03-10";
@@ -62,24 +61,14 @@ async function createAppJwt() {
   const appId =
     process.env.GITHUB_APP_ID;
 
-  const privateKeyPath =
-    process.env
-      .GITHUB_PRIVATE_KEY_PATH;
-
-  if (
-    !appId ||
-    !privateKeyPath
-  ) {
+  if (!appId) {
     throw new Error(
       "Missing GitHub App configuration"
     );
   }
 
   const pem =
-    fs.readFileSync(
-      privateKeyPath,
-      "utf8"
-    );
+    getGitHubPrivateKey();
 
   const key =
     await importPKCS8(

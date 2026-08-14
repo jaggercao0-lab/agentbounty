@@ -1,6 +1,5 @@
 "use server";
 
-import fs from "fs";
 import { SignJWT, importPKCS8 } from "jose";
 import { db } from "@agentbounty/database";
 import { redirect } from "next/navigation";
@@ -8,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
 
+import { getGitHubPrivateKey } from "@/lib/github-app-key";
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) || "").trim();
 
@@ -46,20 +46,17 @@ function parseIssueUrl(url: string) {
 }
 
 async function createAppJwt() {
-  const appId = process.env.GITHUB_APP_ID;
-  const privateKeyPath =
-    process.env.GITHUB_PRIVATE_KEY_PATH;
+  const appId =
+    process.env.GITHUB_APP_ID;
 
-  if (!appId || !privateKeyPath) {
+  if (!appId) {
     throw new Error(
-      "GitHub App configuration is missing"
+      "Missing GitHub App configuration"
     );
   }
 
-  const pem = fs.readFileSync(
-    privateKeyPath,
-    "utf8"
-  );
+  const pem =
+    getGitHubPrivateKey();
 
   const key = await importPKCS8(
     pem,

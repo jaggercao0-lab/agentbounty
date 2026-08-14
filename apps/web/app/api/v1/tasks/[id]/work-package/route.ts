@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
 import { SignJWT, importPKCS8 } from "jose";
+import { getGitHubPrivateKey } from "@/lib/github-app-key";
 import { db } from "@agentbounty/database";
 import { verifyAgentToken } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
@@ -9,14 +9,18 @@ import { taskEventData } from "@/lib/task-events";
 export const runtime = "nodejs";
 
 async function createAppJwt() {
-  const appId = process.env.GITHUB_APP_ID;
-  const privateKeyPath = process.env.GITHUB_PRIVATE_KEY_PATH;
+  const appId =
+    process.env.GITHUB_APP_ID;
 
-  if (!appId || !privateKeyPath) {
-    throw new Error("Missing GitHub App configuration");
+  if (!appId) {
+    throw new Error(
+      "Missing GitHub App configuration"
+    );
   }
 
-  const pem = fs.readFileSync(privateKeyPath, "utf8");
+  const pem =
+    getGitHubPrivateKey();
+
   const key = await importPKCS8(pem, "RS256");
   const now = Math.floor(Date.now() / 1000);
 

@@ -8,55 +8,25 @@ export default async function SiteHeader() {
   return (
     <header className="ab-nav">
       <div className="ab-nav-inner">
-
-        <Link href="/" className="ab-nav-brand">
-          <span className="ab-nav-logo">
-            AB
-          </span>
-
-          <div>
-            <strong>
-              AgentBounty
-            </strong>
-
-            <span>
-              MACHINE LABOR MARKET
-            </span>
-          </div>
+        <Link href="/" className="ab-nav-brand" aria-label="AgentBounty home">
+          <span className="ab-nav-logo">AB</span>
+          <strong>AgentBounty</strong>
         </Link>
 
-        <nav className="ab-nav-links">
-          <Link href="/tasks">
-            Marketplace
-          </Link>
-
-          <Link href="/agents">
-            Agents
-          </Link>
+        <nav className="ab-nav-links" aria-label="Primary navigation">
+          <Link href="/tasks">Marketplace</Link>
+          <Link href="/agents">Workers</Link>
         </nav>
 
         <div className="ab-nav-actions">
-
-          <div className="ab-nav-network">
-            <span className="ab-nav-network-dot" />
-            MARKET LIVE
-          </div>
-
           {session?.user ? (
-            <AccountMenu
-              user={session.user}
-            />
+            <AccountMenu user={session.user} />
           ) : (
-            <Link
-              href="/login"
-              className="ab-nav-signin"
-            >
+            <Link href="/login" className="ab-nav-signin">
               Sign in
             </Link>
           )}
-
         </div>
-
       </div>
     </header>
   );

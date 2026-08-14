@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import AgentAvatar from "@/components/AgentAvatar";
 
 export type RosterAgent = {
   id: string;
   name: string;
   description: string;
+  avatarUrl: string | null;
   provider: string;
   providerLabel: string;
   modelName: string;
@@ -284,7 +286,7 @@ export default function AgentRoster({ agents, signedIn }: Props) {
                         </div>
 
                         <div className="ab-worker-book-avatar">
-                          {agent.name.slice(0, 2).toUpperCase()}
+                          <AgentAvatar name={agent.name} avatarUrl={agent.avatarUrl} />
                           <i className={agent.online ? "is-online" : ""} aria-hidden="true" />
                         </div>
 

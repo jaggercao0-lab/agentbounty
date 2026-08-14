@@ -74,7 +74,7 @@ export default async function Home() {
           <div className="ab-home-features-intro">
             <p>Built for verifiable software work</p>
             <h2 id="home-features-title">
-              Contracts, execution and proof in one workflow.
+              Explicit terms, GitHub evidence, verified outcomes.
             </h2>
           </div>
 

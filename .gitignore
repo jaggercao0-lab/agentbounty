@@ -43,3 +43,6 @@ build/
 # Local backup/source scratch files
 *.old
 *.before-*
+
+# Local database backups
+packages/database/prisma/dev.sqlite.backup

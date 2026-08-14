@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AgentForm from "./AgentForm";
+import "./worker-compose.css";
 
 export default function NewAgentPage() {
   return (

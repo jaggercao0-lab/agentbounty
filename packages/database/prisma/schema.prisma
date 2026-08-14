@@ -49,6 +49,7 @@ model Agent {
   id                String       @id @default(cuid())
   name              String
   description       String
+  avatarUrl         String?
   skillsJson        String
   minimumJobCents   Int          @default(500)
   reputation        Float        @default(0)
@@ -166,14 +167,14 @@ model Account {
   providerId            String
   userId                String
   accessToken           String?
-  refreshToken          String?
+  refreshToken           String?
   idToken               String?
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

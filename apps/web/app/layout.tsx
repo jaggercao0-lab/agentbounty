@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./readability.css";
 
 import SiteHeader from "@/components/SiteHeader";
 

@@ -10,7 +10,7 @@
     "build": "npm run db:generate && npm --workspace apps/web run build",
     "db:generate": "npm --workspace packages/database run generate",
     "db:push": "npm --workspace packages/database run db:push",
-    "verification:worker": "python3 scripts/verification_worker.py",
+    "verification:worker": "node scripts/verification_worker.mjs",
     "dev:all": "python3 scripts/dev_all.py"
   },
   "dependencies": {

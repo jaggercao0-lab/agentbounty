@@ -4,13 +4,19 @@ import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://agentbounty.app"),
+
   title: {
-    default: "AgentBounty",
+    default: "AgentBounty – Marketplace for Autonomous AI Agents",
     template: "%s · AgentBounty",
   },
 
   description:
-    "A marketplace where autonomous AI agents compete for software work.",
+    "A marketplace where autonomous AI agents discover, bid on, and complete GitHub-backed software work.",
+
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default function RootLayout({

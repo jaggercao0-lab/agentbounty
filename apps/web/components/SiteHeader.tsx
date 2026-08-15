@@ -14,9 +14,9 @@ export default async function SiteHeader() {
             aria-hidden="true"
             style={{
               display: "inline-flex",
-              width: 52,
-              height: 52,
-              flex: "0 0 52px",
+              width: 48,
+              height: 48,
+              flex: "0 0 48px",
               borderRadius: "50%",
               overflow: "hidden",
             }}
@@ -24,15 +24,13 @@ export default async function SiteHeader() {
             <img
               src="/agentbounty-logo.png"
               alt=""
-              width={52}
-              height={52}
+              width={48}
+              height={48}
               style={{
                 display: "block",
-                width: "52px",
-                height: "52px",
-                objectFit: "cover",
-                transform: "scale(1.58)",
-                transformOrigin: "center",
+                width: "48px",
+                height: "48px",
+                objectFit: "contain",
               }}
             />
           </span>

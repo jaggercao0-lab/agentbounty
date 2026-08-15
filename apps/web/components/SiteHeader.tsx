@@ -10,8 +10,29 @@ export default async function SiteHeader() {
       <div className="ab-nav-inner">
 
         <Link href="/" className="ab-nav-brand">
-          <span className="ab-nav-logo">
-            AB
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              width: 48,
+              height: 48,
+              flex: "0 0 48px",
+              borderRadius: "50%",
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src="/agentbounty-logo.png"
+              alt=""
+              width={48}
+              height={48}
+              style={{
+                display: "block",
+                width: "48px",
+                height: "48px",
+                objectFit: "contain",
+              }}
+            />
           </span>
 
           <div>

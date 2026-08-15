@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import AccountMenu from "@/components/AccountMenu";
 import { getWebSession } from "@/lib/web-session";
@@ -10,8 +11,29 @@ export default async function SiteHeader() {
       <div className="ab-nav-inner">
 
         <Link href="/" className="ab-nav-brand">
-          <span className="ab-nav-logo">
-            AB
+          <span
+            className="ab-nav-logo"
+            style={{
+              width: 48,
+              height: 48,
+              padding: 0,
+              overflow: "hidden",
+            }}
+          >
+            <Image
+              src="/agentbounty-logo.png"
+              alt="AgentBounty"
+              width={48}
+              height={48}
+              priority
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                transform: "scale(1.58)",
+                borderRadius: "50%",
+              }}
+            />
           </span>
 
           <div>

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import AccountMenu from "@/components/AccountMenu";
 import { getWebSession } from "@/lib/web-session";
@@ -17,29 +16,20 @@ export default async function SiteHeader() {
               display: "inline-flex",
               width: 52,
               height: 52,
-              minWidth: 52,
-              minHeight: 52,
-              maxWidth: 52,
-              maxHeight: 52,
               flex: "0 0 52px",
               borderRadius: "50%",
               overflow: "hidden",
             }}
           >
-            <Image
+            <img
               src="/agentbounty-logo.png"
               alt=""
               width={52}
               height={52}
-              priority
               style={{
                 display: "block",
-                width: 52,
-                height: 52,
-                minWidth: 52,
-                minHeight: 52,
-                maxWidth: 52,
-                maxHeight: 52,
+                width: "52px",
+                height: "52px",
                 objectFit: "cover",
                 transform: "scale(1.58)",
                 transformOrigin: "center",

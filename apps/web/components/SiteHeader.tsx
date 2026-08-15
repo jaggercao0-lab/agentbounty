@@ -12,26 +12,37 @@ export default async function SiteHeader() {
 
         <Link href="/" className="ab-nav-brand">
           <span
-            className="ab-nav-logo"
+            aria-hidden="true"
             style={{
-              width: 48,
-              height: 48,
-              padding: 0,
+              display: "inline-flex",
+              width: 52,
+              height: 52,
+              minWidth: 52,
+              minHeight: 52,
+              maxWidth: 52,
+              maxHeight: 52,
+              flex: "0 0 52px",
+              borderRadius: "50%",
               overflow: "hidden",
             }}
           >
             <Image
               src="/agentbounty-logo.png"
-              alt="AgentBounty"
-              width={48}
-              height={48}
+              alt=""
+              width={52}
+              height={52}
               priority
               style={{
-                width: "100%",
-                height: "100%",
+                display: "block",
+                width: 52,
+                height: 52,
+                minWidth: 52,
+                minHeight: 52,
+                maxWidth: 52,
+                maxHeight: 52,
                 objectFit: "cover",
                 transform: "scale(1.58)",
-                borderRadius: "50%",
+                transformOrigin: "center",
               }}
             />
           </span>

@@ -2,9 +2,13 @@
 
 import { db } from "@agentbounty/database";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
-import { assertAgentHasCapacity } from "@/lib/agent-capacity";
+import {
+  AgentAtCapacityError,
+  assertAgentHasCapacity,
+} from "@/lib/agent-capacity";
 
 export async function hireBid(formData: FormData) {
   const user = await requireWebUser();
@@ -24,43 +28,59 @@ export async function hireBid(formData: FormData) {
     throw new Error("Bid not found");
   }
 
-  await db.$transaction(async tx => {
-    await assertAgentHasCapacity(tx, bid.agentId);
+  try {
+    await db.$transaction(async tx => {
+      await assertAgentHasCapacity(tx, bid.agentId);
 
-    const result = await tx.task.updateMany({
-      where: {
-        id: taskId,
-        ownerId: user.id,
-        status: "OPEN",
-      },
-      data: {
-        status: "ASSIGNED",
-        assignedAgentId: bid.agentId,
-      },
+      const result = await tx.task.updateMany({
+        where: {
+          id: taskId,
+          ownerId: user.id,
+          status: "OPEN",
+        },
+        data: {
+          status: "ASSIGNED",
+          assignedAgentId: bid.agentId,
+        },
+      });
+
+      if (result.count !== 1) {
+        throw new Error(
+          "Task is unavailable or you do not own it"
+        );
+      }
+
+      await tx.taskEvent.create({
+        data: taskEventData({
+          taskId,
+          type: "AGENT_ASSIGNED",
+          actorType: "HUMAN",
+          actorId: user.id,
+          message: "Agent hired for task",
+          metadata: {
+            agentId: bid.agentId,
+            bidId: bid.id,
+            priceCents: bid.priceCents,
+          },
+          dedupeKey: `task:${taskId}:assigned`,
+        }),
+      });
     });
-
-    if (result.count !== 1) {
-      throw new Error(
-        "Task is unavailable or you do not own it"
+  } catch (error) {
+    if (
+      error instanceof AgentAtCapacityError ||
+      (
+        error instanceof Error &&
+        error.message === "AGENT_AT_CAPACITY"
+      )
+    ) {
+      redirect(
+        `/tasks/${taskId}?hireError=agent_at_capacity`
       );
     }
 
-    await tx.taskEvent.create({
-      data: taskEventData({
-        taskId,
-        type: "AGENT_ASSIGNED",
-        actorType: "HUMAN",
-        actorId: user.id,
-        message: "Agent hired for task",
-        metadata: {
-          agentId: bid.agentId,
-          bidId: bid.id,
-          priceCents: bid.priceCents,
-        },
-        dedupeKey: `task:${taskId}:assigned`,
-      }),
-    });
-  });
+    throw error;
+  }
 
   revalidatePath(`/tasks/${taskId}`);
   revalidatePath("/tasks");

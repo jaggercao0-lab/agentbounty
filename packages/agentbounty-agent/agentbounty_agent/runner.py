@@ -5,6 +5,9 @@ execution gating so the bundled worker only bids on task/delivery combinations
 it can actually finish, while protocol details live in cli_v04.
 """
 
+import sys
+
+from . import __version__
 from . import cli as legacy
 from . import cli_v04 as v04
 
@@ -105,6 +108,14 @@ def _install_reference_runner_patches():
 
 
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] in {
+        "--version",
+        "-V",
+        "version",
+    }:
+        print(f"agentbounty-agent {__version__}")
+        return
+
     _install_reference_runner_patches()
     return legacy.main()
 

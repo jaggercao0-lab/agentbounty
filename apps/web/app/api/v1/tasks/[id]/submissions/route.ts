@@ -6,32 +6,111 @@ import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
 import { DELIVERY_TYPES } from "@/lib/task-types";
 
+const MAX_JSON_BYTES = 500_000;
+const MAX_METADATA_BYTES = 64_000;
+
 const schema = z.object({
   // Kept for backwards compatibility with older runners.
   // The authenticated token remains authoritative.
   agentId: z.string().min(1).optional(),
   deliveryType: z.enum(DELIVERY_TYPES).optional(),
-  pullRequestUrl: z.string().url().optional(),
-  artifactUrl: z.string().url().optional(),
+  pullRequestUrl: z.string().url().max(5000).optional(),
+  artifactUrl: z.string().url().max(5000).optional(),
   textContent: z.string().max(200_000).optional(),
   jsonContent: z.union([
-    z.string().max(500_000),
+    z.string().max(MAX_JSON_BYTES),
     z.record(z.string(), z.unknown()),
     z.array(z.unknown()),
   ]).optional(),
-  mimeType: z.string().max(200).optional(),
+  mimeType: z.string().trim().max(200).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   notes: z.string().max(5000).optional(),
+}).superRefine((value, ctx) => {
+  if (
+    value.jsonContent !== undefined &&
+    typeof value.jsonContent !== "string"
+  ) {
+    const bytes = Buffer.byteLength(
+      JSON.stringify(value.jsonContent),
+      "utf8"
+    );
+
+    if (bytes > MAX_JSON_BYTES) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["jsonContent"],
+        message: "jsonContent is too large",
+      });
+    }
+  }
+
+  if (value.metadata) {
+    const bytes = Buffer.byteLength(
+      JSON.stringify(value.metadata),
+      "utf8"
+    );
+
+    if (bytes > MAX_METADATA_BYTES) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["metadata"],
+        message: "metadata is too large",
+      });
+    }
+  }
 });
+
+function isHttpsUrl(value: string) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function pullRequestMatchesRepository(
+  value: string,
+  repository: string | null
+) {
+  if (!repository) return false;
+
+  const [owner, repo] = repository.split("/");
+  if (!owner || !repo) return false;
+
+  try {
+    const url = new URL(value);
+    const expectedPrefix = `/${owner}/${repo}/pull/`.toLowerCase();
+
+    return (
+      url.protocol === "https:" &&
+      url.hostname.toLowerCase() === "github.com" &&
+      url.pathname.toLowerCase().startsWith(expectedPrefix) &&
+      /^\d+\/?$/.test(
+        url.pathname.slice(expectedPrefix.length)
+      )
+    );
+  } catch {
+    return false;
+  }
+}
 
 function validateDelivery(
   deliveryType: string,
-  data: z.infer<typeof schema>
+  data: z.infer<typeof schema>,
+  githubRepo: string | null
 ) {
   switch (deliveryType) {
     case "PULL_REQUEST":
       if (!data.pullRequestUrl) {
         throw new Error("pull_request_url_required");
+      }
+      if (
+        !pullRequestMatchesRepository(
+          data.pullRequestUrl,
+          githubRepo
+        )
+      ) {
+        throw new Error("invalid_pull_request_url");
       }
       break;
 
@@ -45,6 +124,9 @@ function validateDelivery(
     case "URL":
       if (!data.artifactUrl) {
         throw new Error("artifact_url_required");
+      }
+      if (!isHttpsUrl(data.artifactUrl)) {
+        throw new Error("https_artifact_url_required");
       }
       break;
 
@@ -102,6 +184,7 @@ export async function POST(
         assignedAgentId: true,
         deliveryType: true,
         verificationType: true,
+        githubRepo: true,
       },
     });
 
@@ -141,7 +224,11 @@ export async function POST(
       );
     }
 
-    validateDelivery(task.deliveryType, data);
+    validateDelivery(
+      task.deliveryType,
+      data,
+      task.githubRepo
+    );
 
     const normalizedJsonContent =
       data.jsonContent === undefined
@@ -225,8 +312,10 @@ export async function POST(
       error instanceof Error &&
       [
         "pull_request_url_required",
+        "invalid_pull_request_url",
         "text_content_required",
         "artifact_url_required",
+        "https_artifact_url_required",
         "json_content_required",
         "invalid_json_content",
         "unsupported_delivery_type",

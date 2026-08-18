@@ -10,8 +10,19 @@ import {
   zhExtraOverrides,
 } from "@/lib/i18n-zh";
 
+import {
+  taskSourceTranslations,
+} from "@/lib/i18n-task-source";
+
 export const extraTranslations: Record<Locale, any> = {
-  en: baseExtraTranslations.en,
+  en: {
+    ...baseExtraTranslations.en,
+
+    newTask: {
+      ...baseExtraTranslations.en.newTask,
+      ...taskSourceTranslations.en,
+    },
+  },
 
   zh: {
     ...baseExtraTranslations.zh,
@@ -29,6 +40,7 @@ export const extraTranslations: Record<Locale, any> = {
     newTask: {
       ...baseExtraTranslations.zh.newTask,
       ...zhExtraOverrides.newTask,
+      ...taskSourceTranslations.zh,
     },
 
     newAgent: {

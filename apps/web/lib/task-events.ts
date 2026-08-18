@@ -20,6 +20,7 @@ const SENSITIVE_METADATA_KEYS =
     "sourceurl",
     "sourcedata",
     "sourcedatajson",
+    "artifacturl",
     "token",
     "accesstoken",
     "refreshtoken",

@@ -4,12 +4,26 @@ import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
 
+const githubRepo = z
+  .string()
+  .trim()
+  .regex(
+    /^[^/\s]+\/[^/\s]+$/,
+    "githubRepo must use owner/repository format"
+  );
+
 const createTask = z
   .object({
     title: z.string().min(3),
     description: z.string().min(3),
-    githubRepo: z.string().min(3),
-    githubIssueUrl: z.string().url(),
+    githubRepo,
+    githubIssueUrl: z
+      .union([
+        z.string().url(),
+        z.literal(""),
+      ])
+      .optional()
+      .default(""),
     bountyCents: z.number().int().positive(),
     executionFeeCents: z.number().int().nonnegative(),
     includedRevisions: z
@@ -23,9 +37,7 @@ const createTask = z
       .min(1),
   })
   .refine(
-    (x) =>
-      x.executionFeeCents <
-      x.bountyCents,
+    x => x.executionFeeCents < x.bountyCents,
     {
       message:
         "executionFeeCents must be smaller than bountyCents",
@@ -43,7 +55,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    tasks: tasks.map((task) => {
+    tasks: tasks.map(task => {
       const {
         acceptanceCriteriaJson,
         ownerId: _ownerId,
@@ -53,22 +65,15 @@ export async function GET() {
       return {
         ...publicTask,
         acceptanceCriteria:
-          JSON.parse(
-            acceptanceCriteriaJson
-          ),
+          JSON.parse(acceptanceCriteriaJson),
       };
     }),
   });
 }
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
-    const user =
-      await authenticateWebRequest(
-        request
-      );
+    const user = await authenticateWebRequest(request);
 
     if (!user) {
       return NextResponse.json(
@@ -81,40 +86,31 @@ export async function POST(
       );
     }
 
-    const data =
-      createTask.parse(
-        await request.json()
-      );
+    const data = createTask.parse(
+      await request.json()
+    );
 
     const {
       acceptanceCriteria,
       ...taskData
     } = data;
 
-    const task =
-      await db.task.create({
-        data: {
-          ...taskData,
+    const task = await db.task.create({
+      data: {
+        ...taskData,
+        githubIssueUrl:
+          data.githubIssueUrl || "",
+        ownerId: user.id,
+        successRewardCents:
+          data.bountyCents - data.executionFeeCents,
+        acceptanceCriteriaJson:
+          JSON.stringify(acceptanceCriteria),
+      },
+    });
 
-          ownerId: user.id,
-
-          successRewardCents:
-            data.bountyCents -
-            data.executionFeeCents,
-
-          acceptanceCriteriaJson:
-            JSON.stringify(
-              acceptanceCriteria
-            ),
-        },
-      });
-
-    return NextResponse.json(
-      task,
-      {
-        status: 201,
-      }
-    );
+    return NextResponse.json(task, {
+      status: 201,
+    });
   } catch (error) {
     return apiError(error);
   }

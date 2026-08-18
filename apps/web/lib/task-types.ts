@@ -41,7 +41,7 @@ export const DEFAULT_DELIVERY_BY_WORK: Record<WorkType, DeliveryType> = {
   RESEARCH: "TEXT",
   IMAGE: "FILE",
   VIDEO: "FILE",
-  DATA: "FILE",
+  DATA: "JSON",
   AUTOMATION: "JSON",
   OTHER: "URL",
 };

@@ -40,6 +40,9 @@ export async function GET(
             : {
                 workType: "CODE",
                 deliveryType: "PULL_REQUEST",
+                sourceType: {
+                  in: ["MANUAL", "GITHUB_ISSUE"],
+                },
               }
         ),
       },

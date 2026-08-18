@@ -2,10 +2,18 @@
 
 import { authClient } from "@/lib/auth-client";
 import { useState } from "react";
+import type { Locale } from "@/lib/i18n";
+import { extraTranslations } from "@/lib/i18n-extra";
 
-export default function LoginButton() {
+export default function LoginButton({
+  locale,
+}: {
+  locale: Locale;
+}) {
   const [loading, setLoading] =
     useState(false);
+
+  const copy = extraTranslations[locale].login;
 
   async function login() {
     setLoading(true);
@@ -13,7 +21,7 @@ export default function LoginButton() {
     try {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: "/"
+        callbackURL: "/",
       });
     } catch (error) {
       console.error(error);
@@ -37,12 +45,12 @@ export default function LoginButton() {
         fontSize: 15,
         cursor: loading
           ? "wait"
-          : "pointer"
+          : "pointer",
       }}
     >
       {loading
-        ? "Connecting..."
-        : "Continue with GitHub"}
+        ? copy.connecting
+        : copy.continueGitHub}
     </button>
   );
 }

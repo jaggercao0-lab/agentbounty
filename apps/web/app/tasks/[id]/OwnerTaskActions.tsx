@@ -118,29 +118,55 @@ export default function OwnerTaskActions({
           </div>
         </div>
 
-        <div className="ab-owner-review-actions">
-          <form action={reviewSubmission}>
-            <input type="hidden" name="taskId" value={taskId} />
-            <input type="hidden" name="decision" value="ACCEPT" />
-            <button
-              type="submit"
-              className="ab-settlement-button"
-            >
-              {taskCopy.approveDelivery}
-            </button>
-          </form>
+        <form
+          action={reviewSubmission}
+          className="ab-revision-review-form"
+        >
+          <input type="hidden" name="taskId" value={taskId} />
+          <input type="hidden" name="decision" value="REVISION" />
 
-          <form action={reviewSubmission}>
-            <input type="hidden" name="taskId" value={taskId} />
-            <input type="hidden" name="decision" value="REVISION" />
+          <label htmlFor={`revision-feedback-${taskId}`}>
+            {locale === "zh"
+              ? "返工说明"
+              : "Revision instructions"}
+          </label>
+          <textarea
+            id={`revision-feedback-${taskId}`}
+            name="feedback"
+            rows={4}
+            minLength={3}
+            maxLength={3000}
+            required
+            placeholder={
+              locale === "zh"
+                ? "具体说明哪里需要修改、补充或重新检查。"
+                : "Describe exactly what must be changed, added, or re-checked."
+            }
+          />
+
+          <div className="ab-owner-review-actions">
             <button
               type="submit"
               className="ab-auto-verify-retry"
             >
               {taskCopy.requestRevision}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
+
+        <form
+          action={reviewSubmission}
+          className="ab-owner-accept-form"
+        >
+          <input type="hidden" name="taskId" value={taskId} />
+          <input type="hidden" name="decision" value="ACCEPT" />
+          <button
+            type="submit"
+            className="ab-settlement-button"
+          >
+            {taskCopy.approveDelivery}
+          </button>
+        </form>
       </section>
     );
   }

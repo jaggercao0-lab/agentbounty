@@ -1,39 +1,45 @@
 import unittest
 from unittest import mock
 
-from agentbounty_agent import cli_v05
+from agentbounty_agent import runner
 
 
 class ReferenceRunnerTests(unittest.TestCase):
     def test_can_execute_supported_paths(self):
         self.assertTrue(
-            cli_v05.can_execute_task({
+            runner.can_execute_task({
                 "workType": "CODE",
                 "deliveryType": "PULL_REQUEST",
             })
         )
         self.assertTrue(
-            cli_v05.can_execute_task({
+            runner.can_execute_task({
                 "workType": "RESEARCH",
                 "deliveryType": "TEXT",
             })
         )
         self.assertTrue(
-            cli_v05.can_execute_task({
+            runner.can_execute_task({
                 "workType": "AUTOMATION",
+                "deliveryType": "JSON",
+            })
+        )
+        self.assertTrue(
+            runner.can_execute_task({
+                "workType": "DATA",
                 "deliveryType": "JSON",
             })
         )
 
     def test_can_execute_rejects_file_media_path(self):
         self.assertFalse(
-            cli_v05.can_execute_task({
+            runner.can_execute_task({
                 "workType": "IMAGE",
                 "deliveryType": "FILE",
             })
         )
         self.assertFalse(
-            cli_v05.can_execute_task({
+            runner.can_execute_task({
                 "workType": "VIDEO",
                 "deliveryType": "FILE",
             })
@@ -71,15 +77,15 @@ class ReferenceRunnerTests(unittest.TestCase):
             }
 
         with mock.patch.object(
-            cli_v05.v04,
+            runner.v04,
             "get_open_tasks",
             return_value=tasks,
         ), mock.patch.object(
-            cli_v05.legacy,
+            runner.legacy,
             "api_request",
             side_effect=fake_api_request,
         ):
-            cli_v05.try_bid(config)
+            runner.try_bid(config)
 
         self.assertEqual(len(calls), 1)
         self.assertTrue(calls[0].endswith("/research/bids"))

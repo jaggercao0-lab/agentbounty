@@ -11,12 +11,14 @@ import {
 export type HomeMarketSnapshot = {
   activeAgentCount: number;
   openTaskCount: number;
-
   latestTask: {
     id: string;
     title: string;
     status: string;
-    githubRepo: string;
+    workType: string;
+    sourceType: string;
+    deliveryType: string;
+    githubRepo: string | null;
     bountyCents: number;
     bidCount: number;
     assignedAgentName: string | null;
@@ -32,19 +34,17 @@ function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function statusLabel(
-  status: string,
-  locale: Locale
-) {
+function statusLabel(status: string, locale: Locale) {
   if (locale === "en") {
-    return status;
+    return status === "VERIFYING" ? "OWNER REVIEW" : status;
   }
 
   const labels: Record<string, string> = {
-    OPEN: "开放",
-    ASSIGNED: "已分配",
-    WORKING: "执行中",
-    SUBMITTED: "已提交",
+    OPEN: "可接单",
+    ASSIGNED: "已接单",
+    WORKING: "进行中",
+    SUBMITTED: "待验收",
+    VERIFYING: "待发布者确认",
     REVISION: "返工中",
     ACCEPTED: "已验收",
     PAID: "已结算",
@@ -56,50 +56,62 @@ function statusLabel(
 
 function statusMessage(
   status: string,
-  locale: Locale
+  locale: Locale,
+  deliveryType: string
 ) {
+  const delivery =
+    deliveryType === "PULL_REQUEST"
+      ? "Pull Request"
+      : locale === "zh"
+        ? "交付结果"
+        : "delivery";
+
   if (locale === "zh") {
     switch (status) {
       case "OPEN":
-        return "正在向自主竞标者广播...";
+        return "正在等待匹配的 Agent 报价...";
       case "ASSIGNED":
-        return "智能体已选定，握手完成。";
+        return "已经选定接单 Agent。";
       case "WORKING":
-        return "智能体正在处理代码仓库...";
+        return "Agent 正在执行任务...";
       case "SUBMITTED":
-        return "Pull Request 已提交，等待验证。";
+        return `${delivery} 已提交，等待验收。`;
+      case "VERIFYING":
+        return "自动检查已完成，等待发布者最终确认。";
       case "REVISION":
-        return "当前正在进行返工。";
+        return "Agent 正在根据反馈返工。";
       case "ACCEPTED":
-        return "交付已验证，等待结算。";
+        return "交付已验收，等待结算。";
       case "PAID":
-        return "合约已成功结算。";
+        return "任务已完成结算。";
       case "CANCELLED":
-        return "合约已终止。";
+        return "任务已取消。";
       default:
-        return `合约状态：${status}`;
+        return `任务状态：${status}`;
     }
   }
 
   switch (status) {
     case "OPEN":
-      return "broadcasting to autonomous bidders...";
+      return "waiting for matching agents to bid...";
     case "ASSIGNED":
-      return "worker selected. handshake complete.";
+      return "agent selected. execution can begin.";
     case "WORKING":
-      return "machine is chewing through the repository...";
+      return "agent is executing the task...";
     case "SUBMITTED":
-      return "pull request delivered. awaiting verification.";
+      return `${delivery} submitted. awaiting verification.`;
+    case "VERIFYING":
+      return "automatic checks passed. awaiting owner approval.";
     case "REVISION":
-      return "revision cycle currently in progress...";
+      return "agent is working through a revision...";
     case "ACCEPTED":
-      return "delivery verified. awaiting settlement.";
+      return "delivery accepted. awaiting settlement.";
     case "PAID":
-      return "contract settled successfully.";
+      return "task settled successfully.";
     case "CANCELLED":
-      return "contract transmission terminated.";
+      return "task cancelled.";
     default:
-      return `contract state: ${status.toLowerCase()}`;
+      return `task state: ${status.toLowerCase()}`;
   }
 }
 
@@ -130,7 +142,6 @@ export default function AgentBountyHero({
             <span className="ab-home-online-dot" />
             <span>{t.marketOnline}</span>
             <span className="ab-home-online-separator" />
-
             <span className="ab-home-online-muted">
               {locale === "zh"
                 ? `${market.activeAgentCount}${t.awake}`
@@ -140,9 +151,7 @@ export default function AgentBountyHero({
             </span>
           </div>
 
-          <div className="ab-home-kicker">
-            {t.kicker}
-          </div>
+          <div className="ab-home-kicker">{t.kicker}</div>
 
           <h1 className="ab-home-heading">
             {t.headingLine1}
@@ -154,41 +163,26 @@ export default function AgentBountyHero({
             </span>
           </h1>
 
-          <p className="ab-home-description">
-            {t.description}
-          </p>
+          <p className="ab-home-description">{t.description}</p>
 
           <div className="ab-home-buttons">
             <Link href="/tasks" className="ab-home-primary">
               {t.enterMarketplace}
               <span>→</span>
             </Link>
-
             <Link href="/agents" className="ab-home-secondary">
               {t.meetWorkers}
             </Link>
           </div>
 
           <div className="ab-home-flow">
-            <div>
-              <strong>01</strong>
-              <span>{t.postBounty}</span>
-            </div>
+            <div><strong>01</strong><span>{t.postBounty}</span></div>
             <i />
-            <div>
-              <strong>02</strong>
-              <span>{t.agentsBid}</span>
-            </div>
+            <div><strong>02</strong><span>{t.agentsBid}</span></div>
             <i />
-            <div>
-              <strong>03</strong>
-              <span>{t.prDelivered}</span>
-            </div>
+            <div><strong>03</strong><span>{t.prDelivered}</span></div>
             <i />
-            <div>
-              <strong>04</strong>
-              <span>{t.verifySettle}</span>
-            </div>
+            <div><strong>04</strong><span>{t.verifySettle}</span></div>
           </div>
         </motion.div>
 
@@ -210,10 +204,7 @@ export default function AgentBountyHero({
                 <small>{t.realtimeSnapshot}</small>
               </div>
             </div>
-
-            <span className="ab-terminal-live">
-              LIVE
-            </span>
+            <span className="ab-terminal-live">LIVE</span>
           </div>
 
           {task ? (
@@ -228,7 +219,11 @@ export default function AgentBountyHero({
                       {t.latestContract} · {statusLabel(task.status, locale)}
                     </span>
                     <strong>{task.title}</strong>
-                    <small>{task.githubRepo}</small>
+                    <small>
+                      {task.workType}
+                      {task.githubRepo ? ` · ${task.githubRepo}` : ` · ${task.sourceType}`}
+                      {` · ${task.deliveryType}`}
+                    </small>
                   </div>
 
                   <div className="ab-terminal-bounty">
@@ -286,7 +281,7 @@ export default function AgentBountyHero({
                 transition={{ repeat: Infinity, duration: 2.6 }}
               >
                 <span>&gt;_</span>
-                {statusMessage(task.status, locale)}
+                {statusMessage(task.status, locale, task.deliveryType)}
               </motion.div>
             </>
           ) : (

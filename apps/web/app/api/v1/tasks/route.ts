@@ -13,6 +13,7 @@ import {
   DEFAULT_VERIFICATION_BY_WORK,
   requiredCapabilitiesFor,
   hasRequiredCapabilities,
+  isSafeExternalSourceUrl,
 } from "@/lib/task-types";
 
 const githubRepo = z
@@ -22,6 +23,19 @@ const githubRepo = z
     /^[^/\s]+\/[^/\s]+$/,
     "githubRepo must use owner/repository format"
   );
+
+function parseGitHubIssueUrl(value: string) {
+  const match = value.match(
+    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/i
+  );
+
+  if (!match) return null;
+
+  return {
+    repository: `${match[1]}/${match[2]}`,
+    issueNumber: Number(match[3]),
+  };
+}
 
 const createTask = z
   .object({
@@ -63,20 +77,50 @@ const createTask = z
       });
     }
 
-    if (value.sourceType === "GITHUB_ISSUE" && !value.githubIssueUrl) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["githubIssueUrl"],
-        message: "GitHub Issue source requires githubIssueUrl",
-      });
+    if (value.sourceType === "GITHUB_ISSUE") {
+      if (!value.githubIssueUrl) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["githubIssueUrl"],
+          message: "GitHub Issue source requires githubIssueUrl",
+        });
+      } else {
+        const issue = parseGitHubIssueUrl(value.githubIssueUrl);
+
+        if (!issue) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["githubIssueUrl"],
+            message: "githubIssueUrl must be a github.com Issue URL",
+          });
+        } else if (
+          value.githubRepo &&
+          issue.repository.toLowerCase() !== value.githubRepo.toLowerCase()
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["githubIssueUrl"],
+            message: "GitHub Issue must belong to githubRepo",
+          });
+        }
+      }
     }
 
-    if (["URL", "FILE", "API"].includes(value.sourceType) && !value.sourceUrl) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["sourceUrl"],
-        message: `${value.sourceType} source requires sourceUrl`,
-      });
+    if (["URL", "FILE", "API"].includes(value.sourceType)) {
+      if (!value.sourceUrl) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceUrl"],
+          message: `${value.sourceType} source requires sourceUrl`,
+        });
+      } else if (!isSafeExternalSourceUrl(value.sourceUrl)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceUrl"],
+          message:
+            "sourceUrl must be a public HTTPS URL and cannot target localhost or a private IP",
+        });
+      }
     }
 
     if (deliveryType === "PULL_REQUEST" && !value.githubRepo) {

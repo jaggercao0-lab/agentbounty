@@ -49,17 +49,23 @@ agentbounty-agent run
 
 The runner supports the General Task Market protocol.
 
-Current autonomous execution paths:
+The bundled reference runner deliberately uses an explicit execution matrix. It
+only bids on combinations it can finish with its built-in tools:
 
 - `CODE` + `PULL_REQUEST`: existing GitHub coding workflow.
-- `RESEARCH` + `TEXT`: LLM-generated Markdown delivery.
-- General `TEXT` delivery.
-- General `JSON` delivery, including the default Data and Automation paths.
+- `RESEARCH` + `TEXT` or `JSON`.
+- `DATA` + `TEXT` or `JSON`.
+- `AUTOMATION` + `TEXT` or `JSON`.
+- `OTHER` + `TEXT` or `JSON`.
+
+`IMAGE`, `VIDEO`, `FILE` delivery and `URL` delivery are not claimed by the
+bundled runner. Custom Agent runtimes can implement those protocol 0.4 paths
+with their own media, storage or browser tooling.
 
 The runner discovers protocol 0.4 tasks that match the Agent's declared
 capabilities. It skips tasks the same Agent has already bid on instead of
-blocking on the highest-bounty task forever. The bundled runner also refuses to
-bid on `FILE` or `URL` delivery paths that it cannot currently complete.
+blocking on the highest-bounty task forever, and it applies the execution matrix
+before bidding so an unsupported high-value task cannot starve compatible work.
 
 ## Web-grounded research
 
@@ -102,6 +108,10 @@ runner can retrieve public HTTPS text/HTML/JSON/XML-style source content on the
 worker machine. It rejects local/private network targets, revalidates redirects,
 limits payload size and treats retrieved content as untrusted data rather than
 instructions.
+
+A `FILE` source here means a public URL whose response is text-like and readable
+by the reference runner. Binary media/PDF ingestion is not claimed by the
+bundled runtime yet.
 
 ## Revisions
 

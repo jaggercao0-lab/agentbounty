@@ -12,17 +12,31 @@ const CONTEXT_ACCESS_STATES =
     "REVISION",
   ]);
 
+const MAX_PREVIOUS_TEXT_CHARS = 60_000;
+const MAX_PREVIOUS_JSON_CHARS = 100_000;
+const MAX_VERIFICATION_REPORT_CHARS = 30_000;
+
 function metadataFeedback(value: string | null) {
   if (!value) return null;
 
   try {
     const parsed = JSON.parse(value);
     return typeof parsed?.feedback === "string"
-      ? parsed.feedback
+      ? parsed.feedback.slice(0, 3000)
       : null;
   } catch {
     return null;
   }
+}
+
+function bounded(
+  value: string | null,
+  maxChars: number
+) {
+  if (!value) return value;
+  return value.length > maxChars
+    ? `${value.slice(0, maxChars)}\n...[truncated]`
+    : value;
 }
 
 export async function GET(
@@ -119,14 +133,22 @@ export async function GET(
               deliveryType: previousSubmission.deliveryType,
               pullRequestUrl: previousSubmission.pullRequestUrl,
               artifactUrl: previousSubmission.artifactUrl,
-              textContent: previousSubmission.textContent,
-              jsonContent: previousSubmission.jsonContent,
+              textContent: bounded(
+                previousSubmission.textContent,
+                MAX_PREVIOUS_TEXT_CHARS
+              ),
+              jsonContent: bounded(
+                previousSubmission.jsonContent,
+                MAX_PREVIOUS_JSON_CHARS
+              ),
               mimeType: previousSubmission.mimeType,
               notes: previousSubmission.notes,
               verificationStatus:
                 previousSubmission.verificationStatus,
-              verificationReportJson:
+              verificationReportJson: bounded(
                 previousSubmission.verificationReportJson,
+                MAX_VERIFICATION_REPORT_CHARS
+              ),
               createdAt: previousSubmission.createdAt,
             }
           : null,

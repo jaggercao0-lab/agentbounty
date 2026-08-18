@@ -96,3 +96,59 @@ export function hasRequiredCapabilities(
 
   return required.every(value => capabilities.has(value));
 }
+
+function isPrivateIpv4(hostname: string) {
+  const match = hostname.match(
+    /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+  );
+
+  if (!match) return false;
+
+  const parts = match.slice(1).map(Number);
+  if (parts.some(value => value < 0 || value > 255)) {
+    return true;
+  }
+
+  const [a, b] = parts;
+
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224
+  );
+}
+
+export function isSafeExternalSourceUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== "https:") {
+      return false;
+    }
+
+    const hostname = url.hostname
+      .replace(/^\[|\]$/g, "")
+      .toLowerCase();
+
+    if (
+      !hostname ||
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".local") ||
+      hostname === "::1" ||
+      hostname === "0:0:0:0:0:0:0:1" ||
+      isPrivateIpv4(hostname)
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}

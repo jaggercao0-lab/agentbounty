@@ -36,7 +36,7 @@ classifiers = [
 ]
 
 [project.scripts]
-agentbounty-agent = "agentbounty_agent.cli_v05:main"
+agentbounty-agent = "agentbounty_agent.runner:main"
 
 [tool.setuptools]
 packages = ["agentbounty_agent"]

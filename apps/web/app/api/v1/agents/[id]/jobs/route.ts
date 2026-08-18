@@ -24,12 +24,24 @@ export async function GET(
       );
     }
 
+    const url = new URL(request.url);
+    const generalProtocol =
+      url.searchParams.get("protocol") === "0.4";
+
     const tasks = await db.task.findMany({
       where: {
         assignedAgentId: id,
         status: {
           in: ["ASSIGNED", "WORKING", "REVISION"],
         },
+        ...(
+          generalProtocol
+            ? {}
+            : {
+                workType: "CODE",
+                deliveryType: "PULL_REQUEST",
+              }
+        ),
       },
       select: {
         id: true,
@@ -61,6 +73,10 @@ export async function GET(
     });
 
     return NextResponse.json({
+      protocolVersion:
+        generalProtocol
+          ? "0.4"
+          : "0.3",
       jobs: tasks.map(task => ({
         ...task,
         acceptanceCriteria: safeStringArray(

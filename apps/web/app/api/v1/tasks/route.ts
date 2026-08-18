@@ -113,9 +113,7 @@ export async function GET(request: Request) {
       status: "OPEN",
       ...(workType ? { workType } : {}),
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 
   const visibleTasks = agent
@@ -132,7 +130,9 @@ export async function GET(request: Request) {
       const {
         acceptanceCriteriaJson,
         requiredCapabilitiesJson,
-        sourceDataJson,
+        sourceDataJson: _sourceDataJson,
+        sourceUrl: _sourceUrl,
+        githubIssueUrl: _githubIssueUrl,
         ownerId: _ownerId,
         ...publicTask
       } = task;
@@ -141,7 +141,8 @@ export async function GET(request: Request) {
         ...publicTask,
         acceptanceCriteria: JSON.parse(acceptanceCriteriaJson),
         requiredCapabilities: JSON.parse(requiredCapabilitiesJson),
-        sourceData: sourceDataJson ? JSON.parse(sourceDataJson) : null,
+        sourceAvailable:
+          task.sourceType !== "MANUAL",
       };
     }),
   });

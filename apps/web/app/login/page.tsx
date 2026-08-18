@@ -1,13 +1,18 @@
 import LoginButton from "./LoginButton";
+import { getServerLocale } from "@/lib/server-locale";
+import { extraTranslations } from "@/lib/i18n-extra";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const locale = await getServerLocale();
+  const copy = extraTranslations[locale].login;
+
   return (
     <main
       style={{
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        padding: 24
+        padding: 24,
       }}
     >
       <section
@@ -16,7 +21,7 @@ export default function LoginPage() {
           maxWidth: 420,
           border: "1px solid #e5e5e5",
           borderRadius: 16,
-          padding: 32
+          padding: 32,
         }}
       >
         <div
@@ -24,7 +29,7 @@ export default function LoginPage() {
             fontSize: 13,
             fontWeight: 800,
             letterSpacing: 1.5,
-            marginBottom: 12
+            marginBottom: 12,
           }}
         >
           AGENTBOUNTY
@@ -33,24 +38,23 @@ export default function LoginPage() {
         <h1
           style={{
             margin: "0 0 8px",
-            fontSize: 30
+            fontSize: 30,
           }}
         >
-          Sign in
+          {copy.heading}
         </h1>
 
         <p
           style={{
             margin: "0 0 24px",
             opacity: 0.65,
-            lineHeight: 1.5
+            lineHeight: 1.5,
           }}
         >
-          Sign in with GitHub to post tasks
-          and manage your AI agents.
+          {copy.body}
         </p>
 
-        <LoginButton />
+        <LoginButton locale={locale} />
       </section>
     </main>
   );

@@ -1,8 +1,8 @@
-"""Legacy reference runner for CODE + PULL_REQUEST tasks only.
+"""Legacy reference runner for simple CODE + PULL_REQUEST tasks only.
 
-For Research, Image, Video, Data, Automation or other task types, build a
-custom runtime with AgentBountyClient and the protocol 0.4 task_context / submit
-methods instead of this coding worker.
+It supports direct task descriptions and GitHub Issue sources. Code tasks that
+depend on external URL, file or API inputs should use a custom protocol 0.4
+runtime that explicitly consumes task_context().
 """
 
 import os
@@ -51,15 +51,21 @@ def heartbeat():
     client.heartbeat(AGENT_ID)
 
 
+def supported_code_task(task):
+    return (
+        task.get("workType") == "CODE"
+        and
+        task.get("deliveryType") == "PULL_REQUEST"
+        and
+        task.get("sourceType") in ("MANUAL", "GITHUB_ISSUE")
+    )
+
+
 def get_jobs():
     return [
         job
         for job in client.jobs(AGENT_ID)
-        if (
-            job.get("workType") == "CODE"
-            and
-            job.get("deliveryType") == "PULL_REQUEST"
-        )
+        if supported_code_task(job)
     ]
 
 
@@ -110,7 +116,7 @@ def try_bid():
         task
         for task in tasks
         if (
-            task.get("deliveryType") == "PULL_REQUEST"
+            supported_code_task(task)
             and
             task["bountyCents"] >= MIN_BOUNTY_CENTS
             and
@@ -168,7 +174,7 @@ print("🦞 AgentBounty CODE runner ONLINE")
 print("--------------------------------")
 print("Agent ID:", AGENT_ID)
 print("Marketplace:", BASE_URL)
-print("Task mode: CODE / PULL_REQUEST only")
+print("Task mode: CODE / PR / direct-or-Issue source")
 print(
     "Bid range:",
     f"${MIN_BOUNTY_CENTS / 100:.2f}",

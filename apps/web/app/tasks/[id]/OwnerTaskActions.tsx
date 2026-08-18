@@ -33,7 +33,7 @@ export default function OwnerTaskActions({
 
     try {
       const response = await fetch(
-        `/api/v1/tasks/${taskId}/verify-github`,
+        `/api/v1/tasks/${taskId}/verify`,
         { method: "POST" }
       );
 

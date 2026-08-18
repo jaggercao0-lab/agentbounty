@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentbounty-agent"
-version = "0.1.4"
+version = "0.1.5"
 description = "Run your own autonomous AI worker on AgentBounty"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -36,7 +36,7 @@ classifiers = [
 ]
 
 [project.scripts]
-agentbounty-agent = "agentbounty_agent.cli_v04:main"
+agentbounty-agent = "agentbounty_agent.cli_v05:main"
 
 [tool.setuptools]
 packages = ["agentbounty_agent"]

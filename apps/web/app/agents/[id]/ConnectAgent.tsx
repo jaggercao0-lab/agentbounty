@@ -2,24 +2,30 @@
 
 import {
   useState,
-  useTransition
+  useTransition,
 } from "react";
 
+import type { Locale } from "@/lib/i18n";
+import { extraTranslations } from "@/lib/i18n-extra";
+
 import {
-  generateAgentToken
+  generateAgentToken,
 } from "./actions";
 
 export default function ConnectAgent({
   agentId,
   existingPrefix,
   provider,
-  modelName
+  modelName,
+  locale,
 }: {
   agentId: string;
   existingPrefix?: string | null;
   provider: string;
   modelName: string;
+  locale: Locale;
 }) {
+  const copy = extraTranslations[locale].agentDetail.connect;
   const providerKey = provider.toLowerCase();
 
   const providerInfo =
@@ -27,37 +33,40 @@ export default function ConnectAgent({
       ? {
           label: "OpenRouter",
           endpoint: "https://openrouter.ai/api/v1",
-          apiKey: "Required locally"
+          apiKey: copy.requiredLocally,
         }
       : providerKey === "openai"
         ? {
             label: "OpenAI",
             endpoint: "https://api.openai.com/v1",
-            apiKey: "Required locally"
+            apiKey: copy.requiredLocally,
           }
         : providerKey === "anthropic"
           ? {
               label: "Anthropic",
               endpoint: "https://api.anthropic.com/v1",
-              apiKey: "Required locally"
+              apiKey: copy.requiredLocally,
             }
           : providerKey === "ollama"
             ? {
                 label: "Ollama",
                 endpoint: "http://localhost:11434",
-                apiKey: "Not required"
+                apiKey: copy.notRequired,
               }
             : providerKey === "custom"
               ? {
                   label: "Custom",
-                  endpoint: "Configured locally",
-                  apiKey: "Depends on endpoint"
+                  endpoint: copy.configuredLocally,
+                  apiKey: copy.dependsEndpoint,
                 }
               : {
                   label: provider,
-                  endpoint: "Configured locally",
-                  apiKey: "Depends on provider"
+                  endpoint: copy.configuredLocally,
+                  apiKey: copy.dependsProvider,
                 };
+
+  void providerInfo;
+  void modelName;
 
   const [token, setToken] =
     useState<string | null>(null);
@@ -77,12 +86,11 @@ export default function ConnectAgent({
     });
   }
 
-  async function copy(
+  async function copyValue(
     name: string,
     value: string
   ) {
     await navigator.clipboard.writeText(value);
-
     setCopied(name);
 
     setTimeout(() => {
@@ -90,81 +98,58 @@ export default function ConnectAgent({
     }, 1500);
   }
 
+  const copyButton = (name: string) =>
+    copied === name
+      ? copy.copied
+      : copy.copy;
+
   return (
     <div className="panel">
-
       <div className="eyebrow">
-        Connect your agent
+        {copy.eyebrow}
       </div>
 
-      <h2>
-        Bring your own AI worker
-      </h2>
+      <h2>{copy.heading}</h2>
 
       <p className="muted">
-        AgentBounty handles jobs, GitHub access,
-        verification and settlement. Your model
-        API key stays on your machine.
+        {copy.body}
       </p>
 
       <div className="connect-step">
-
-        <div className="step-number">
-          1
-        </div>
-
+        <div className="step-number">1</div>
         <div className="step-content">
-          <strong>
-            Install AgentBounty CLI
-          </strong>
+          <strong>{copy.install}</strong>
 
           <div className="command-box">
-            <code>
-              pip install agentbounty-agent
-            </code>
-
+            <code>pip install agentbounty-agent</code>
             <button
               type="button"
               onClick={() =>
-                copy(
+                copyValue(
                   "install",
                   "pip install agentbounty-agent"
                 )
               }
             >
-              {copied === "install"
-                ? "Copied"
-                : "Copy"}
+              {copyButton("install")}
             </button>
           </div>
         </div>
-
       </div>
 
       <div className="connect-step">
-
-        <div className="step-number">
-          2
-        </div>
-
+        <div className="step-number">2</div>
         <div className="step-content">
-          <strong>
-            Create a private Runner Token
-          </strong>
+          <strong>{copy.privateToken}</strong>
 
           <p className="muted small">
-            This token identifies only this Agent.
-            Generating a new token revokes the
-            previous one.
+            {copy.tokenBody}
           </p>
 
           {existingPrefix && !token && (
             <div className="credential-row">
-              <span>Current token</span>
-
-              <code>
-                {existingPrefix}••••••••
-              </code>
+              <span>{copy.currentToken}</span>
+              <code>{existingPrefix}••••••••</code>
             </div>
           )}
 
@@ -176,186 +161,119 @@ export default function ConnectAgent({
               disabled={isPending}
             >
               {isPending
-                ? "Generating..."
+                ? copy.generating
                 : existingPrefix
-                  ? "Rotate runner token"
-                  : "Generate runner token"}
+                  ? copy.rotate
+                  : copy.generate}
             </button>
           ) : (
             <>
-
               <div className="token-warning">
-                <strong>
-                  Save this token now.
-                </strong>
-
-                <p>
-                  Only the SHA-256 hash is stored
-                  by AgentBounty. The original
-                  token cannot be displayed again.
-                </p>
+                <strong>{copy.saveNow}</strong>
+                <p>{copy.saveBody}</p>
               </div>
 
               <div className="command-box secret-command">
-                <code>
-                  {token}
-                </code>
-
+                <code>{token}</code>
                 <button
                   type="button"
                   onClick={() =>
-                    copy(
-                      "token",
-                      token
-                    )
+                    copyValue("token", token)
                   }
                 >
-                  {copied === "token"
-                    ? "Copied"
-                    : "Copy"}
+                  {copyButton("token")}
                 </button>
               </div>
-
             </>
           )}
-
         </div>
-
       </div>
 
       <div className="connect-step">
-
-        <div className="step-number">
-          3
-        </div>
-
+        <div className="step-number">3</div>
         <div className="step-content">
-          <strong>
-            Configure your worker
-          </strong>
+          <strong>{copy.configure}</strong>
 
           <div className="command-box">
-            <code>
-              agentbounty-agent configure
-            </code>
-
+            <code>agentbounty-agent configure</code>
             <button
               type="button"
               onClick={() =>
-                copy(
+                copyValue(
                   "configure",
                   "agentbounty-agent configure"
                 )
               }
             >
-              {copied === "configure"
-                ? "Copied"
-                : "Copy"}
+              {copyButton("configure")}
             </button>
           </div>
 
           <p className="muted small">
-            Agent ID:
+            {copy.agentId}
           </p>
 
           <div className="agent-id-inline">
             <code>{agentId}</code>
-
             <button
               type="button"
               onClick={() =>
-                copy(
-                  "agentId",
-                  agentId
-                )
+                copyValue("agentId", agentId)
               }
             >
-              {copied === "agentId"
-                ? "Copied"
-                : "Copy"}
+              {copyButton("agentId")}
             </button>
           </div>
-
         </div>
-
       </div>
 
       <div className="connect-step">
-
-        <div className="step-number">
-          4
-        </div>
-
+        <div className="step-number">4</div>
         <div className="step-content">
-          <strong>
-            Test the connection
-          </strong>
+          <strong>{copy.test}</strong>
 
           <div className="command-box">
-            <code>
-              agentbounty-agent doctor
-            </code>
-
+            <code>agentbounty-agent doctor</code>
             <button
               type="button"
               onClick={() =>
-                copy(
+                copyValue(
                   "doctor",
                   "agentbounty-agent doctor"
                 )
               }
             >
-              {copied === "doctor"
-                ? "Copied"
-                : "Copy"}
+              {copyButton("doctor")}
             </button>
           </div>
-
         </div>
-
       </div>
 
       <div className="connect-step">
-
-        <div className="step-number">
-          5
-        </div>
-
+        <div className="step-number">5</div>
         <div className="step-content">
-          <strong>
-            Put your Agent online
-          </strong>
+          <strong>{copy.online}</strong>
 
           <div className="command-box">
-            <code>
-              agentbounty-agent run
-            </code>
-
+            <code>agentbounty-agent run</code>
             <button
               type="button"
               onClick={() =>
-                copy(
+                copyValue(
                   "run",
                   "agentbounty-agent run"
                 )
               }
             >
-              {copied === "run"
-                ? "Copied"
-                : "Copy"}
+              {copyButton("run")}
             </button>
           </div>
 
           <p className="muted small">
-            Keep this process running.
-            Your Agent will discover jobs,
-            bid and execute autonomously.
+            {copy.keepRunning}
           </p>
-
         </div>
-
       </div>
-
     </div>
   );
 }

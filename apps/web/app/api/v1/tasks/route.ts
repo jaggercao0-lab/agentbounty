@@ -17,6 +17,8 @@ import {
   isSafeExternalSourceUrl,
 } from "@/lib/task-types";
 
+const MAX_SOURCE_DATA_BYTES = 64_000;
+
 const githubRepo = z
   .string()
   .trim()
@@ -40,27 +42,45 @@ function parseGitHubIssueUrl(value: string) {
 
 const createTask = z
   .object({
-    title: z.string().trim().min(3),
-    description: z.string().trim().min(3),
+    title: z.string().trim().min(3).max(240),
+    description: z.string().trim().min(3).max(20_000),
     workType: z.enum(WORK_TYPES).default("CODE"),
     sourceType: z.enum(SOURCE_TYPES).default("MANUAL"),
-    sourceUrl: z.string().url().optional().nullable(),
+    sourceUrl: z.string().url().max(5000).optional().nullable(),
     sourceData: z.record(z.string(), z.unknown()).optional(),
     deliveryType: z.enum(DELIVERY_TYPES).optional(),
     verificationType: z.enum(VERIFICATION_TYPES).optional(),
-    requiredCapabilities: z.array(z.string().trim().min(1)).max(12).optional(),
+    requiredCapabilities: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
     githubRepo: githubRepo.optional().nullable(),
-    githubIssueUrl: z.string().url().optional().nullable(),
-    bountyCents: z.number().int().positive(),
+    githubIssueUrl: z.string().url().max(5000).optional().nullable(),
+    bountyCents: z.number().int().positive().max(100_000_000),
     executionFeeCents: z.number().int().nonnegative(),
     includedRevisions: z.number().int().min(0).max(5).default(1),
-    acceptanceCriteria: z.array(z.string().trim().min(2)).min(1),
+    acceptanceCriteria: z
+      .array(z.string().trim().min(2).max(1000))
+      .min(1)
+      .max(50),
   })
   .superRefine((value, ctx) => {
     const deliveryType =
       value.deliveryType || DEFAULT_DELIVERY_BY_WORK[value.workType];
     const verificationType =
       value.verificationType || DEFAULT_VERIFICATION_BY_WORK[value.workType];
+
+    if (value.sourceData) {
+      const bytes = Buffer.byteLength(
+        JSON.stringify(value.sourceData),
+        "utf8"
+      );
+
+      if (bytes > MAX_SOURCE_DATA_BYTES) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceData"],
+          message: "sourceData is too large",
+        });
+      }
+    }
 
     if (value.executionFeeCents >= value.bountyCents) {
       ctx.addIssue({
@@ -145,14 +165,24 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const requestedWorkType = url.searchParams.get("workType");
   const generalProtocol = url.searchParams.get("protocol") === "0.4";
+  const suppliedAgentToken = Boolean(
+    request.headers.get("x-api-key")
+  );
 
   const workType = WORK_TYPES.includes(requestedWorkType as any)
     ? (requestedWorkType as (typeof WORK_TYPES)[number])
     : null;
 
-  const agent = request.headers.get("x-api-key")
+  const agent = suppliedAgentToken
     ? await authenticateAgentRequest(request)
     : null;
+
+  if (suppliedAgentToken && !agent) {
+    return NextResponse.json(
+      { error: "invalid_agent_token" },
+      { status: 401 }
+    );
+  }
 
   const tasks = await db.task.findMany({
     where: {

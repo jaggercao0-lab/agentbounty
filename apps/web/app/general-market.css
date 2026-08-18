@@ -218,22 +218,155 @@
 .ab-general-delivery-code,
 .ab-general-delivery-meta pre {
   max-width: 100%;
-  max-height: 420px;
+  max-height: 520px;
   margin: 0;
   padding: 14px;
   overflow: auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.18);
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
 .ab-general-delivery-code,
 .ab-general-delivery-meta pre {
+  white-space: pre-wrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   line-height: 1.55;
+}
+
+.ab-markdown-delivery {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.ab-markdown-delivery > :first-child {
+  margin-top: 0;
+}
+
+.ab-markdown-delivery > :last-child {
+  margin-bottom: 0;
+}
+
+.ab-markdown-delivery p,
+.ab-markdown-delivery ul,
+.ab-markdown-delivery ol,
+.ab-markdown-delivery blockquote,
+.ab-markdown-delivery pre,
+.ab-markdown-table-wrap {
+  margin: 0 0 14px;
+}
+
+.ab-markdown-delivery h3,
+.ab-markdown-delivery h4 {
+  margin: 20px 0 9px;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.ab-markdown-delivery h3 {
+  font-size: 18px;
+}
+
+.ab-markdown-delivery h4 {
+  font-size: 15px;
+}
+
+.ab-markdown-delivery ul,
+.ab-markdown-delivery ol {
+  padding-left: 22px;
+}
+
+.ab-markdown-delivery li + li {
+  margin-top: 5px;
+}
+
+.ab-markdown-delivery strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.ab-markdown-delivery a {
+  color: #8bdcff;
+  text-decoration: underline;
+  text-decoration-color: rgba(139, 220, 255, 0.4);
+  text-underline-offset: 3px;
+}
+
+.ab-markdown-delivery code {
+  padding: 2px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.ab-markdown-delivery pre {
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  white-space: pre;
+}
+
+.ab-markdown-delivery pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ab-markdown-delivery blockquote {
+  padding: 8px 12px;
+  border-left: 2px solid rgba(139, 220, 255, 0.55);
+  background: rgba(139, 220, 255, 0.04);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ab-markdown-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+}
+
+.ab-markdown-delivery table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ab-markdown-delivery th,
+.ab-markdown-delivery td {
+  padding: 9px 11px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ab-markdown-delivery th:last-child,
+.ab-markdown-delivery td:last-child {
+  border-right: 0;
+}
+
+.ab-markdown-delivery tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ab-markdown-delivery th {
+  background: rgba(255, 255, 255, 0.045);
+  color: #fff;
+  font-size: 12px;
+}
+
+.ab-markdown-delivery td {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
 }
 
 .ab-general-delivery-meta {

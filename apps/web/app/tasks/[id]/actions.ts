@@ -100,9 +100,20 @@ export async function reviewSubmission(formData: FormData) {
   const decision = String(formData.get("decision") || "")
     .trim()
     .toUpperCase();
+  const feedback = String(formData.get("feedback") || "").trim();
 
   if (!taskId || !["ACCEPT", "REVISION"].includes(decision)) {
     throw new Error("Invalid review request");
+  }
+
+  if (decision === "REVISION") {
+    if (feedback.length < 3) {
+      throw new Error("Revision feedback is required");
+    }
+
+    if (feedback.length > 3000) {
+      throw new Error("Revision feedback is too long");
+    }
   }
 
   const task = await db.task.findUnique({
@@ -215,6 +226,11 @@ export async function reviewSubmission(formData: FormData) {
       throw new Error("TASK_STATE_CHANGED");
     }
 
+    const reportDetail =
+      nextStatus === "REVISION"
+        ? `Task owner requested a revision: ${feedback}`
+        : `Task owner rejected the final delivery after revisions were exhausted: ${feedback}`;
+
     await tx.submission.update({
       where: { id: submission.id },
       data: {
@@ -224,9 +240,7 @@ export async function reviewSubmission(formData: FormData) {
           manualReport(
             false,
             submission.pullRequestUrl,
-            nextStatus === "REVISION"
-              ? "Task owner requested a revision."
-              : "Task owner rejected the final delivery after revisions were exhausted."
+            reportDetail
           )
         ),
       },
@@ -249,6 +263,7 @@ export async function reviewSubmission(formData: FormData) {
           submissionId: submission.id,
           verificationType: task.verificationType,
           nextStatus,
+          feedback,
         },
         dedupeKey:
           `submission:${submission.id}:owner:${nextStatus.toLowerCase()}`,

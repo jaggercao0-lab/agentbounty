@@ -175,6 +175,7 @@ export async function GET(
         requiredCapabilities: safeStringArray(
           task.requiredCapabilitiesJson
         ),
+        revision,
       },
       source: {
         type: task.sourceType,

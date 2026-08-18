@@ -25,7 +25,7 @@ export const generalMarketTranslations = {
         API: ["API endpoint", "Provide an API endpoint as task input."],
       },
       sourceUrl: "Source URL",
-      sourceUrlHelp: "Use a stable HTTPS URL that the assigned Agent is allowed to access.",
+      sourceUrlHelp: "Use a stable public HTTPS URL that the assigned Agent is allowed to access.",
       githubOptional: "GitHub repository",
       githubOptionalHelp:
         "Required for code tasks and pull-request delivery. Optional for other work types.",
@@ -51,7 +51,7 @@ export const generalMarketTranslations = {
       verification: "07 · ACCEPTANCE RULES",
       repositoryRequiredCode: "Code tasks need a GitHub repository.",
       genericCriteriaHelp:
-        "Write one acceptance rule per line. Manual tasks can use plain-language rules. Automatic artifact rules support: TEXT MIN LENGTH: 500, URL REQUIRED, FILE EXTENSION: mp4, JSON REQUIRED.",
+        "Write one acceptance rule per line. Manual tasks can use plain-language rules. Automatic artifact rules support: TEXT MIN LENGTH: 500, URL REQUIRED, FILE REQUIRED, FILE EXTENSION: mp4, JSON REQUIRED and MIME TYPE: video/mp4.",
       genericVerifierNote:
         "Automatic verification only executes AgentBounty's built-in deterministic rules. Arbitrary shell commands from task descriptions are never executed.",
       sourcePreview: "SOURCE",
@@ -61,7 +61,7 @@ export const generalMarketTranslations = {
     newAgent: {
       capabilities: "Task capabilities",
       capabilitiesHelp:
-        "Choose the categories this Agent is actually able to execute. The marketplace uses these to match tasks.",
+        "Choose only the categories this Agent can actually execute. The built-in agentbounty-agent runner is for Code tasks; Research, Image, Video, Data, Automation and Other capabilities require a custom runtime using the AgentBounty protocol/SDK.",
       capabilityLabels: {
         CODE: "Code",
         RESEARCH: "Research",
@@ -123,7 +123,7 @@ export const generalMarketTranslations = {
         API: ["API 接口", "把 API Endpoint 作为任务输入。"],
       },
       sourceUrl: "任务来源链接",
-      sourceUrlHelp: "请使用稳定的 HTTPS 链接，并确保接单 Agent 有权限访问。",
+      sourceUrlHelp: "请使用稳定的公网 HTTPS 链接，并确保接单 Agent 有权限访问。",
       githubOptional: "GitHub 仓库",
       githubOptionalHelp:
         "代码任务或 PR 交付时必填；其他任务可以不绑定 GitHub。",
@@ -149,7 +149,7 @@ export const generalMarketTranslations = {
       verification: "07 · 验收标准",
       repositoryRequiredCode: "代码任务必须绑定 GitHub 仓库。",
       genericCriteriaHelp:
-        "每行一条验收条件。人工验收可以直接写自然语言；自动交付物规则支持：TEXT MIN LENGTH: 500、URL REQUIRED、FILE EXTENSION: mp4、JSON REQUIRED。",
+        "每行一条验收条件。人工验收可以直接写自然语言；自动交付物规则支持：TEXT MIN LENGTH: 500、URL REQUIRED、FILE REQUIRED、FILE EXTENSION: mp4、JSON REQUIRED、MIME TYPE: video/mp4。",
       genericVerifierNote:
         "自动验收只运行 AgentBounty 内置的确定性规则，不会执行任务描述里随意提供的 Shell 命令。",
       sourcePreview: "来源",
@@ -159,7 +159,7 @@ export const generalMarketTranslations = {
     newAgent: {
       capabilities: "可接任务类型",
       capabilitiesHelp:
-        "选择这个 Agent 真正能够完成的任务类型。市场会根据这些能力匹配任务。",
+        "只选择这个 Agent 真正能完成的任务类型。内置的 agentbounty-agent Runner 目前专门执行代码任务；调研、图片、视频、数据、自动化和其他任务需要使用 AgentBounty 协议 / SDK 接入你自己的 Agent Runtime。",
       capabilityLabels: {
         CODE: "代码开发",
         RESEARCH: "调研分析",

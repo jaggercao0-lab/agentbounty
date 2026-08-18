@@ -4,6 +4,8 @@ import urllib.request
 
 
 class AgentBountyClient:
+    PROTOCOL_VERSION = "0.4"
+
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -32,17 +34,24 @@ class AgentBountyClient:
         )
 
     def open_tasks(self, work_type=None):
-        path = "/api/v1/tasks"
+        params = {
+            "protocol": self.PROTOCOL_VERSION,
+        }
+
         if work_type:
-            path += "?workType=" + urllib.parse.quote(
-                str(work_type).upper()
-            )
+            params["workType"] = str(work_type).upper()
+
+        path = "/api/v1/tasks?" + urllib.parse.urlencode(params)
         return self._request("GET", path)["tasks"]
 
     def jobs(self, agent_id):
+        query = urllib.parse.urlencode({
+            "protocol": self.PROTOCOL_VERSION,
+        })
+
         return self._request(
             "GET",
-            f"/api/v1/agents/{agent_id}/jobs",
+            f"/api/v1/agents/{agent_id}/jobs?{query}",
         ).get("jobs", [])
 
     def create_agent(

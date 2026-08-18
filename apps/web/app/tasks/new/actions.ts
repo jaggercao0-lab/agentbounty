@@ -7,14 +7,23 @@ import { revalidatePath } from "next/cache";
 import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
 import { getGitHubPrivateKey } from "@/lib/github-app-key";
+import {
+  DELIVERY_TYPES,
+  SOURCE_TYPES,
+  VERIFICATION_TYPES,
+  WORK_TYPES,
+  DEFAULT_DELIVERY_BY_WORK,
+  DEFAULT_VERIFICATION_BY_WORK,
+  requiredCapabilitiesFor,
+  type DeliveryType,
+  type SourceType,
+  type VerificationType,
+  type WorkType,
+} from "@/lib/task-types";
 
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) || "").trim();
-
-  if (!value) {
-    throw new Error(`${key} is required`);
-  }
-
+  if (!value) throw new Error(`${key} is required`);
   return value;
 }
 
@@ -22,13 +31,24 @@ function optionalText(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
+function enumValue<T extends readonly string[]>(
+  formData: FormData,
+  key: string,
+  values: T,
+  fallback: T[number]
+): T[number] {
+  const value = String(formData.get(key) || fallback).toUpperCase();
+  if (!values.includes(value as T[number])) {
+    throw new Error(`Invalid ${key}`);
+  }
+  return value as T[number];
+}
+
 function dollarsToCents(value: string) {
   const amount = Number(value);
-
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Invalid amount");
   }
-
   return Math.round(amount * 100);
 }
 
@@ -40,7 +60,6 @@ function parseRepo(value: string) {
     .replace(/^\/+|\/+$/g, "");
 
   const match = normalized.match(/^([^/]+)\/([^/]+)$/);
-
   if (!match) {
     throw new Error(
       "GitHub repository must use owner/repository format"
@@ -59,9 +78,7 @@ function parseIssueUrl(url: string) {
     /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/
   );
 
-  if (!match) {
-    throw new Error("Invalid GitHub Issue URL");
-  }
+  if (!match) throw new Error("Invalid GitHub Issue URL");
 
   return {
     owner: match[1],
@@ -73,10 +90,7 @@ function parseIssueUrl(url: string) {
 
 async function createAppJwt() {
   const appId = process.env.GITHUB_APP_ID;
-
-  if (!appId) {
-    throw new Error("Missing GitHub App configuration");
-  }
+  if (!appId) throw new Error("Missing GitHub App configuration");
 
   const pem = getGitHubPrivateKey();
   const key = await importPKCS8(pem, "RS256");
@@ -90,10 +104,7 @@ async function createAppJwt() {
     .sign(key);
 }
 
-async function getInstallationToken(
-  owner: string,
-  repo: string
-) {
+async function getInstallationToken(owner: string, repo: string) {
   const jwt = await createAppJwt();
 
   const installationResponse = await fetch(
@@ -109,13 +120,10 @@ async function getInstallationToken(
   );
 
   if (!installationResponse.ok) {
-    throw new Error(
-      "AgentBounty is not installed on this repository"
-    );
+    throw new Error("AgentBounty is not installed on this repository");
   }
 
   const installation = await installationResponse.json();
-
   const tokenResponse = await fetch(
     `https://api.github.com/app/installations/${installation.id}/access_tokens`,
     {
@@ -130,47 +138,29 @@ async function getInstallationToken(
   );
 
   if (!tokenResponse.ok) {
-    throw new Error(
-      "Unable to create GitHub installation token"
-    );
+    throw new Error("Unable to create GitHub installation token");
   }
 
   const tokenData = await tokenResponse.json();
   return tokenData.token as string;
 }
 
-function buildSuggestedCriteria(
-  repo: string,
-  body: string
-) {
-  const criteria = [
-    `A pull request is submitted to ${repo}`,
-  ];
-
+function buildSuggestedCriteria(repo: string, body: string) {
+  const criteria = [`A pull request is submitted to ${repo}`];
   const lines = body
     .split("\n")
     .map(line => line.trim())
     .filter(Boolean);
 
-  const mentionsReadme =
-    body.toLowerCase().includes("readme");
-
-  if (mentionsReadme) {
+  if (body.toLowerCase().includes("readme")) {
     for (const line of lines) {
-      if (/^#{1,6}\s+.+/.test(line)) {
-        criteria.push(`README contains: ${line}`);
-        continue;
-      }
-
-      if (/^-\s+.+/.test(line)) {
+      if (/^#{1,6}\s+.+/.test(line) || /^-\s+.+/.test(line)) {
         criteria.push(`README contains: ${line}`);
         continue;
       }
 
       if (/preserve.*existing.*readme/i.test(line)) {
-        criteria.push(
-          "Existing README content is preserved"
-        );
+        criteria.push("Existing README content is preserved");
         continue;
       }
 
@@ -194,13 +184,8 @@ function buildSuggestedCriteria(
 
 export async function previewGitHubIssue(issueUrl: string) {
   try {
-    const {
-      owner,
-      repo,
-      issueNumber,
-      fullName,
-    } = parseIssueUrl(issueUrl.trim());
-
+    const { owner, repo, issueNumber, fullName } =
+      parseIssueUrl(issueUrl.trim());
     const token = await getInstallationToken(owner, repo);
 
     const response = await fetch(
@@ -216,21 +201,15 @@ export async function previewGitHubIssue(issueUrl: string) {
     );
 
     if (!response.ok) {
-      throw new Error(
-        `GitHub Issue lookup failed (${response.status})`
-      );
+      throw new Error(`GitHub Issue lookup failed (${response.status})`);
     }
 
     const issue = await response.json();
-
     if (issue.pull_request) {
-      throw new Error(
-        "This URL points to a Pull Request, not an Issue"
-      );
+      throw new Error("This URL points to a Pull Request, not an Issue");
     }
 
     const body = issue.body || "";
-
     return {
       ok: true as const,
       issue: {
@@ -240,9 +219,7 @@ export async function previewGitHubIssue(issueUrl: string) {
         state: issue.state,
         url: issue.html_url,
       },
-      repository: {
-        fullName,
-      },
+      repository: { fullName },
       suggestedAcceptanceCriteria:
         buildSuggestedCriteria(fullName, body),
     };
@@ -263,84 +240,124 @@ export async function createTask(formData: FormData) {
   const title = text(formData, "title");
   const description = text(formData, "description");
 
-  const repository = parseRepo(
-    text(formData, "githubRepo")
-  );
-
-  const githubIssueUrl = optionalText(
+  const workType = enumValue(
     formData,
-    "githubIssueUrl"
-  );
+    "workType",
+    WORK_TYPES,
+    "CODE"
+  ) as WorkType;
 
-  if (githubIssueUrl) {
+  const sourceType = enumValue(
+    formData,
+    "sourceType",
+    SOURCE_TYPES,
+    "MANUAL"
+  ) as SourceType;
+
+  const deliveryType = enumValue(
+    formData,
+    "deliveryType",
+    DELIVERY_TYPES,
+    DEFAULT_DELIVERY_BY_WORK[workType]
+  ) as DeliveryType;
+
+  const verificationType = enumValue(
+    formData,
+    "verificationType",
+    VERIFICATION_TYPES,
+    DEFAULT_VERIFICATION_BY_WORK[workType]
+  ) as VerificationType;
+
+  const githubRepoInput = optionalText(formData, "githubRepo");
+  const githubIssueUrl = optionalText(formData, "githubIssueUrl");
+  const sourceUrl = optionalText(formData, "sourceUrl");
+
+  let repository: ReturnType<typeof parseRepo> | null = null;
+  if (githubRepoInput) repository = parseRepo(githubRepoInput);
+
+  if (workType === "CODE" && !repository) {
+    throw new Error("Code tasks require a GitHub repository");
+  }
+
+  if (deliveryType === "PULL_REQUEST" && !repository) {
+    throw new Error("Pull request delivery requires a GitHub repository");
+  }
+
+  if (sourceType === "GITHUB_ISSUE") {
+    if (!githubIssueUrl) {
+      throw new Error("GitHub Issue URL is required");
+    }
+
     const issue = parseIssueUrl(githubIssueUrl);
-
-    if (issue.fullName !== repository.fullName) {
+    if (repository && issue.fullName !== repository.fullName) {
       throw new Error(
         "GitHub Issue must belong to the selected repository"
       );
     }
+    repository = repository || parseRepo(issue.fullName);
   }
 
-  // Coding tasks still require repository access even when
-  // there is no GitHub Issue.
-  await getInstallationToken(
-    repository.owner,
-    repository.repo
-  );
+  if (["URL", "FILE", "API"].includes(sourceType) && !sourceUrl) {
+    throw new Error(`${sourceType} source requires a URL`);
+  }
 
-  const bountyCents = dollarsToCents(
-    text(formData, "bounty")
-  );
+  if (verificationType === "GITHUB" && deliveryType !== "PULL_REQUEST") {
+    throw new Error("GitHub verification requires pull request delivery");
+  }
 
-  const executionFeeCents = dollarsToCents(
-    text(formData, "executionFee")
-  );
+  if (repository) {
+    await getInstallationToken(repository.owner, repository.repo);
+  }
+
+  const bountyCents = dollarsToCents(text(formData, "bounty"));
+  const executionFeeCents = dollarsToCents(text(formData, "executionFee"));
 
   if (executionFeeCents >= bountyCents) {
-    throw new Error(
-      "Execution fee must be smaller than bounty"
-    );
+    throw new Error("Execution fee must be smaller than bounty");
   }
 
   const includedRevisions = Number(
     formData.get("includedRevisions") || 1
   );
 
-  const criteriaText = text(
-    formData,
-    "acceptanceCriteria"
-  );
+  if (
+    !Number.isInteger(includedRevisions) ||
+    includedRevisions < 0 ||
+    includedRevisions > 5
+  ) {
+    throw new Error("Included revisions must be between 0 and 5");
+  }
 
-  const acceptanceCriteria = criteriaText
+  const acceptanceCriteria = text(formData, "acceptanceCriteria")
     .split("\n")
     .map(line => line.trim())
     .filter(Boolean);
 
-  if (acceptanceCriteria.length === 0) {
-    throw new Error(
-      "At least one acceptance criterion is required"
-    );
+  if (!acceptanceCriteria.length) {
+    throw new Error("At least one acceptance criterion is required");
   }
+
+  const requiredCapabilities = requiredCapabilitiesFor(workType);
 
   const task = await db.task.create({
     data: {
       ownerId: user.id,
       title,
       description,
-      githubRepo: repository.fullName,
-
-      // Keep the existing non-null database column during the
-      // compatibility phase. Empty string means no Issue source.
-      githubIssueUrl: githubIssueUrl || "",
-
+      workType,
+      sourceType,
+      sourceUrl: sourceUrl || null,
+      sourceDataJson: null,
+      deliveryType,
+      verificationType,
+      requiredCapabilitiesJson: JSON.stringify(requiredCapabilities),
+      githubRepo: repository?.fullName || null,
+      githubIssueUrl: githubIssueUrl || null,
       bountyCents,
       executionFeeCents,
-      successRewardCents:
-        bountyCents - executionFeeCents,
+      successRewardCents: bountyCents - executionFeeCents,
       includedRevisions,
-      acceptanceCriteriaJson:
-        JSON.stringify(acceptanceCriteria),
+      acceptanceCriteriaJson: JSON.stringify(acceptanceCriteria),
       status: "OPEN",
     },
   });
@@ -351,17 +368,17 @@ export async function createTask(formData: FormData) {
       type: "CONTRACT_PUBLISHED",
       actorType: "HUMAN",
       actorId: user.id,
-      message: "Contract published",
+      message: "Task published",
       metadata: {
-        source:
-          githubIssueUrl
-            ? "GITHUB_ISSUE"
-            : "DIRECT",
-        githubRepo: repository.fullName,
+        workType,
+        sourceType,
+        deliveryType,
+        verificationType,
+        githubRepo: repository?.fullName || null,
+        sourceUrl: sourceUrl || null,
         bountyCents,
         executionFeeCents,
-        successRewardCents:
-          bountyCents - executionFeeCents,
+        successRewardCents: bountyCents - executionFeeCents,
       },
       dedupeKey: `task:${task.id}:published`,
     }),

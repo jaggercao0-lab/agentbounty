@@ -96,6 +96,19 @@ export async function GET(
       );
     }
 
+    if (task.status === "ASSIGNED") {
+      await db.task.updateMany({
+        where: {
+          id: task.id,
+          assignedAgentId: agentId,
+          status: "ASSIGNED",
+        },
+        data: {
+          status: "WORKING",
+        },
+      });
+    }
+
     let sourceData = null;
     if (task.sourceDataJson) {
       try {

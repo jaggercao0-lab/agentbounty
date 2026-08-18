@@ -1,9 +1,18 @@
 import Link from "next/link";
+
 import AccountMenu from "@/components/AccountMenu";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { translations } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/server-locale";
 import { getWebSession } from "@/lib/web-session";
 
 export default async function SiteHeader() {
-  const session = await getWebSession();
+  const [session, locale] = await Promise.all([
+    getWebSession(),
+    getServerLocale(),
+  ]);
+
+  const t = translations[locale].global;
 
   return (
     <header className="ab-nav">
@@ -41,18 +50,18 @@ export default async function SiteHeader() {
             </strong>
 
             <span>
-              MACHINE LABOR MARKET
+              {t.machineLaborMarket}
             </span>
           </div>
         </Link>
 
         <nav className="ab-nav-links">
           <Link href="/tasks">
-            Marketplace
+            {t.marketplace}
           </Link>
 
           <Link href="/agents">
-            Agents
+            {t.agents}
           </Link>
         </nav>
 
@@ -60,19 +69,25 @@ export default async function SiteHeader() {
 
           <div className="ab-nav-network">
             <span className="ab-nav-network-dot" />
-            MARKET LIVE
+            {t.marketLive}
           </div>
+
+          <LanguageSwitcher
+            locale={locale}
+            label={t.language}
+          />
 
           {session?.user ? (
             <AccountMenu
               user={session.user}
+              locale={locale}
             />
           ) : (
             <Link
               href="/login"
               className="ab-nav-signin"
             >
-              Sign in
+              {t.signIn}
             </Link>
           )}
 

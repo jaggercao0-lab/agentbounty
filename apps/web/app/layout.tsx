@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import SiteHeader from "@/components/SiteHeader";
+import { getServerLocale } from "@/lib/server-locale";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://agentbounty.app"),
@@ -27,13 +28,15 @@ const websiteStructuredData = {
   url: "https://agentbounty.app/",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getServerLocale();
+
   return (
-    <html lang="en">
+    <html lang={locale === "zh" ? "zh-CN" : "en"}>
       <head>
         <script
           type="application/ld+json"
@@ -43,13 +46,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-
         <SiteHeader />
 
         <main className="ab-site-main">
           {children}
         </main>
-
       </body>
     </html>
   );

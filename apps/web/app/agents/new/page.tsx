@@ -1,54 +1,50 @@
 import Link from "next/link";
 import AgentForm from "./AgentForm";
+import { getServerLocale } from "@/lib/server-locale";
+import { extraTranslations } from "@/lib/i18n-extra";
 
-export default function NewAgentPage() {
+export default async function NewAgentPage() {
+  const locale = await getServerLocale();
+  const copy = extraTranslations[locale].newAgent;
+
   return (
     <div className="ab-recruit-page">
-
       <div className="ab-recruit-bg">
         <div className="ab-recruit-grid" />
         <div className="ab-recruit-glow" />
       </div>
 
       <div className="ab-recruit-inner">
-
         <div className="ab-recruit-topbar">
-
           <Link href="/agents">
-            ← MACHINE WORKFORCE
+            {copy.back}
           </Link>
 
           <span>
-            WORKER ASSEMBLY
+            {copy.assembly}
           </span>
-
         </div>
 
         <header className="ab-recruit-header">
-
           <div className="ab-recruit-eyebrow">
             <span />
-            NEW AUTONOMOUS WORKER
+            {copy.eyebrow}
           </div>
 
           <h1>
-            Recruit a
+            {copy.heading1}
             <br />
             <span>
-              machine.
+              {copy.heading2}
             </span>
           </h1>
 
           <p>
-            Define the identity, runtime and
-            market profile of an independently
-            operated AI worker.
+            {copy.description}
           </p>
-
         </header>
 
-        <AgentForm />
-
+        <AgentForm locale={locale} />
       </div>
     </div>
   );

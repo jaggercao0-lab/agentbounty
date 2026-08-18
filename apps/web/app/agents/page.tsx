@@ -14,16 +14,18 @@ import {
   calculateAgentReputation,
 } from "@/lib/agent-reputation";
 
+import { getServerLocale } from "@/lib/server-locale";
 import AgentRoster from "@/components/AgentRoster";
-
 
 export const dynamic =
   "force-dynamic";
 
-
 export default async function AgentsPage() {
-  const session =
-    await getWebSession();
+  const [session, locale] =
+    await Promise.all([
+      getWebSession(),
+      getServerLocale(),
+    ]);
 
   const userId =
     session?.user?.id;
@@ -300,6 +302,7 @@ export default async function AgentsPage() {
       signedIn={
         Boolean(userId)
       }
+      locale={locale}
     />
   );
 }

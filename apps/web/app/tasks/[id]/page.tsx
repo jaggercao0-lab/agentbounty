@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import AutoRefresh from "@/components/AutoRefresh";
 import { getWebSession } from "@/lib/web-session";
+import { getServerLocale } from "@/lib/server-locale";
+import { extraTranslations } from "@/lib/i18n-extra";
 
 import { hireBid } from "./actions";
 import OwnerTaskActions from "./OwnerTaskActions";
@@ -16,28 +18,74 @@ function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function lifecycle(
-  task: {
-    status: string;
-    assignedAgentId: string | null;
-  },
-  hasSubmission: boolean,
-  verified: boolean,
-  paid: boolean
-) {
-  return [
+export default async function TaskPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const locale = await getServerLocale();
+  const copy = extraTranslations[locale].task;
+  const statusCopy = extraTranslations[locale].status;
+
+  const session = await getWebSession();
+
+  const task = await db.task.findUnique({
+    where: { id },
+    include: {
+      bids: {
+        include: { agent: true },
+        orderBy: { createdAt: "asc" },
+      },
+      submissions: {
+        orderBy: { createdAt: "desc" },
+      },
+      events: {
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!task) {
+    notFound();
+  }
+
+  const isOwner =
+    session?.user?.id === task.ownerId;
+
+  const criteria = JSON.parse(
+    task.acceptanceCriteriaJson
+  ) as string[];
+
+  const assignedAgent = task.assignedAgentId
+    ? await db.agent.findUnique({
+        where: { id: task.assignedAgentId },
+      })
+    : null;
+
+  const payment = await db.payment.findFirst({
+    where: { taskId: task.id },
+  });
+
+  const latestSubmission = task.submissions[0] ?? null;
+
+  const verified =
+    Boolean(latestSubmission?.verifiedAt) &&
+    ["ACCEPTED", "PAID"].includes(task.status);
+
+  const stages = [
     {
-      label: "Published",
+      label: copy.lifecycle.published,
       code: "01",
       done: true,
     },
     {
-      label: "Agent hired",
+      label: copy.lifecycle.hired,
       code: "02",
       done: Boolean(task.assignedAgentId),
     },
     {
-      label: "Working",
+      label: copy.lifecycle.working,
       code: "03",
       done: [
         "WORKING",
@@ -48,152 +96,49 @@ function lifecycle(
       ].includes(task.status),
     },
     {
-      label: "PR submitted",
+      label: copy.lifecycle.prSubmitted,
       code: "04",
-      done: hasSubmission,
+      done: Boolean(latestSubmission),
     },
     {
-      label: "Verified",
+      label: copy.lifecycle.verified,
       code: "05",
       done: verified,
     },
     {
-      label: "Paid",
+      label: copy.lifecycle.paid,
       code: "06",
-      done: paid,
+      done: Boolean(payment),
     },
   ];
-}
 
-function machineMessage(
-  status: string,
-  hasBids: boolean
-) {
-  switch (status) {
-    case "OPEN":
-      return hasBids
-        ? "agents are circling this contract..."
-        : "broadcasting contract to the machine workforce...";
-
-    case "ASSIGNED":
-      return "worker selected. contract handshake complete.";
-
-    case "WORKING":
-      return "assigned machine is currently chewing through the repository...";
-
-    case "REVISION":
-      return "revision requested. machine has been sent back into the codebase.";
-
-    case "SUBMITTED":
-      return "delivery received. automatic verification is monitoring github evidence...";
-
-    case "ACCEPTED":
-      return "output verified. contract ready for settlement.";
-
-    case "PAID":
-      return "contract settled. machine got its imaginary paycheck.";
-
-    case "CANCELLED":
-      return "contract terminated. the machines have been dismissed.";
-
-    default:
-      return `contract state: ${status.toLowerCase()}`;
-  }
-}
-
-export default async function TaskPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-
-  const session =
-    await getWebSession();
-
-  const task =
-    await db.task.findUnique({
-      where: {
-        id,
-      },
-
-      include: {
-        bids: {
-          include: {
-            agent: true,
-          },
-
-          orderBy: {
-            createdAt: "asc",
-          },
-        },
-
-        submissions: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-
-        events: {
-          orderBy: {
-            createdAt: "asc",
-          },
-        },
-      },
-    });
-
-  if (!task) {
-    notFound();
-  }
-
-  const isOwner =
-    session?.user?.id ===
-    task.ownerId;
-
-  const criteria =
-    JSON.parse(
-      task.acceptanceCriteriaJson
-    ) as string[];
-
-  const assignedAgent =
-    task.assignedAgentId
-      ? await db.agent.findUnique({
-          where: {
-            id: task.assignedAgentId,
-          },
-        })
-      : null;
-
-  const payment =
-    await db.payment.findFirst({
-      where: {
-        taskId: task.id,
-      },
-    });
-
-  const latestSubmission =
-    task.submissions[0] ?? null;
-
-  const verified =
-    Boolean(
-      latestSubmission?.verifiedAt
-    ) &&
-    [
-      "ACCEPTED",
-      "PAID",
-    ].includes(task.status);
-
-  const stages =
-    lifecycle(
-      task,
-      Boolean(latestSubmission),
-      verified,
-      Boolean(payment)
-    );
+  const machineMessage = (() => {
+    switch (task.status) {
+      case "OPEN":
+        return task.bids.length > 0
+          ? copy.machine.openBids
+          : copy.machine.openNoBids;
+      case "ASSIGNED":
+        return copy.machine.assigned;
+      case "WORKING":
+        return copy.machine.working;
+      case "REVISION":
+        return copy.machine.revision;
+      case "SUBMITTED":
+        return copy.machine.submitted;
+      case "ACCEPTED":
+        return copy.machine.accepted;
+      case "PAID":
+        return copy.machine.paid;
+      case "CANCELLED":
+        return copy.machine.cancelled;
+      default:
+        return `${copy.machine.state}: ${statusCopy[task.status] || task.status}`;
+    }
+  })();
 
   return (
     <div className="ab-task-page">
-
       <AutoRefresh interval={3000} />
 
       <div className="ab-task-bg">
@@ -202,32 +147,23 @@ export default async function TaskPage({
       </div>
 
       <div className="ab-task-inner">
-
         <div className="ab-task-topbar">
-
           <Link
             href="/tasks"
             className="ab-task-back"
           >
-            ← JOB EXCHANGE
+            {copy.back}
           </Link>
 
           <div className="ab-task-contract-id">
-            CONTRACT
-            {" "}
-            {task.id
-              .slice(-8)
-              .toUpperCase()}
+            {copy.contract}{" "}
+            {task.id.slice(-8).toUpperCase()}
           </div>
-
         </div>
 
         <header className="ab-task-header">
-
           <div className="ab-task-header-copy">
-
             <div className="ab-task-state-row">
-
               <span
                 className={
                   "ab-task-status " +
@@ -235,228 +171,134 @@ export default async function TaskPage({
                 }
               >
                 <i />
-                {task.status}
+                {statusCopy[task.status] || task.status}
               </span>
 
               <span className="ab-task-repo">
                 {task.githubRepo}
               </span>
-
             </div>
 
-            <h1>
-              {task.title}
-            </h1>
-
-            <p>
-              {task.description}
-            </p>
+            <h1>{task.title}</h1>
+            <p>{task.description}</p>
 
             <div className="ab-task-header-links">
-
               <a
                 href={task.githubIssueUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                GitHub Issue ↗
+                {copy.githubIssue}
               </a>
 
               {latestSubmission?.pullRequestUrl && (
                 <a
-                  href={
-                    latestSubmission.pullRequestUrl
-                  }
+                  href={latestSubmission.pullRequestUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Pull Request ↗
+                  {copy.pullRequest}
                 </a>
               )}
-
             </div>
-
           </div>
 
           <div className="ab-task-bounty-box">
-
-            <span>
-              CONTRACT BOUNTY
-            </span>
-
-            <strong>
-              {money(
-                task.bountyCents
-              )}
-            </strong>
+            <span>{copy.contractBounty}</span>
+            <strong>{money(task.bountyCents)}</strong>
 
             <div>
-              <small>
-                Protected compute
-              </small>
-
-              <b>
-                {money(
-                  task.executionFeeCents
-                )}
-              </b>
+              <small>{copy.protectedCompute}</small>
+              <b>{money(task.executionFeeCents)}</b>
             </div>
 
             <div>
-              <small>
-                Success reward
-              </small>
-
-              <b>
-                {money(
-                  task.successRewardCents
-                )}
-              </b>
+              <small>{copy.successReward}</small>
+              <b>{money(task.successRewardCents)}</b>
             </div>
-
           </div>
-
         </header>
 
         <section className="ab-task-lifecycle">
-
-          {stages.map(
-            (
-              stage,
-              index
-            ) => (
-              <div
-                key={stage.label}
-                className={
-                  stage.done
-                    ? "ab-life-step ab-life-done"
-                    : "ab-life-step"
-                }
-              >
-                <div className="ab-life-node">
-                  {stage.done
-                    ? "✓"
-                    : stage.code}
-                </div>
-
-                <div className="ab-life-copy">
-                  <strong>
-                    {stage.label}
-                  </strong>
-
-                  <span>
-                    {stage.done
-                      ? "COMPLETE"
-                      : "WAITING"}
-                  </span>
-                </div>
-
-                {index <
-                  stages.length -
-                    1 && (
-                  <div
-                    className={
-                      stage.done
-                        ? "ab-life-line ab-life-line-done"
-                        : "ab-life-line"
-                    }
-                  />
-                )}
-
+          {stages.map((stage, index) => (
+            <div
+              key={stage.label}
+              className={
+                stage.done
+                  ? "ab-life-step ab-life-done"
+                  : "ab-life-step"
+              }
+            >
+              <div className="ab-life-node">
+                {stage.done ? "✓" : stage.code}
               </div>
-            )
-          )}
 
+              <div className="ab-life-copy">
+                <strong>{stage.label}</strong>
+                <span>
+                  {stage.done
+                    ? copy.complete
+                    : copy.waiting}
+                </span>
+              </div>
+
+              {index < stages.length - 1 && (
+                <div
+                  className={
+                    stage.done
+                      ? "ab-life-line ab-life-line-done"
+                      : "ab-life-line"
+                  }
+                />
+              )}
+            </div>
+          ))}
         </section>
 
         <div className="ab-task-machine-line">
-          <span>
-            &gt;_
-          </span>
-
-          {machineMessage(
-            task.status,
-            task.bids.length > 0
-          )}
+          <span>&gt;_</span>
+          {machineMessage}
         </div>
 
         <div className="ab-task-layout">
-
           <main className="ab-task-main">
-
             <section className="ab-task-panel">
-
               <div className="ab-task-panel-head">
-
                 <div>
-                  <span>
-                    ACCEPTANCE CONTRACT
-                  </span>
-
-                  <h2>
-                    Definition of done
-                  </h2>
+                  <span>{copy.acceptanceContract}</span>
+                  <h2>{copy.definitionDone}</h2>
                 </div>
 
                 <div className="ab-task-panel-count">
-                  {criteria.length}
-                  {" "}
-                  RULE
+                  {criteria.length}{" "}
                   {criteria.length === 1
-                    ? ""
-                    : "S"}
+                    ? copy.rule
+                    : copy.rules}
                 </div>
-
               </div>
 
               <div className="ab-task-criteria">
-
-                {criteria.map(
-                  (
-                    criterion,
-                    index
-                  ) => (
-                    <div
-                      key={index}
-                      className="ab-task-criterion"
-                    >
-                      <span>
-                        {String(
-                          index + 1
-                        ).padStart(
-                          2,
-                          "0"
-                        )}
-                      </span>
-
-                      <p>
-                        {criterion}
-                      </p>
-
-                      <i>
-                        CONTRACT
-                      </i>
-                    </div>
-                  )
-                )}
-
+                {criteria.map((criterion, index) => (
+                  <div
+                    key={index}
+                    className="ab-task-criterion"
+                  >
+                    <span>
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <p>{criterion}</p>
+                    <i>{copy.contractTag}</i>
+                  </div>
+                ))}
               </div>
-
             </section>
 
             {latestSubmission && (
               <section className="ab-task-panel">
-
                 <div className="ab-task-panel-head">
-
                   <div>
-                    <span>
-                      DELIVERY
-                    </span>
-
-                    <h2>
-                      Agent submission
-                    </h2>
+                    <span>{copy.delivery}</span>
+                    <h2>{copy.agentSubmission}</h2>
                   </div>
 
                   <span
@@ -471,279 +313,166 @@ export default async function TaskPage({
                     }
                   >
                     {latestSubmission.verificationStatus === "PASS"
-                      ? "VERIFIED"
+                      ? copy.verified
                       : latestSubmission.verificationStatus === "FAIL"
-                        ? "CHECKS FAILED"
+                        ? copy.checksFailed
                         : latestSubmission.verificationStatus === "PENDING"
-                          ? "CHECKS RUNNING"
-                          : "AWAITING REVIEW"}
+                          ? copy.checksRunning
+                          : copy.awaitingReview}
                   </span>
-
                 </div>
 
                 <div className="ab-task-delivery">
-
                   <div>
-                    <span>
-                      PULL REQUEST
-                    </span>
-
+                    <span>PULL REQUEST</span>
                     <a
-                      href={
-                        latestSubmission.pullRequestUrl
-                      }
+                      href={latestSubmission.pullRequestUrl}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {
-                        latestSubmission.pullRequestUrl
-                      }
-                      {" "}
-                      ↗
+                      {latestSubmission.pullRequestUrl}{" "}↗
                     </a>
                   </div>
 
                   <div>
-                    <span>
-                      SUBMITTED
-                    </span>
-
+                    <span>{copy.submitted}</span>
                     <strong>
-                      {latestSubmission.createdAt
-                        .toLocaleString()}
+                      {latestSubmission.createdAt.toLocaleString(
+                        locale === "zh" ? "zh-CN" : "en"
+                      )}
                     </strong>
                   </div>
 
                   <div>
-                    <span>
-                      CI RESULT
-                    </span>
-
+                    <span>{copy.ciResult}</span>
                     <strong>
-                      {latestSubmission.ciPassed ===
-                      true
-                        ? "PASSED"
-                        : latestSubmission.ciPassed ===
-                            false
-                          ? "FAILED"
-                          : "PENDING"}
+                      {latestSubmission.ciPassed === true
+                        ? copy.passed
+                        : latestSubmission.ciPassed === false
+                          ? copy.failed
+                          : copy.pending}
                     </strong>
                   </div>
-
                 </div>
 
                 {latestSubmission.notes && (
                   <p className="ab-task-delivery-notes">
-                    {
-                      latestSubmission.notes
-                    }
+                    {latestSubmission.notes}
                   </p>
                 )}
-
               </section>
             )}
 
             {latestSubmission?.verificationReportJson && (
               <VerificationReport
-                reportJson={
-                  latestSubmission.verificationReportJson
-                }
-                verificationStatus={
-                  latestSubmission.verificationStatus
-                }
-                taskStatus={
-                  task.status
-                }
+                reportJson={latestSubmission.verificationReportJson}
+                verificationStatus={latestSubmission.verificationStatus}
+                taskStatus={task.status}
+                locale={locale}
               />
             )}
 
             <ActivityTimeline
               events={task.events}
+              locale={locale}
             />
 
             <section className="ab-task-panel">
-
               <div className="ab-task-panel-head">
-
                 <div>
-                  <span>
-                    MARKET ACTIVITY
-                  </span>
-
-                  <h2>
-                    Agent bids
-                  </h2>
+                  <span>{copy.marketActivity}</span>
+                  <h2>{copy.agentBids}</h2>
                 </div>
 
                 <div className="ab-task-panel-count">
-                  {task.bids.length}
-                  {" "}
-                  BID
+                  {task.bids.length}{" "}
                   {task.bids.length === 1
-                    ? ""
-                    : "S"}
+                    ? copy.bid
+                    : copy.bids}
                 </div>
-
               </div>
 
-              {task.bids.length ===
-              0 ? (
+              {task.bids.length === 0 ? (
                 <div className="ab-task-no-bids">
-
-                  <div>
-                    @_@
-                  </div>
-
-                  <strong>
-                    No machines have bid yet.
-                  </strong>
-
-                  <p>
-                    Contract signal is still
-                    propagating through the
-                    workforce.
-                  </p>
-
+                  <div>@_@</div>
+                  <strong>{copy.noBids}</strong>
+                  <p>{copy.noBidsBody}</p>
                 </div>
               ) : (
                 <div className="ab-task-bids">
-
-                  {task.bids.map(
-                    (
-                      bid,
-                      index
-                    ) => (
-                      <div
-                        key={bid.id}
-                        className="ab-task-bid"
-                      >
-
-                        <div className="ab-bid-rank">
-                          #
-                          {String(
-                            index + 1
-                          ).padStart(
-                            2,
-                            "0"
-                          )}
-                        </div>
-
-                        <div className="ab-bid-agent">
-
-                          <div className="ab-bid-avatar">
-                            {bid.agent.name
-                              .slice(
-                                0,
-                                2
-                              )
-                              .toUpperCase()}
-                          </div>
-
-                          <div>
-                            <strong>
-                              {
-                                bid.agent
-                                  .name
-                              }
-                            </strong>
-
-                            <span>
-                              {
-                                bid.agent
-                                  .completedJobs
-                              }
-                              {" "}
-                              jobs · rep{" "}
-                              {bid.agent.reputation.toFixed(
-                                1
-                              )}
-                            </span>
-                          </div>
-
-                        </div>
-
-                        <div className="ab-bid-message">
-                          {bid.message ||
-                            "No message. Machine prefers silence."}
-                        </div>
-
-                        <div className="ab-bid-price">
-                          <span>
-                            BID
-                          </span>
-
-                          <strong>
-                            {money(
-                              bid.priceCents
-                            )}
-                          </strong>
-                        </div>
-
-                        {isOwner &&
-                          task.status ===
-                            "OPEN" && (
-                            <form
-                              action={
-                                hireBid
-                              }
-                            >
-                              <input
-                                type="hidden"
-                                name="taskId"
-                                value={
-                                  task.id
-                                }
-                              />
-
-                              <input
-                                type="hidden"
-                                name="bidId"
-                                value={
-                                  bid.id
-                                }
-                              />
-
-                              <button
-                                type="submit"
-                                className="ab-hire-button"
-                              >
-                                Hire
-                                {" "}
-                                {
-                                  bid.agent
-                                    .name
-                                }
-                                <span>
-                                  →
-                                </span>
-                              </button>
-                            </form>
-                          )}
-
+                  {task.bids.map((bid, index) => (
+                    <div
+                      key={bid.id}
+                      className="ab-task-bid"
+                    >
+                      <div className="ab-bid-rank">
+                        #{String(index + 1).padStart(2, "0")}
                       </div>
-                    )
-                  )}
 
+                      <div className="ab-bid-agent">
+                        <div className="ab-bid-avatar">
+                          {bid.agent.name.slice(0, 2).toUpperCase()}
+                        </div>
+
+                        <div>
+                          <strong>{bid.agent.name}</strong>
+                          <span>
+                            {bid.agent.completedJobs}{" "}
+                            {copy.jobs} · {copy.reputationShort}{" "}
+                            {bid.agent.reputation.toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="ab-bid-message">
+                        {bid.message || copy.noMessage}
+                      </div>
+
+                      <div className="ab-bid-price">
+                        <span>{copy.bid}</span>
+                        <strong>{money(bid.priceCents)}</strong>
+                      </div>
+
+                      {isOwner && task.status === "OPEN" && (
+                        <form action={hireBid}>
+                          <input
+                            type="hidden"
+                            name="taskId"
+                            value={task.id}
+                          />
+                          <input
+                            type="hidden"
+                            name="bidId"
+                            value={bid.id}
+                          />
+                          <button
+                            type="submit"
+                            className="ab-hire-button"
+                          >
+                            {copy.hire}{" "}{bid.agent.name}
+                            <span>→</span>
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
-
             </section>
-
           </main>
 
           <aside className="ab-task-sidebar">
-
             {isOwner && (
               <OwnerTaskActions
                 taskId={task.id}
                 status={task.status}
+                locale={locale}
               />
             )}
 
             <section className="ab-task-side-panel">
-
               <div className="ab-side-label">
-                ASSIGNED WORKER
+                {copy.assignedWorker}
               </div>
 
               {assignedAgent ? (
@@ -753,183 +482,81 @@ export default async function TaskPage({
                     className="ab-assigned-agent"
                   >
                     <div className="ab-assigned-avatar">
-                      {assignedAgent.name
-                        .slice(
-                          0,
-                          2
-                        )
-                        .toUpperCase()}
+                      {assignedAgent.name.slice(0, 2).toUpperCase()}
                     </div>
 
                     <div>
-                      <strong>
-                        {
-                          assignedAgent.name
-                        }
-                      </strong>
-
-                      <span>
-                        {
-                          assignedAgent
-                            .modelName
-                        }
-                      </span>
+                      <strong>{assignedAgent.name}</strong>
+                      <span>{assignedAgent.modelName}</span>
                     </div>
 
-                    <span>
-                      →
-                    </span>
+                    <span>→</span>
                   </Link>
 
                   <div className="ab-agent-side-stats">
-
                     <div>
-                      <span>
-                        REPUTATION
-                      </span>
-
-                      <strong>
-                        {assignedAgent.reputation.toFixed(
-                          1
-                        )}
-                      </strong>
+                      <span>{copy.reputation}</span>
+                      <strong>{assignedAgent.reputation.toFixed(1)}</strong>
                     </div>
-
                     <div>
-                      <span>
-                        COMPLETED
-                      </span>
-
-                      <strong>
-                        {
-                          assignedAgent.completedJobs
-                        }
-                      </strong>
+                      <span>{copy.completed}</span>
+                      <strong>{assignedAgent.completedJobs}</strong>
                     </div>
-
                   </div>
                 </>
               ) : (
                 <div className="ab-unassigned">
-
-                  <span>
-                    -_-
-                  </span>
-
-                  <strong>
-                    No worker assigned
-                  </strong>
-
-                  <p>
-                    Waiting for the requester to
-                    select a machine.
-                  </p>
-
+                  <span>-_-</span>
+                  <strong>{copy.noWorker}</strong>
+                  <p>{copy.noWorkerBody}</p>
                 </div>
               )}
-
             </section>
 
             <section className="ab-task-side-panel">
-
               <div className="ab-side-label">
-                CONTRACT ECONOMICS
+                {copy.economics}
               </div>
 
               <div className="ab-economics-row">
-                <span>
-                  Total bounty
-                </span>
-
-                <strong>
-                  {money(
-                    task.bountyCents
-                  )}
-                </strong>
+                <span>{copy.totalBounty}</span>
+                <strong>{money(task.bountyCents)}</strong>
               </div>
 
               <div className="ab-economics-row">
-                <span>
-                  Execution protection
-                </span>
-
-                <strong>
-                  {money(
-                    task.executionFeeCents
-                  )}
-                </strong>
+                <span>{copy.executionProtection}</span>
+                <strong>{money(task.executionFeeCents)}</strong>
               </div>
 
               <div className="ab-economics-row">
-                <span>
-                  Success reward
-                </span>
-
-                <strong>
-                  {money(
-                    task.successRewardCents
-                  )}
-                </strong>
+                <span>{copy.successReward}</span>
+                <strong>{money(task.successRewardCents)}</strong>
               </div>
 
               <div className="ab-economics-row">
-                <span>
-                  Included revisions
-                </span>
-
-                <strong>
-                  {
-                    task.includedRevisions
-                  }
-                </strong>
+                <span>{copy.includedRevisions}</span>
+                <strong>{task.includedRevisions}</strong>
               </div>
 
               <div className="ab-economics-row">
-                <span>
-                  Revisions used
-                </span>
-
-                <strong>
-                  {
-                    task.revisionCount
-                  }
-                </strong>
+                <span>{copy.revisionsUsed}</span>
+                <strong>{task.revisionCount}</strong>
               </div>
-
             </section>
 
             {payment && (
               <section className="ab-task-side-panel ab-payment-panel">
-
                 <div className="ab-side-label">
-                  SETTLEMENT
+                  {copy.settlement}
                 </div>
-
-                <div className="ab-payment-check">
-                  ✓
-                </div>
-
-                <strong>
-                  Contract settled
-                </strong>
-
-                <p>
-                  Agent payout
-                </p>
-
-                <b>
-                  {money(
-                    payment.agentPayoutCents
-                  )}
-                </b>
-
+                <div className="ab-payment-check">✓</div>
+                <strong>{copy.settled}</strong>
+                <p>{copy.agentPayout}</p>
+                <b>{money(payment.agentPayoutCents)}</b>
               </section>
             )}
-
           </aside>
-
         </div>
-
       </div>
     </div>
   );

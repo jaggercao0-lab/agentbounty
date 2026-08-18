@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/i18n";
+import { extraTranslations } from "@/lib/i18n-extra";
+
 type TaskEvent = {
   id: string;
   type: string;
@@ -10,6 +13,7 @@ type TaskEvent = {
 
 type Props = {
   events: TaskEvent[];
+  locale: Locale;
 };
 
 type Metadata = {
@@ -22,93 +26,42 @@ type Metadata = {
   platformFeeCents?: number;
 };
 
-function eventVisual(
-  type: string
-) {
+function eventVisual(type: string) {
   switch (type) {
     case "CONTRACT_PUBLISHED":
-      return {
-        icon: "◇",
-        label: "CONTRACT",
-      };
-
+      return { icon: "◇", label: "CONTRACT" };
     case "BID_PLACED":
-      return {
-        icon: "↯",
-        label: "MARKET",
-      };
-
+      return { icon: "↯", label: "MARKET" };
     case "AGENT_ASSIGNED":
-      return {
-        icon: "◎",
-        label: "ASSIGNMENT",
-      };
-
+      return { icon: "◎", label: "ASSIGNMENT" };
     case "EXECUTION_STARTED":
-      return {
-        icon: ">_",
-        label: "EXECUTION",
-      };
-
+      return { icon: ">_", label: "EXECUTION" };
     case "DELIVERY_SUBMITTED":
-      return {
-        icon: "↗",
-        label: "DELIVERY",
-      };
-
+      return { icon: "↗", label: "DELIVERY" };
     case "VERIFICATION_PENDING":
-      return {
-        icon: "◌",
-        label: "VERIFY",
-      };
-
+      return { icon: "◌", label: "VERIFY" };
     case "VERIFICATION_PASSED":
-      return {
-        icon: "✓",
-        label: "VERIFY",
-      };
-
+      return { icon: "✓", label: "VERIFY" };
     case "REVISION_REQUESTED":
-      return {
-        icon: "↻",
-        label: "REVISION",
-      };
-
+      return { icon: "↻", label: "REVISION" };
     case "CONTRACT_CANCELLED":
-      return {
-        icon: "×",
-        label: "CONTRACT",
-      };
-
+      return { icon: "×", label: "CONTRACT" };
     case "PAYMENT_RELEASED":
-      return {
-        icon: "$",
-        label: "SETTLEMENT",
-      };
-
+      return { icon: "$", label: "SETTLEMENT" };
     default:
-      return {
-        icon: "·",
-        label: "SYSTEM",
-      };
+      return { icon: "·", label: "SYSTEM" };
   }
 }
 
 function parseMetadata(
   value: string | null
 ): Metadata | null {
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
   try {
-    const parsed =
-      JSON.parse(value);
+    const parsed = JSON.parse(value);
 
-    if (
-      !parsed ||
-      typeof parsed !== "object"
-    ) {
+    if (!parsed || typeof parsed !== "object") {
       return null;
     }
 
@@ -118,211 +71,147 @@ function parseMetadata(
   }
 }
 
-function money(
-  cents: number
-) {
-  return `$${(
-    cents / 100
-  ).toFixed(2)}`;
-}
-
-function metadataSummary(
-  metadata: Metadata | null
-) {
-  if (!metadata) {
-    return null;
-  }
-
-  if (
-    typeof metadata.priceCents ===
-    "number"
-  ) {
-    return `Bid ${money(
-      metadata.priceCents
-    )}`;
-  }
-
-  if (
-    typeof metadata.agentPayoutCents ===
-    "number"
-  ) {
-    return `Worker payout ${money(
-      metadata.agentPayoutCents
-    )}`;
-  }
-
-  if (
-    metadata.verificationStatus
-  ) {
-    return [
-      metadata.verificationStatus,
-      metadata.nextStatus,
-    ]
-      .filter(Boolean)
-      .join(" → ");
-  }
-
-  if (
-    typeof metadata.revisionCount ===
-    "number"
-  ) {
-    return metadata.revisionCount > 0
-      ? `Revision ${metadata.revisionCount}`
-      : "Initial execution";
-  }
-
-  return null;
+function money(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`;
 }
 
 export default function ActivityTimeline({
   events,
+  locale,
 }: Props) {
+  const copy = extraTranslations[locale].task.activity;
+  const statusCopy = extraTranslations[locale].status;
+
+  function metadataSummary(
+    metadata: Metadata | null
+  ) {
+    if (!metadata) return null;
+
+    if (typeof metadata.priceCents === "number") {
+      return `${copy.bid} ${money(metadata.priceCents)}`;
+    }
+
+    if (typeof metadata.agentPayoutCents === "number") {
+      return `${copy.workerPayout} ${money(metadata.agentPayoutCents)}`;
+    }
+
+    if (metadata.verificationStatus) {
+      const first =
+        statusCopy[
+          metadata.verificationStatus as keyof typeof statusCopy
+        ] || metadata.verificationStatus;
+
+      const second = metadata.nextStatus
+        ? statusCopy[
+            metadata.nextStatus as keyof typeof statusCopy
+          ] || metadata.nextStatus
+        : null;
+
+      return [first, second]
+        .filter(Boolean)
+        .join(" → ");
+    }
+
+    if (typeof metadata.revisionCount === "number") {
+      return metadata.revisionCount > 0
+        ? `${copy.revision} ${metadata.revisionCount}`
+        : copy.initialExecution;
+    }
+
+    return null;
+  }
+
   return (
     <section className="ab-task-panel ab-activity-panel">
-
       <div className="ab-task-panel-head">
-
         <div>
-          <span>
-            ACTIVITY LEDGER
-          </span>
-
-          <h2>
-            Contract event stream
-          </h2>
+          <span>{copy.ledger}</span>
+          <h2>{copy.stream}</h2>
         </div>
 
         <div className="ab-task-panel-count">
-          {events.length}
-          {" "}
-          EVENT
+          {events.length}{" "}
           {events.length === 1
-            ? ""
-            : "S"}
+            ? copy.event
+            : copy.events}
         </div>
-
       </div>
 
       {events.length === 0 ? (
         <div className="ab-activity-empty">
-
-          <span>
-            ···
-          </span>
-
-          <strong>
-            No ledger events yet.
-          </strong>
-
-          <p>
-            New contract activity will be recorded here as it happens.
-          </p>
-
+          <span>···</span>
+          <strong>{copy.empty}</strong>
+          <p>{copy.emptyBody}</p>
         </div>
       ) : (
         <div className="ab-activity-list">
+          {events.map((event, index) => {
+            const visual = eventVisual(event.type);
+            const metadata = parseMetadata(event.metadataJson);
+            const summary = metadataSummary(metadata);
 
-          {events.map(
-            (
-              event,
-              index
-            ) => {
-              const visual =
-                eventVisual(
-                  event.type
-                );
+            return (
+              <article
+                key={event.id}
+                className={
+                  "ab-activity-event " +
+                  `ab-activity-${event.type.toLowerCase()}`
+                }
+              >
+                <div className="ab-activity-rail">
+                  <div className="ab-activity-node">
+                    {visual.icon}
+                  </div>
 
-              const metadata =
-                parseMetadata(
-                  event.metadataJson
-                );
+                  {index < events.length - 1 && (
+                    <div className="ab-activity-line" />
+                  )}
+                </div>
 
-              const summary =
-                metadataSummary(
-                  metadata
-                );
+                <div className="ab-activity-body">
+                  <div className="ab-activity-event-head">
+                    <div>
+                      <span className="ab-activity-type">
+                        {copy.labels[visual.label] || visual.label}
+                      </span>
 
-              return (
-                <article
-                  key={event.id}
-                  className={
-                    "ab-activity-event " +
-                    `ab-activity-${event.type.toLowerCase()}`
-                  }
-                >
-
-                  <div className="ab-activity-rail">
-
-                    <div className="ab-activity-node">
-                      {visual.icon}
+                      <strong>
+                        {event.message}
+                      </strong>
                     </div>
 
-                    {index <
-                      events.length -
-                        1 && (
-                      <div className="ab-activity-line" />
+                    <time>
+                      {event.createdAt.toLocaleString(
+                        locale === "zh" ? "zh-CN" : "en"
+                      )}
+                    </time>
+                  </div>
+
+                  <div className="ab-activity-meta">
+                    {event.actorType && (
+                      <span>{event.actorType}</span>
                     )}
 
+                    {summary && (
+                      <span>{summary}</span>
+                    )}
+
+                    {metadata?.pullRequestUrl && (
+                      <a
+                        href={metadata.pullRequestUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {copy.pullRequest}
+                      </a>
+                    )}
                   </div>
-
-                  <div className="ab-activity-body">
-
-                    <div className="ab-activity-event-head">
-
-                      <div>
-                        <span className="ab-activity-type">
-                          {visual.label}
-                        </span>
-
-                        <strong>
-                          {event.message}
-                        </strong>
-                      </div>
-
-                      <time>
-                        {event.createdAt.toLocaleString()}
-                      </time>
-
-                    </div>
-
-                    <div className="ab-activity-meta">
-
-                      {event.actorType && (
-                        <span>
-                          {event.actorType}
-                        </span>
-                      )}
-
-                      {summary && (
-                        <span>
-                          {summary}
-                        </span>
-                      )}
-
-                      {metadata?.pullRequestUrl && (
-                        <a
-                          href={
-                            metadata.pullRequestUrl
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Pull request ↗
-                        </a>
-                      )}
-
-                    </div>
-
-                  </div>
-
-                </article>
-              );
-            }
-          )}
-
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
-
     </section>
   );
 }

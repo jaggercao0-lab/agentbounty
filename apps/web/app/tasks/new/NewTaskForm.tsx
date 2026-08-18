@@ -6,6 +6,9 @@ import {
   useTransition,
 } from "react";
 
+import type { Locale } from "@/lib/i18n";
+import { extraTranslations } from "@/lib/i18n-extra";
+
 import {
   createTask,
   previewGitHubIssue,
@@ -21,33 +24,6 @@ function money(value: string) {
   return `$${amount.toFixed(2)}`;
 }
 
-const VERIFIER_PRESETS = [
-  {
-    rule: "A pull request is submitted",
-    label: "Pull request required",
-    description:
-      "Delivery must include a valid GitHub pull request.",
-  },
-  {
-    rule: "BUILD PASSES",
-    label: "Build must pass",
-    description:
-      "Requires a successful build-related GitHub Check.",
-  },
-  {
-    rule: "TESTS PASS",
-    label: "Tests must pass",
-    description:
-      "Requires successful test-related GitHub Checks.",
-  },
-  {
-    rule: "LINT PASSES",
-    label: "Lint must pass",
-    description:
-      "Requires a successful lint-related GitHub Check.",
-  },
-] as const;
-
 function repoFromIssue(url: string) {
   const match = url.match(
     /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/
@@ -58,7 +34,36 @@ function repoFromIssue(url: string) {
     : "owner/repository";
 }
 
-export default function NewTaskForm() {
+export default function NewTaskForm({
+  locale,
+}: {
+  locale: Locale;
+}) {
+  const copy = extraTranslations[locale].newTask;
+
+  const verifierPresets = [
+    {
+      rule: "A pull request is submitted",
+      label: copy.presetPullTitle,
+      description: copy.presetPullBody,
+    },
+    {
+      rule: "BUILD PASSES",
+      label: copy.presetBuildTitle,
+      description: copy.presetBuildBody,
+    },
+    {
+      rule: "TESTS PASS",
+      label: copy.presetTestsTitle,
+      description: copy.presetTestsBody,
+    },
+    {
+      rule: "LINT PASSES",
+      label: copy.presetLintTitle,
+      description: copy.presetLintBody,
+    },
+  ] as const;
+
   const [githubIssueUrl, setGithubIssueUrl] =
     useState("");
 
@@ -188,10 +193,7 @@ export default function NewTaskForm() {
     setImportMessage("");
 
     if (!githubIssueUrl.trim()) {
-      setImportError(
-        "Paste a GitHub Issue URL first."
-      );
-
+      setImportError(copy.pasteIssue);
       return;
     }
 
@@ -222,7 +224,7 @@ export default function NewTaskForm() {
       );
 
       setImportMessage(
-        `Imported ${result.repository.fullName}#${result.issue.number}`
+        `${copy.imported} ${result.repository.fullName}#${result.issue.number}`
       );
     });
   }
@@ -232,37 +234,23 @@ export default function NewTaskForm() {
       action={createTask}
       className="ab-compose-layout"
     >
-
       <main className="ab-compose-main">
-
         <section className="ab-compose-panel">
-
           <div className="ab-compose-panel-head">
-
             <div>
-              <span>
-                01 · SOURCE
-              </span>
-
-              <h2>
-                Import GitHub work
-              </h2>
+              <span>{copy.source}</span>
+              <h2>{copy.importWork}</h2>
             </div>
 
             <span className="ab-compose-step">
-              REQUIRED
+              {copy.required}
             </span>
-
           </div>
 
           <label className="ab-compose-field">
-
-            <span>
-              GitHub Issue URL
-            </span>
+            <span>{copy.issueUrl}</span>
 
             <div className="ab-compose-import">
-
               <input
                 name="githubIssueUrl"
                 type="url"
@@ -282,13 +270,10 @@ export default function NewTaskForm() {
                 disabled={isPending}
               >
                 {isPending
-                  ? "Importing..."
-                  : "Import issue"}
-                <span>
-                  ↳
-                </span>
+                  ? copy.importing
+                  : copy.importIssue}
+                <span>↳</span>
               </button>
-
             </div>
 
             {importMessage && (
@@ -302,33 +287,19 @@ export default function NewTaskForm() {
                 {importError}
               </small>
             )}
-
           </label>
-
         </section>
 
-
         <section className="ab-compose-panel">
-
           <div className="ab-compose-panel-head">
-
             <div>
-              <span>
-                02 · SCOPE
-              </span>
-
-              <h2>
-                Contract definition
-              </h2>
+              <span>{copy.scope}</span>
+              <h2>{copy.contractDefinition}</h2>
             </div>
-
           </div>
 
           <label className="ab-compose-field">
-
-            <span>
-              Task title
-            </span>
+            <span>{copy.taskTitle}</span>
 
             <input
               name="title"
@@ -338,17 +309,13 @@ export default function NewTaskForm() {
                   event.target.value
                 )
               }
-              placeholder="Imported from GitHub"
+              placeholder={copy.titlePlaceholder}
               required
             />
-
           </label>
 
           <label className="ab-compose-field">
-
-            <span>
-              Description
-            </span>
+            <span>{copy.descriptionLabel}</span>
 
             <textarea
               name="description"
@@ -359,39 +326,23 @@ export default function NewTaskForm() {
                   event.target.value
                 )
               }
-              placeholder="Describe what the machine should accomplish."
+              placeholder={copy.descriptionPlaceholder}
               required
             />
-
           </label>
-
         </section>
 
-
         <section className="ab-compose-panel">
-
           <div className="ab-compose-panel-head">
-
             <div>
-              <span>
-                03 · ECONOMICS
-              </span>
-
-              <h2>
-                Contract economics
-              </h2>
+              <span>{copy.economics}</span>
+              <h2>{copy.contractEconomics}</h2>
             </div>
-
           </div>
 
           <div className="ab-compose-money-grid">
-
             <label className="ab-compose-field">
-
-              <span>
-                Total bounty · USD
-              </span>
-
+              <span>{copy.totalBounty}</span>
               <input
                 name="bounty"
                 type="number"
@@ -405,15 +356,10 @@ export default function NewTaskForm() {
                 }
                 required
               />
-
             </label>
 
             <label className="ab-compose-field">
-
-              <span>
-                Compute protection · USD
-              </span>
-
+              <span>{copy.computeProtection}</span>
               <input
                 name="executionFee"
                 type="number"
@@ -427,15 +373,10 @@ export default function NewTaskForm() {
                 }
                 required
               />
-
             </label>
 
             <label className="ab-compose-field">
-
-              <span>
-                Included revisions
-              </span>
-
+              <span>{copy.includedRevisions}</span>
               <input
                 name="includedRevisions"
                 type="number"
@@ -449,95 +390,57 @@ export default function NewTaskForm() {
                 }
                 required
               />
-
             </label>
-
           </div>
 
           <div className="ab-compose-economics">
-
             <div>
-              <span>
-                TOTAL CONTRACT
-              </span>
-
-              <strong>
-                {money(bounty)}
-              </strong>
+              <span>{copy.totalContract}</span>
+              <strong>{money(bounty)}</strong>
             </div>
 
             <i>−</i>
 
             <div>
-              <span>
-                PROTECTED COMPUTE
-              </span>
-
-              <strong>
-                {money(executionFee)}
-              </strong>
+              <span>{copy.protectedCompute}</span>
+              <strong>{money(executionFee)}</strong>
             </div>
 
             <i>=</i>
 
             <div className="ab-compose-reward">
-              <span>
-                SUCCESS REWARD
-              </span>
-
+              <span>{copy.successReward}</span>
               <strong>
-                ${successReward.toFixed(
-                  2
-                )}
+                ${successReward.toFixed(2)}
               </strong>
             </div>
-
           </div>
-
         </section>
 
-
         <section className="ab-compose-panel">
-
           <div className="ab-compose-panel-head">
-
             <div>
-              <span>
-                04 · VERIFICATION
-              </span>
-
-              <h2>
-                Definition of done
-              </h2>
+              <span>{copy.verification}</span>
+              <h2>{copy.definitionDone}</h2>
             </div>
 
             <span className="ab-compose-generated">
-              AUTO-DRAFTED
+              {copy.autoDrafted}
             </span>
-
           </div>
 
           <div className="ab-compose-verifier-presets">
-
             <div className="ab-compose-verifier-head">
               <div>
-                <span>
-                  VERIFICATION PRESETS
-                </span>
-
-                <strong>
-                  Trusted GitHub evidence
-                </strong>
+                <span>{copy.verifierPresets}</span>
+                <strong>{copy.trustedEvidence}</strong>
               </div>
 
-              <b>
-                SAFE MODE
-              </b>
+              <b>{copy.safeMode}</b>
             </div>
 
             <div className="ab-compose-verifier-grid">
-
-              {VERIFIER_PRESETS.map(
+              {verifierPresets.map(
                 preset => {
                   const enabled =
                     isVerifierPresetEnabled(
@@ -565,36 +468,25 @@ export default function NewTaskForm() {
                       />
 
                       <span className="ab-compose-verifier-toggle">
-                        {enabled
-                          ? "✓"
-                          : ""}
+                        {enabled ? "✓" : ""}
                       </span>
 
                       <span className="ab-compose-verifier-copy">
-                        <strong>
-                          {preset.label}
-                        </strong>
-
-                        <small>
-                          {preset.description}
-                        </small>
+                        <strong>{preset.label}</strong>
+                        <small>{preset.description}</small>
                       </span>
                     </label>
                   );
                 }
               )}
-
             </div>
 
             <p className="ab-compose-verifier-note">
-              GitHub Check Runs are used as trusted execution evidence.
-              AgentBounty does not execute arbitrary shell commands supplied by contracts.
+              {copy.verifierNote}
             </p>
-
           </div>
 
           <label className="ab-compose-field">
-
             <textarea
               name="acceptanceCriteria"
               rows={9}
@@ -604,166 +496,83 @@ export default function NewTaskForm() {
                   event.target.value
                 )
               }
-              placeholder="Import the GitHub Issue to generate a draft contract."
+              placeholder={copy.criteriaPlaceholder}
               required
             />
 
-            <small>
-              One machine-verifiable rule
-              per line. Review these before
-              broadcasting the contract.
-            </small>
-
+            <small>{copy.criteriaHelp}</small>
           </label>
 
           {criteria.length > 0 && (
             <div className="ab-compose-criteria-preview">
-
               {criteria.map(
-                (
-                  criterion,
-                  index
-                ) => (
+                (criterion, index) => (
                   <div key={index}>
-
                     <span>
-                      {String(
-                        index + 1
-                      ).padStart(
-                        2,
-                        "0"
-                      )}
+                      {String(index + 1).padStart(2, "0")}
                     </span>
-
-                    <p>
-                      {criterion}
-                    </p>
-
-                    <b>
-                      RULE
-                    </b>
-
+                    <p>{criterion}</p>
+                    <b>{copy.rule}</b>
                   </div>
                 )
               )}
-
             </div>
           )}
-
         </section>
-
       </main>
 
-
       <aside className="ab-compose-sidebar">
-
         <div className="ab-compose-preview">
-
           <div className="ab-compose-preview-head">
-
             <div>
               <span className="ab-compose-preview-dot" />
-
-              CONTRACT PREVIEW
+              {copy.preview}
             </div>
-
-            <span>
-              OPEN
-            </span>
-
+            <span>{copy.open}</span>
           </div>
 
           <div className="ab-compose-preview-job">
-
-            <span>
-              {repoFromIssue(
-                githubIssueUrl
-              )}
-            </span>
-
-            <h2>
-              {title ||
-                "Untitled contract"}
-            </h2>
-
-            <p>
-              {description ||
-                "Your contract description will appear here."}
-            </p>
-
+            <span>{repoFromIssue(githubIssueUrl)}</span>
+            <h2>{title || copy.untitled}</h2>
+            <p>{description || copy.previewDescription}</p>
           </div>
 
           <div className="ab-compose-preview-money">
-
             <div>
-              <span>
-                BOUNTY
-              </span>
-
-              <strong>
-                {money(bounty)}
-              </strong>
+              <span>{copy.bounty}</span>
+              <strong>{money(bounty)}</strong>
             </div>
-
             <div>
-              <span>
-                SUCCESS
-              </span>
-
-              <strong>
-                ${successReward.toFixed(
-                  2
-                )}
-              </strong>
+              <span>{copy.success}</span>
+              <strong>${successReward.toFixed(2)}</strong>
             </div>
-
           </div>
 
           <div className="ab-compose-preview-info">
-
             <div>
-              <span>
-                ACCEPTANCE RULES
-              </span>
-
-              <strong>
-                {criteria.length}
-              </strong>
+              <span>{copy.acceptanceRules}</span>
+              <strong>{criteria.length}</strong>
             </div>
-
             <div>
-              <span>
-                REVISION ALLOWANCE
-              </span>
-
-              <strong>
-                {includedRevisions}
-              </strong>
+              <span>{copy.revisionAllowance}</span>
+              <strong>{includedRevisions}</strong>
             </div>
-
           </div>
 
           <div className="ab-compose-machine-note">
             <span>&gt;_</span>
-
-            this contract will be broadcast
-            to autonomous workers.
+            {copy.machineNote}
           </div>
 
           <button
             type="submit"
             className="ab-compose-publish"
           >
-            Broadcast contract
-            <span>
-              →
-            </span>
+            {copy.broadcast}
+            <span>→</span>
           </button>
-
         </div>
-
       </aside>
-
     </form>
   );
 }

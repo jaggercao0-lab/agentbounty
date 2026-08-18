@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
+
 import {
-  useMemo,
-  useState,
-} from "react";
+  translations,
+  type Locale,
+} from "@/lib/i18n";
 
 export type RosterAgent = {
   id: string;
@@ -17,25 +19,11 @@ export type RosterAgent = {
   minimumJobCents: number;
   maxConcurrentJobs: number;
   completedJobs: number;
-
-  reliabilityScore:
-    | number
-    | null;
-
-  successRate:
-    | number
-    | null;
-
-  firstPassSuccessRate:
-    | number
-    | null;
-
-  revisionRate:
-    | number
-    | null;
-
+  reliabilityScore: number | null;
+  successRate: number | null;
+  firstPassSuccessRate: number | null;
+  revisionRate: number | null;
   trackedJobs: number;
-
   totalEarningsCents: number;
   online: boolean;
   isOwner: boolean;
@@ -52,406 +40,213 @@ type SortMode =
 type Props = {
   agents: RosterAgent[];
   signedIn: boolean;
+  locale: Locale;
 };
 
 function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function rate(
-  value:
-    | number
-    | null
-) {
-  return value === null
-    ? "—"
-    : `${Math.round(value)}%`;
-}
-
-function reliabilityLabel(
-  value:
-    | number
-    | null
-) {
-  if (value === null) {
-    return "UNPROVEN";
-  }
-
-  if (value >= 90) {
-    return "ELITE";
-  }
-
-  if (value >= 80) {
-    return "STRONG";
-  }
-
-  if (value >= 70) {
-    return "ESTABLISHED";
-  }
-
-  return "DEVELOPING";
+function rate(value: number | null) {
+  return value === null ? "—" : `${Math.round(value)}%`;
 }
 
 export default function AgentRoster({
   agents,
   signedIn,
+  locale,
 }: Props) {
-  const [
-    sortMode,
-    setSortMode,
-  ] =
-    useState<SortMode>(
-      "recommended"
-    );
+  const t = translations[locale].agents;
 
-  const sortedAgents =
-    useMemo(() => {
-      const result =
-        [...agents];
+  function reliabilityLabel(value: number | null) {
+    if (value === null) {
+      return t.unproven;
+    }
+    if (value >= 90) {
+      return t.elite;
+    }
+    if (value >= 80) {
+      return t.strong;
+    }
+    if (value >= 70) {
+      return t.established;
+    }
+    return t.developing;
+  }
 
-      result.sort(
-        (
-          a,
-          b
-        ) => {
-          if (
-            sortMode ===
-            "reliability"
-          ) {
-            return (
-              (
-                b.reliabilityScore ??
-                -1
-              ) -
-              (
-                a.reliabilityScore ??
-                -1
-              )
-            );
-          }
+  const [sortMode, setSortMode] =
+    useState<SortMode>("recommended");
 
-          if (
-            sortMode ===
-            "experience"
-          ) {
-            return (
-              b.completedJobs -
-              a.completedJobs
-            );
-          }
+  const sortedAgents = useMemo(() => {
+    const result = [...agents];
 
-          if (
-            sortMode ===
-            "cheapest"
-          ) {
-            return (
-              a.minimumJobCents -
-              b.minimumJobCents
-            );
-          }
+    result.sort((a, b) => {
+      if (sortMode === "reliability") {
+        return (
+          (b.reliabilityScore ?? -1) -
+          (a.reliabilityScore ?? -1)
+        );
+      }
 
-          if (
-            sortMode ===
-            "earnings"
-          ) {
-            return (
-              b.totalEarningsCents -
-              a.totalEarningsCents
-            );
-          }
+      if (sortMode === "experience") {
+        return b.completedJobs - a.completedJobs;
+      }
 
-          // Recommended:
-          // online first, then verified reliability,
-          // then experience.
-          const onlineDifference =
-            Number(b.online) -
-            Number(a.online);
+      if (sortMode === "cheapest") {
+        return a.minimumJobCents - b.minimumJobCents;
+      }
 
-          if (
-            onlineDifference !== 0
-          ) {
-            return onlineDifference;
-          }
+      if (sortMode === "earnings") {
+        return b.totalEarningsCents - a.totalEarningsCents;
+      }
 
-          const reliabilityDifference =
-            (
-              b.reliabilityScore ??
-              -1
-            ) -
-            (
-              a.reliabilityScore ??
-              -1
-            );
+      const onlineDifference = Number(b.online) - Number(a.online);
+      if (onlineDifference !== 0) {
+        return onlineDifference;
+      }
 
-          if (
-            reliabilityDifference !== 0
-          ) {
-            return reliabilityDifference;
-          }
+      const reliabilityDifference =
+        (b.reliabilityScore ?? -1) -
+        (a.reliabilityScore ?? -1);
 
-          return (
-            b.completedJobs -
-            a.completedJobs
-          );
-        }
-      );
+      if (reliabilityDifference !== 0) {
+        return reliabilityDifference;
+      }
 
-      return result;
-    }, [
-      agents,
-      sortMode,
-    ]);
+      return b.completedJobs - a.completedJobs;
+    });
 
-  const onlineCount =
-    agents.filter(
-      agent => agent.online
-    ).length;
+    return result;
+  }, [agents, sortMode]);
 
-  const totalJobs =
-    agents.reduce(
-      (sum, agent) =>
-        sum + agent.completedJobs,
-      0
-    );
+  const onlineCount = agents.filter(agent => agent.online).length;
+  const totalJobs = agents.reduce(
+    (sum, agent) => sum + agent.completedJobs,
+    0
+  );
+  const totalEarnings = agents.reduce(
+    (sum, agent) => sum + agent.totalEarningsCents,
+    0
+  );
 
-  const totalEarnings =
-    agents.reduce(
-      (sum, agent) =>
-        sum +
-        agent.totalEarningsCents,
-      0
-    );
+  const sortOptions: [SortMode, string][] = [
+    ["recommended", t.recommended],
+    ["reliability", t.reliability],
+    ["experience", t.experience],
+    ["cheapest", t.cheapest],
+    ["earnings", t.earnings],
+  ];
 
   return (
     <div className="ab-agents-page">
-
       <div className="ab-agents-bg">
         <div className="ab-agents-grid" />
         <div className="ab-agents-glow" />
       </div>
 
       <div className="ab-agents-inner">
-
         <motion.header
           className="ab-agents-header"
-          initial={{
-            opacity: 0,
-            y: 18,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            duration: 0.55,
-          }}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55 }}
         >
           <div>
             <div className="ab-agents-eyebrow">
               <span className="ab-agents-signal" />
-
-              AUTONOMOUS WORKER DIRECTORY
+              {t.eyebrow}
             </div>
 
             <h1>
-              Machine
+              {t.headingLine1}
               <br />
-              <span>
-                workforce.
-              </span>
+              <span>{t.headingLine2}</span>
             </h1>
 
-            <p>
-              Independently operated AI agents
-              competing for software contracts
-              across the AgentBounty market.
-            </p>
+            <p>{t.description}</p>
           </div>
 
           <div className="ab-agents-header-actions">
-
             <div className="ab-agents-network">
-              <span>
-                NETWORK
-              </span>
-
-              <strong>
-                ● OPERATIONAL
-              </strong>
+              <span>{t.network}</span>
+              <strong>{t.operational}</strong>
             </div>
 
             <Link
-              href={
-                signedIn
-                  ? "/agents/new"
-                  : "/login"
-              }
+              href={signedIn ? "/agents/new" : "/login"}
               className="ab-agents-create"
             >
-              {signedIn
-                ? "Create worker"
-                : "Sign in to recruit"}
-
+              {signedIn ? t.createWorker : t.signInRecruit}
               <span>＋</span>
             </Link>
-
           </div>
         </motion.header>
 
         <section className="ab-agents-stats">
-
           <div>
-            <span>
-              ONLINE NOW
-            </span>
-
-            <strong>
-              {onlineCount}
-            </strong>
-
-            <small>
-              accepting market signals
-            </small>
+            <span>{t.onlineNow}</span>
+            <strong>{onlineCount}</strong>
+            <small>{t.acceptingSignals}</small>
           </div>
 
           <div>
-            <span>
-              REGISTERED
-            </span>
-
-            <strong>
-              {agents.length}
-            </strong>
-
-            <small>
-              machine workers
-            </small>
+            <span>{t.registered}</span>
+            <strong>{agents.length}</strong>
+            <small>{t.machineWorkers}</small>
           </div>
 
           <div>
-            <span>
-              JOBS COMPLETED
-            </span>
-
-            <strong>
-              {totalJobs}
-            </strong>
-
-            <small>
-              verified deliveries
-            </small>
+            <span>{t.jobsCompleted}</span>
+            <strong>{totalJobs}</strong>
+            <small>{t.verifiedDeliveries}</small>
           </div>
 
           <div>
-            <span>
-              AGENT PAYOUTS
-            </span>
-
-            <strong>
-              {money(totalEarnings)}
-            </strong>
-
-            <small>
-              simulated settlement
-            </small>
+            <span>{t.payouts}</span>
+            <strong>{money(totalEarnings)}</strong>
+            <small>{t.simulatedSettlement}</small>
           </div>
-
         </section>
 
         <div className="ab-agents-toolbar">
-
           <div>
             <span className="ab-agents-toolbar-dot" />
-
-            WORKER SIGNALS
+            {t.workerSignals}
           </div>
 
           <div className="ab-agents-sort">
+            <span>{t.sort}</span>
 
-            <span>
-              SORT
-            </span>
-
-            {[
-              [
-                "recommended",
-                "Recommended",
-              ],
-              [
-                "reliability",
-                "Reliability",
-              ],
-              [
-                "experience",
-                "Experience",
-              ],
-              [
-                "cheapest",
-                "Cheapest",
-              ],
-              [
-                "earnings",
-                "Earnings",
-              ],
-            ].map(
-              (
-                [
-                  value,
-                  label,
-                ]
-              ) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() =>
-                    setSortMode(
-                      value as SortMode
-                    )
-                  }
-                  className={
-                    sortMode ===
-                    value
-                      ? "ab-agents-sort-active"
-                      : ""
-                  }
-                >
-                  {label}
-                </button>
-              )
-            )}
-
+            {sortOptions.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSortMode(value)}
+                className={
+                  sortMode === value
+                    ? "ab-agents-sort-active"
+                    : ""
+                }
+              >
+                {label}
+              </button>
+            ))}
           </div>
-
         </div>
 
         {agents.length === 0 ? (
           <div className="ab-agents-empty">
-
-            <div className="ab-agents-empty-face">
-              -_-
-            </div>
-
-            <h2>
-              No machines have clocked in.
-            </h2>
-
-            <p>
-              Recruit the first autonomous worker
-              and send it into the market.
-            </p>
+            <div className="ab-agents-empty-face">-_-</div>
+            <h2>{t.emptyTitle}</h2>
+            <p>{t.emptyBody}</p>
 
             <Link
-              href={
-                signedIn
-                  ? "/agents/new"
-                  : "/login"
-              }
+              href={signedIn ? "/agents/new" : "/login"}
               className="ab-agents-create"
             >
-              Recruit a worker
+              {t.recruitWorker}
               <span>→</span>
             </Link>
-
           </div>
         ) : (
           <motion.div
@@ -467,276 +262,147 @@ export default function AgentRoster({
               },
             }}
           >
-            {sortedAgents.map(
-              (agent, index) => (
-                <motion.div
-                  key={agent.id}
-                  variants={{
-                    hidden: {
-                      opacity: 0,
-                      y: 13,
-                    },
-
-                    show: {
-                      opacity: 1,
-                      y: 0,
-                    },
-                  }}
+            {sortedAgents.map((agent, index) => (
+              <motion.div
+                key={agent.id}
+                variants={{
+                  hidden: { opacity: 0, y: 13 },
+                  show: { opacity: 1, y: 0 },
+                }}
+              >
+                <Link
+                  href={`/agents/${agent.id}`}
+                  className="ab-agent-card"
                 >
-                  <Link
-                    href={`/agents/${agent.id}`}
-                    className="ab-agent-card"
-                  >
-                    <div className="ab-agent-card-glint" />
+                  <div className="ab-agent-card-glint" />
 
-                    <div className="ab-agent-top">
-
-                      <div className="ab-agent-identity">
-
-                        <motion.div
-                          className="ab-agent-avatar"
-                          whileHover={{
-                            rotate: [
-                              0,
-                              -4,
-                              4,
-                              0,
-                            ],
-                          }}
-                        >
-                          {agent.name
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </motion.div>
-
-                        <div>
-                          <div className="ab-agent-name-row">
-
-                            <h2>
-                              {agent.name}
-                            </h2>
-
-                            {agent.isOwner && (
-                              <span className="ab-agent-owned">
-                                YOUR WORKER
-                              </span>
-                            )}
-
-                          </div>
-
-                          <p>
-                            {agent.description}
-                          </p>
-                        </div>
-
-                      </div>
-
-                      <span
-                        className={
-                          agent.online
-                            ? "ab-agent-presence ab-agent-online"
-                            : "ab-agent-presence ab-agent-offline"
-                        }
+                  <div className="ab-agent-top">
+                    <div className="ab-agent-identity">
+                      <motion.div
+                        className="ab-agent-avatar"
+                        whileHover={{ rotate: [0, -4, 4, 0] }}
                       >
-                        <i />
-
-                        {agent.online
-                          ? "ONLINE"
-                          : "OFFLINE"}
-                      </span>
-
-                    </div>
-
-                    <div className="ab-agent-runtime">
+                        {agent.name.slice(0, 2).toUpperCase()}
+                      </motion.div>
 
                       <div>
-                        <span>
-                          PROVIDER
-                        </span>
-
-                        <strong>
-                          {agent.providerLabel}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          MODEL
-                        </span>
-
-                        <strong>
-                          {agent.modelName}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          CAPACITY
-                        </span>
-
-                        <strong>
-                          {agent.maxConcurrentJobs}
-                          {" "}
-                          job
-                          {agent.maxConcurrentJobs === 1
-                            ? ""
-                            : "s"}
-                        </strong>
-                      </div>
-
-                    </div>
-
-                    <div className="ab-agent-skills">
-                      {agent.skills
-                        .slice(0, 4)
-                        .map(skill => (
-                          <span key={skill}>
-                            {skill}
-                          </span>
-                        ))}
-
-                      {agent.skills.length > 4 && (
-                        <span>
-                          +
-                          {agent.skills.length - 4}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="ab-agent-reliability">
-
-                      <div className="ab-agent-reliability-score">
-
-                        <span>
-                          RELIABILITY
-                        </span>
-
-                        <strong>
-                          {agent.reliabilityScore ===
-                          null
-                            ? "NEW"
-                            : agent.reliabilityScore}
-                        </strong>
-
-                        <small>
-                          / 100
-                        </small>
-
-                      </div>
-
-                      <div className="ab-agent-reliability-copy">
-
-                        <div>
-                          <strong>
-                            {reliabilityLabel(
-                              agent.reliabilityScore
-                            )}
-                          </strong>
-
-                          <span>
-                            {agent.trackedJobs}
-                            {" "}
-                            TRACKED
-                          </span>
+                        <div className="ab-agent-name-row">
+                          <h2>{agent.name}</h2>
+                          {agent.isOwner && (
+                            <span className="ab-agent-owned">
+                              {t.yourWorker}
+                            </span>
+                          )}
                         </div>
-
-                        <p>
-                          {rate(
-                            agent.successRate
-                          )}
-                          {" "}
-                          success
-                          {" · "}
-                          {rate(
-                            agent.firstPassSuccessRate
-                          )}
-                          {" "}
-                          first-pass
-                        </p>
-
+                        <p>{agent.description}</p>
                       </div>
-
                     </div>
 
-                    <div className="ab-agent-metrics">
+                    <span
+                      className={
+                        agent.online
+                          ? "ab-agent-presence ab-agent-online"
+                          : "ab-agent-presence ab-agent-offline"
+                      }
+                    >
+                      <i />
+                      {agent.online ? t.online : t.offline}
+                    </span>
+                  </div>
 
-                      <div>
-                        <span>
-                          COMPLETED
-                        </span>
+                  <div className="ab-agent-runtime">
+                    <div>
+                      <span>{t.provider}</span>
+                      <strong>{agent.providerLabel}</strong>
+                    </div>
+                    <div>
+                      <span>{t.model}</span>
+                      <strong>{agent.modelName}</strong>
+                    </div>
+                    <div>
+                      <span>{t.capacity}</span>
+                      <strong>
+                        {agent.maxConcurrentJobs} {agent.maxConcurrentJobs === 1 ? t.job : t.jobs}
+                      </strong>
+                    </div>
+                  </div>
 
-                        <strong>
-                          {agent.completedJobs}
-                        </strong>
-                      </div>
+                  <div className="ab-agent-skills">
+                    {agent.skills.slice(0, 4).map(skill => (
+                      <span key={skill}>{skill}</span>
+                    ))}
+                    {agent.skills.length > 4 && (
+                      <span>+{agent.skills.length - 4}</span>
+                    )}
+                  </div>
 
-                      <div>
-                        <span>
-                          SUCCESS
-                        </span>
-
-                        <strong>
-                          {rate(
-                            agent.successRate
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          MIN JOB
-                        </span>
-
-                        <strong>
-                          {money(
-                            agent.minimumJobCents
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>
-                          EARNED
-                        </span>
-
-                        <strong>
-                          {money(
-                            agent.totalEarningsCents
-                          )}
-                        </strong>
-                      </div>
-
+                  <div className="ab-agent-reliability">
+                    <div className="ab-agent-reliability-score">
+                      <span>{t.reliabilityMetric}</span>
+                      <strong>
+                        {agent.reliabilityScore === null
+                          ? t.new
+                          : agent.reliabilityScore}
+                      </strong>
+                      <small>/ 100</small>
                     </div>
 
-                    <div className="ab-agent-footer">
-
-                      <div className="ab-agent-whisper">
-                        <span>&gt;_</span>
-
-                        {agent.online
-                          ? index % 2 === 0
-                            ? "watching the contract feed..."
-                            : "waiting for profitable work..."
-                          : "worker is sleeping"}
+                    <div className="ab-agent-reliability-copy">
+                      <div>
+                        <strong>
+                          {reliabilityLabel(agent.reliabilityScore)}
+                        </strong>
+                        <span>
+                          {agent.trackedJobs} {t.tracked}
+                        </span>
                       </div>
+                      <p>
+                        {rate(agent.successRate)} {t.success}
+                        {" · "}
+                        {rate(agent.firstPassSuccessRate)} {t.firstPass}
+                      </p>
+                    </div>
+                  </div>
 
-                      <div className="ab-agent-open">
-                        {agent.isOwner
-                          ? "Manage worker"
-                          : "Inspect worker"}
+                  <div className="ab-agent-metrics">
+                    <div>
+                      <span>{t.completed}</span>
+                      <strong>{agent.completedJobs}</strong>
+                    </div>
+                    <div>
+                      <span>{t.successMetric}</span>
+                      <strong>{rate(agent.successRate)}</strong>
+                    </div>
+                    <div>
+                      <span>{t.minJob}</span>
+                      <strong>{money(agent.minimumJobCents)}</strong>
+                    </div>
+                    <div>
+                      <span>{t.earned}</span>
+                      <strong>{money(agent.totalEarningsCents)}</strong>
+                    </div>
+                  </div>
 
-                        <span>→</span>
-                      </div>
-
+                  <div className="ab-agent-footer">
+                    <div className="ab-agent-whisper">
+                      <span>&gt;_</span>
+                      {agent.online
+                        ? index % 2 === 0
+                          ? t.watchingFeed
+                          : t.waitingWork
+                        : t.sleeping}
                     </div>
 
-                  </Link>
-                </motion.div>
-              )
-            )}
+                    <div className="ab-agent-open">
+                      {agent.isOwner ? t.manageWorker : t.inspectWorker}
+                      <span>→</span>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
           </motion.div>
         )}
-
       </div>
     </div>
   );

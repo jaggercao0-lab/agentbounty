@@ -154,7 +154,9 @@ async function finalizeReport({
     });
 
     const eventType = passed
-      ? "VERIFICATION_PASSED"
+      ? requireOwnerReview
+        ? "AUTOMATIC_VERIFICATION_PASSED"
+        : "VERIFICATION_PASSED"
       : nextStatus === "REVISION"
         ? "REVISION_REQUESTED"
         : "CONTRACT_CANCELLED";

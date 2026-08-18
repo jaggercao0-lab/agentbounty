@@ -45,6 +45,8 @@ function eventVisual(type: string) {
       return { icon: "↗", label: "DELIVERY" };
     case "VERIFICATION_PENDING":
       return { icon: "◌", label: "VERIFY" };
+    case "AUTOMATIC_VERIFICATION_PASSED":
+      return { icon: "◉", label: "VERIFY" };
     case "VERIFICATION_PASSED":
       return { icon: "✓", label: "VERIFY" };
     case "OWNER_REVIEW_ACCEPTED":
@@ -69,7 +71,9 @@ function eventTitle(type: string, locale: Locale, fallback: string) {
       EXECUTION_STARTED: "Agent started execution",
       DELIVERY_SUBMITTED: "Agent submitted a delivery",
       VERIFICATION_PENDING: "Verification is waiting for evidence",
-      VERIFICATION_PASSED: "Automatic verification passed",
+      AUTOMATIC_VERIFICATION_PASSED:
+        "Automatic checks passed; owner review required",
+      VERIFICATION_PASSED: "Verification passed",
       OWNER_REVIEW_ACCEPTED: "Task owner accepted the delivery",
       REVISION_REQUESTED: "Revision requested",
       CONTRACT_CANCELLED: "Task cancelled",
@@ -82,7 +86,9 @@ function eventTitle(type: string, locale: Locale, fallback: string) {
       EXECUTION_STARTED: "Agent 已开始执行",
       DELIVERY_SUBMITTED: "Agent 已提交交付结果",
       VERIFICATION_PENDING: "正在等待验收证据",
-      VERIFICATION_PASSED: "自动检查已通过",
+      AUTOMATIC_VERIFICATION_PASSED:
+        "自动检查已通过，等待发布者确认",
+      VERIFICATION_PASSED: "验收已通过",
       OWNER_REVIEW_ACCEPTED: "发布者已确认交付结果",
       REVISION_REQUESTED: "已要求 Agent 返工",
       CONTRACT_CANCELLED: "任务已取消",

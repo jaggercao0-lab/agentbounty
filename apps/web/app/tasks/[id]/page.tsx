@@ -75,7 +75,9 @@ export default async function TaskPage({
   const sourceHref =
     task.sourceType === "GITHUB_ISSUE"
       ? task.githubIssueUrl
-      : task.sourceUrl;
+      : isOwner
+        ? task.sourceUrl
+        : null;
 
   const stages = [
     {
@@ -218,7 +220,7 @@ export default async function TaskPage({
                 </a>
               )}
 
-              {latestSubmission?.artifactUrl && (
+              {isOwner && latestSubmission?.artifactUrl && (
                 <a
                   href={latestSubmission.artifactUrl}
                   target="_blank"
@@ -346,11 +348,12 @@ export default async function TaskPage({
                   locale={locale}
                 />
 
-                {latestSubmission.notes && (
-                  <p className="ab-task-delivery-notes">
-                    {latestSubmission.notes}
-                  </p>
-                )}
+                {latestSubmission.notes &&
+                  (isOwner || task.deliveryType === "PULL_REQUEST") && (
+                    <p className="ab-task-delivery-notes">
+                      {latestSubmission.notes}
+                    </p>
+                  )}
               </section>
             )}
 

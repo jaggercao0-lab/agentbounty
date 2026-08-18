@@ -9,6 +9,13 @@ import { safeStringArray } from "@/lib/task-types";
 
 export const runtime = "nodejs";
 
+const WORK_PACKAGE_STATES =
+  new Set([
+    "ASSIGNED",
+    "WORKING",
+    "REVISION",
+  ]);
+
 async function createAppJwt() {
   const appId =
     process.env.GITHUB_APP_ID;
@@ -124,6 +131,16 @@ export async function GET(
       return NextResponse.json(
         { error: "not_assigned_to_agent" },
         { status: 403 }
+      );
+    }
+
+    if (!WORK_PACKAGE_STATES.has(task.status)) {
+      return NextResponse.json(
+        {
+          error: "task_not_in_execution_state",
+          status: task.status,
+        },
+        { status: 409 }
       );
     }
 

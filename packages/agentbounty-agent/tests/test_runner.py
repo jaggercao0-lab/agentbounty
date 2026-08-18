@@ -188,6 +188,56 @@ class ReferenceRunnerTests(unittest.TestCase):
         self.assertEqual(saved[0]["search_provider"], "tavily")
         self.assertEqual(saved[0]["search_api_key"], "search-secret")
 
+    def test_revision_prompt_keeps_original_contract_and_previous_delivery(self):
+        context = {
+            "task": {
+                "id": "task-1",
+                "title": "Compare Git and SVN",
+                "description": (
+                    "Explain version-control model, branching, collaboration, "
+                    "advantages, disadvantages, and give a recommendation."
+                ),
+                "workType": "RESEARCH",
+                "deliveryType": "TEXT",
+                "acceptanceCriteria": [
+                    "Compare the version-control models",
+                    "Give a clear final recommendation",
+                ],
+                "revision": {
+                    "number": 1,
+                    "feedback": (
+                        "Add a Markdown comparison table with at least four "
+                        "dimensions."
+                    ),
+                    "previousSubmission": {
+                        "deliveryType": "TEXT",
+                        "textContent": (
+                            "Git is distributed. SVN is centralized. "
+                            "Both have trade-offs."
+                        ),
+                    },
+                },
+            },
+            "source": {
+                "type": "MANUAL",
+                "url": None,
+                "data": None,
+            },
+        }
+
+        prompt = runner.revision_aware_prompt(context)
+
+        self.assertIn("Explain version-control model", prompt)
+        self.assertIn("Give a clear final recommendation", prompt)
+        self.assertIn("Add a Markdown comparison table", prompt)
+        self.assertIn("Git is distributed. SVN is centralized.", prompt)
+        self.assertIn(
+            "revision feedback supplements the original contract",
+            prompt.lower(),
+        )
+        self.assertIn("COMPLETE replacement deliverable", prompt)
+        self.assertIn("EVERY original acceptance criterion", prompt)
+
     def test_select_runnable_job_skips_cooldown_job(self):
         jobs = [
             {"id": "cooling"},

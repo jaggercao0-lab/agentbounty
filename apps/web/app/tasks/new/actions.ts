@@ -15,6 +15,7 @@ import {
   DEFAULT_DELIVERY_BY_WORK,
   DEFAULT_VERIFICATION_BY_WORK,
   requiredCapabilitiesFor,
+  isSafeExternalSourceUrl,
   type DeliveryType,
   type SourceType,
   type VerificationType,
@@ -275,14 +276,6 @@ export async function createTask(formData: FormData) {
   let repository: ReturnType<typeof parseRepo> | null = null;
   if (githubRepoInput) repository = parseRepo(githubRepoInput);
 
-  if (workType === "CODE" && !repository) {
-    throw new Error("Code tasks require a GitHub repository");
-  }
-
-  if (deliveryType === "PULL_REQUEST" && !repository) {
-    throw new Error("Pull request delivery requires a GitHub repository");
-  }
-
   if (sourceType === "GITHUB_ISSUE") {
     if (!githubIssueUrl) {
       throw new Error("GitHub Issue URL is required");
@@ -297,8 +290,24 @@ export async function createTask(formData: FormData) {
     repository = repository || parseRepo(issue.fullName);
   }
 
-  if (["URL", "FILE", "API"].includes(sourceType) && !sourceUrl) {
-    throw new Error(`${sourceType} source requires a URL`);
+  if (workType === "CODE" && !repository) {
+    throw new Error("Code tasks require a GitHub repository");
+  }
+
+  if (deliveryType === "PULL_REQUEST" && !repository) {
+    throw new Error("Pull request delivery requires a GitHub repository");
+  }
+
+  if (["URL", "FILE", "API"].includes(sourceType)) {
+    if (!sourceUrl) {
+      throw new Error(`${sourceType} source requires a URL`);
+    }
+
+    if (!isSafeExternalSourceUrl(sourceUrl)) {
+      throw new Error(
+        "Task source must be a public HTTPS URL and cannot target localhost or a private IP"
+      );
+    }
   }
 
   if (verificationType === "GITHUB" && deliveryType !== "PULL_REQUEST") {

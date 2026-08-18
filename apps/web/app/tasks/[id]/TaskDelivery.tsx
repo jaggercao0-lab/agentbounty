@@ -1,8 +1,11 @@
+import { db } from "@agentbounty/database";
 import type { Locale } from "@/lib/i18n";
 import { extraTranslations } from "@/lib/i18n-extra";
+import { getWebSession } from "@/lib/web-session";
 
 type Props = {
   submission: {
+    taskId: string;
     deliveryType: string;
     pullRequestUrl: string | null;
     artifactUrl: string | null;
@@ -17,7 +20,7 @@ type Props = {
   locale: Locale;
 };
 
-export default function TaskDelivery({
+export default async function TaskDelivery({
   submission,
   locale,
 }: Props) {
@@ -26,14 +29,32 @@ export default function TaskDelivery({
     copy.deliveryLabels?.[submission.deliveryType] ||
     submission.deliveryType;
 
+  const session = await getWebSession();
+  const task = await db.task.findUnique({
+    where: { id: submission.taskId },
+    select: { ownerId: true },
+  });
+
+  const canRevealPrivateDelivery =
+    Boolean(
+      task &&
+      session?.user?.id === task.ownerId
+    );
+
   let metadata: Record<string, unknown> | null = null;
-  if (submission.metadataJson) {
+  if (
+    canRevealPrivateDelivery &&
+    submission.metadataJson
+  ) {
     try {
       metadata = JSON.parse(submission.metadataJson);
     } catch {
       metadata = null;
     }
   }
+
+  const privateDelivery =
+    submission.deliveryType !== "PULL_REQUEST";
 
   return (
     <div className="ab-task-delivery ab-general-delivery">
@@ -51,7 +72,8 @@ export default function TaskDelivery({
             </a>
           )}
 
-        {["FILE", "URL"].includes(submission.deliveryType) &&
+        {canRevealPrivateDelivery &&
+          ["FILE", "URL"].includes(submission.deliveryType) &&
           submission.artifactUrl && (
             <a
               href={submission.artifactUrl}
@@ -62,17 +84,28 @@ export default function TaskDelivery({
             </a>
           )}
 
-        {submission.deliveryType === "TEXT" && (
-          <div className="ab-general-delivery-content">
-            {submission.textContent || "—"}
-          </div>
-        )}
+        {canRevealPrivateDelivery &&
+          submission.deliveryType === "TEXT" && (
+            <div className="ab-general-delivery-content">
+              {submission.textContent || "—"}
+            </div>
+          )}
 
-        {submission.deliveryType === "JSON" && (
-          <pre className="ab-general-delivery-code">
-            {submission.jsonContent || "{}"}
-          </pre>
-        )}
+        {canRevealPrivateDelivery &&
+          submission.deliveryType === "JSON" && (
+            <pre className="ab-general-delivery-code">
+              {submission.jsonContent || "{}"}
+            </pre>
+          )}
+
+        {privateDelivery &&
+          !canRevealPrivateDelivery && (
+            <div className="ab-general-delivery-private">
+              {locale === "zh"
+                ? "交付内容仅任务发布者可见。"
+                : "Delivery content is visible only to the task owner."}
+            </div>
+          )}
       </div>
 
       <div>

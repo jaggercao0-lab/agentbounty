@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
+import { authenticateAgentRequest } from "@/lib/agent-auth";
 import {
   DELIVERY_TYPES,
   SOURCE_TYPES,
@@ -11,6 +12,7 @@ import {
   DEFAULT_DELIVERY_BY_WORK,
   DEFAULT_VERIFICATION_BY_WORK,
   requiredCapabilitiesFor,
+  hasRequiredCapabilities,
 } from "@/lib/task-types";
 
 const githubRepo = z
@@ -102,6 +104,10 @@ export async function GET(request: Request) {
     ? (requestedWorkType as (typeof WORK_TYPES)[number])
     : null;
 
+  const agent = request.headers.get("x-api-key")
+    ? await authenticateAgentRequest(request)
+    : null;
+
   const tasks = await db.task.findMany({
     where: {
       status: "OPEN",
@@ -112,8 +118,17 @@ export async function GET(request: Request) {
     },
   });
 
+  const visibleTasks = agent
+    ? tasks.filter(task =>
+        hasRequiredCapabilities(
+          agent.capabilitiesJson,
+          task.requiredCapabilitiesJson
+        )
+      )
+    : tasks;
+
   return NextResponse.json({
-    tasks: tasks.map(task => {
+    tasks: visibleTasks.map(task => {
       const {
         acceptanceCriteriaJson,
         requiredCapabilitiesJson,

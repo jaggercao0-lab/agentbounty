@@ -39,6 +39,86 @@ function optionClass(active: boolean) {
     : "ab-compose-verifier-option";
 }
 
+function automaticRule(
+  deliveryType: DeliveryType,
+  verificationType: VerificationType
+) {
+  if (deliveryType === "TEXT") {
+    return "TEXT MIN LENGTH: 500";
+  }
+
+  if (deliveryType === "FILE") {
+    return "FILE REQUIRED";
+  }
+
+  if (deliveryType === "URL") {
+    return "URL REQUIRED";
+  }
+
+  if (deliveryType === "JSON") {
+    return "JSON REQUIRED";
+  }
+
+  if (
+    deliveryType === "PULL_REQUEST" &&
+    verificationType === "HYBRID"
+  ) {
+    return "A pull request is submitted";
+  }
+
+  if (deliveryType === "PULL_REQUEST") {
+    return "URL REQUIRED";
+  }
+
+  return "";
+}
+
+function manualRule(deliveryType: DeliveryType) {
+  switch (deliveryType) {
+    case "TEXT":
+      return "Review the submitted text against the task requirements";
+    case "FILE":
+      return "Review the submitted file against the task requirements";
+    case "URL":
+      return "Review the submitted URL against the task requirements";
+    case "JSON":
+      return "Review the submitted JSON against the task requirements";
+    case "PULL_REQUEST":
+      return "Review the pull request against the task requirements";
+    default:
+      return "Review the delivery against the task requirements";
+  }
+}
+
+function defaultCriteria(
+  deliveryType: DeliveryType,
+  verificationType: VerificationType
+) {
+  if (verificationType === "GITHUB") {
+    return "A pull request is submitted";
+  }
+
+  if (verificationType === "MANUAL") {
+    return manualRule(deliveryType);
+  }
+
+  const machineRule = automaticRule(
+    deliveryType,
+    verificationType
+  );
+
+  if (verificationType === "AUTOMATIC") {
+    return machineRule || manualRule(deliveryType);
+  }
+
+  return [
+    machineRule,
+    manualRule(deliveryType),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export default function NewTaskForm({
   locale,
 }: {
@@ -113,17 +193,23 @@ export default function NewTaskForm({
       ];
     }
 
-    if (verificationType === "AUTOMATIC" || verificationType === "HYBRID") {
-      const presets = [] as Array<{
+    if (
+      verificationType === "AUTOMATIC" ||
+      verificationType === "HYBRID"
+    ) {
+      const presets: Array<{
         rule: string;
         label: string;
         description: string;
-      }>;
+      }> = [];
 
       if (deliveryType === "TEXT") {
         presets.push({
           rule: "TEXT MIN LENGTH: 500",
-          label: locale === "zh" ? "至少 500 字符" : "At least 500 characters",
+          label:
+            locale === "zh"
+              ? "至少 500 字符"
+              : "At least 500 characters",
           description:
             locale === "zh"
               ? "自动检查文字交付的最小长度。"
@@ -134,7 +220,10 @@ export default function NewTaskForm({
       if (deliveryType === "URL") {
         presets.push({
           rule: "URL REQUIRED",
-          label: locale === "zh" ? "必须提供有效链接" : "Valid URL required",
+          label:
+            locale === "zh"
+              ? "必须提供有效链接"
+              : "Valid URL required",
           description:
             locale === "zh"
               ? "自动检查交付中是否包含 HTTPS 链接。"
@@ -145,7 +234,10 @@ export default function NewTaskForm({
       if (deliveryType === "FILE") {
         presets.push({
           rule: "FILE REQUIRED",
-          label: locale === "zh" ? "必须提供文件" : "File required",
+          label:
+            locale === "zh"
+              ? "必须提供文件"
+              : "File required",
           description:
             locale === "zh"
               ? "自动检查是否提交了可下载的文件链接。"
@@ -156,11 +248,37 @@ export default function NewTaskForm({
       if (deliveryType === "JSON") {
         presets.push({
           rule: "JSON REQUIRED",
-          label: locale === "zh" ? "必须提供有效 JSON" : "Valid JSON required",
+          label:
+            locale === "zh"
+              ? "必须提供有效 JSON"
+              : "Valid JSON required",
           description:
             locale === "zh"
               ? "自动解析并检查 JSON 交付。"
               : "Parses and validates the JSON delivery.",
+        });
+      }
+
+      if (deliveryType === "PULL_REQUEST") {
+        const rule =
+          verificationType === "HYBRID"
+            ? "A pull request is submitted"
+            : "URL REQUIRED";
+
+        presets.push({
+          rule,
+          label:
+            locale === "zh"
+              ? "必须提交 Pull Request"
+              : "Pull Request required",
+          description:
+            verificationType === "HYBRID"
+              ? locale === "zh"
+                ? "先自动检查 GitHub 交付，再由发布者最终确认。"
+                : "Checks the GitHub delivery before owner approval."
+              : locale === "zh"
+                ? "自动检查是否提交了有效的 PR 链接。"
+                : "Requires a valid PR URL.",
         });
       }
 
@@ -171,24 +289,15 @@ export default function NewTaskForm({
   }, [copy, deliveryType, locale, verificationType]);
 
   function chooseWorkType(value: WorkType) {
-    setWorkType(value);
-
     const nextDelivery = DEFAULT_DELIVERY_BY_WORK[value];
     const nextVerification = DEFAULT_VERIFICATION_BY_WORK[value];
+
+    setWorkType(value);
     setDeliveryType(nextDelivery);
     setVerificationType(nextVerification);
-
-    if (nextVerification === "GITHUB") {
-      setAcceptanceCriteria("A pull request is submitted");
-    } else if (nextDelivery === "TEXT") {
-      setAcceptanceCriteria("Review the submitted result against the task requirements");
-    } else if (nextDelivery === "FILE") {
-      setAcceptanceCriteria("Review the submitted file against the task requirements");
-    } else if (nextDelivery === "JSON") {
-      setAcceptanceCriteria("JSON REQUIRED");
-    } else {
-      setAcceptanceCriteria("Review the delivery against the task requirements");
-    }
+    setAcceptanceCriteria(
+      defaultCriteria(nextDelivery, nextVerification)
+    );
   }
 
   function chooseSource(value: SourceType) {
@@ -198,34 +307,37 @@ export default function NewTaskForm({
   }
 
   function chooseDelivery(value: DeliveryType) {
+    const nextVerification =
+      value !== "PULL_REQUEST" && verificationType === "GITHUB"
+        ? "MANUAL"
+        : verificationType;
+
     setDeliveryType(value);
-
-    if (value !== "PULL_REQUEST" && verificationType === "GITHUB") {
-      setVerificationType("MANUAL");
-    }
-
-    if (value === "PULL_REQUEST" && workType === "CODE") {
-      setVerificationType("GITHUB");
-      if (!criteria.some(line =>
-        line.toLowerCase().startsWith("a pull request is submitted")
-      )) {
-        setAcceptanceCriteria(
-          ["A pull request is submitted", ...criteria].join("\n")
-        );
-      }
-    }
+    setVerificationType(nextVerification);
+    setAcceptanceCriteria(
+      defaultCriteria(value, nextVerification)
+    );
   }
 
   function chooseVerification(value: VerificationType) {
-    if (value === "GITHUB" && deliveryType !== "PULL_REQUEST") {
+    if (
+      value === "GITHUB" &&
+      deliveryType !== "PULL_REQUEST"
+    ) {
       return;
     }
+
     setVerificationType(value);
+    setAcceptanceCriteria(
+      defaultCriteria(deliveryType, value)
+    );
   }
 
   function matchesPreset(line: string, rule: string) {
     if (rule === "A pull request is submitted") {
-      return line.toLowerCase().startsWith("a pull request is submitted");
+      return line
+        .toLowerCase()
+        .startsWith("a pull request is submitted");
     }
     return line === rule;
   }
@@ -236,13 +348,19 @@ export default function NewTaskForm({
       .map(line => line.trim())
       .filter(Boolean);
 
-    const exists = lines.some(line => matchesPreset(line, rule));
+    const exists = lines.some(line =>
+      matchesPreset(line, rule)
+    );
 
     if (enabled && !exists) {
-      setAcceptanceCriteria([...lines, rule].join("\n"));
+      setAcceptanceCriteria(
+        [...lines, rule].join("\n")
+      );
     } else if (!enabled && exists) {
       setAcceptanceCriteria(
-        lines.filter(line => !matchesPreset(line, rule)).join("\n")
+        lines
+          .filter(line => !matchesPreset(line, rule))
+          .join("\n")
       );
     }
   }
@@ -257,7 +375,9 @@ export default function NewTaskForm({
     }
 
     startTransition(async () => {
-      const result = await previewGitHubIssue(githubIssueUrl);
+      const result = await previewGitHubIssue(
+        githubIssueUrl
+      );
 
       if (!result.ok) {
         setImportError(result.error);
@@ -266,9 +386,14 @@ export default function NewTaskForm({
 
       setGithubRepo(result.repository.fullName);
       setTitle(result.issue.title);
-      setDescription(result.issue.body || result.issue.title);
+      setDescription(
+        result.issue.body || result.issue.title
+      );
 
-      if (deliveryType === "PULL_REQUEST") {
+      if (
+        deliveryType === "PULL_REQUEST" &&
+        verificationType === "GITHUB"
+      ) {
         setAcceptanceCriteria(
           result.suggestedAcceptanceCriteria.join("\n")
         );
@@ -361,7 +486,9 @@ export default function NewTaskForm({
                   name="githubIssueUrl"
                   type="url"
                   value={githubIssueUrl}
-                  onChange={event => setGithubIssueUrl(event.target.value)}
+                  onChange={event =>
+                    setGithubIssueUrl(event.target.value)
+                  }
                   placeholder="https://github.com/owner/repo/issues/5"
                   required
                 />
@@ -370,16 +497,22 @@ export default function NewTaskForm({
                   onClick={importIssue}
                   disabled={isPending}
                 >
-                  {isPending ? copy.importing : copy.importIssue}
+                  {isPending
+                    ? copy.importing
+                    : copy.importIssue}
                   <span>↳</span>
                 </button>
               </div>
 
               {importMessage && (
-                <small className="ab-compose-success">✓ {importMessage}</small>
+                <small className="ab-compose-success">
+                  ✓ {importMessage}
+                </small>
               )}
               {importError && (
-                <small className="ab-compose-error">{importError}</small>
+                <small className="ab-compose-error">
+                  {importError}
+                </small>
               )}
             </label>
           )}
@@ -391,7 +524,9 @@ export default function NewTaskForm({
                 name="sourceUrl"
                 type="url"
                 value={sourceUrl}
-                onChange={event => setSourceUrl(event.target.value)}
+                onChange={event =>
+                  setSourceUrl(event.target.value)
+                }
                 placeholder="https://..."
                 required
               />
@@ -405,7 +540,9 @@ export default function NewTaskForm({
               <input
                 name="githubRepo"
                 value={githubRepo}
-                onChange={event => setGithubRepo(event.target.value)}
+                onChange={event =>
+                  setGithubRepo(event.target.value)
+                }
                 placeholder="owner/repository"
                 required={repoRequired}
               />
@@ -464,7 +601,9 @@ export default function NewTaskForm({
           <div className="ab-compose-verifier-grid ab-general-choice-grid">
             {VERIFICATION_TYPES.map(value => {
               const [label, help] = copy.verificationTypes[value];
-              const disabled = value === "GITHUB" && deliveryType !== "PULL_REQUEST";
+              const disabled =
+                value === "GITHUB" &&
+                deliveryType !== "PULL_REQUEST";
               const active = verificationType === value;
 
               return (
@@ -482,7 +621,9 @@ export default function NewTaskForm({
                     value={value}
                     checked={active}
                     disabled={disabled}
-                    onChange={() => chooseVerification(value)}
+                    onChange={() =>
+                      chooseVerification(value)
+                    }
                   />
                   <span className="ab-compose-verifier-toggle">
                     {active ? "✓" : ""}
@@ -522,7 +663,9 @@ export default function NewTaskForm({
               name="description"
               rows={7}
               value={description}
-              onChange={event => setDescription(event.target.value)}
+              onChange={event =>
+                setDescription(event.target.value)
+              }
               placeholder={copy.descriptionPlaceholder}
               required
             />
@@ -546,7 +689,9 @@ export default function NewTaskForm({
                 step="0.01"
                 min="1"
                 value={bounty}
-                onChange={event => setBounty(event.target.value)}
+                onChange={event =>
+                  setBounty(event.target.value)
+                }
                 required
               />
             </label>
@@ -559,7 +704,9 @@ export default function NewTaskForm({
                 step="0.01"
                 min="0.01"
                 value={executionFee}
-                onChange={event => setExecutionFee(event.target.value)}
+                onChange={event =>
+                  setExecutionFee(event.target.value)
+                }
                 required
               />
             </label>
@@ -572,7 +719,9 @@ export default function NewTaskForm({
                 min="0"
                 max="5"
                 value={includedRevisions}
-                onChange={event => setIncludedRevisions(event.target.value)}
+                onChange={event =>
+                  setIncludedRevisions(event.target.value)
+                }
                 required
               />
             </label>
@@ -664,7 +813,9 @@ export default function NewTaskForm({
               name="acceptanceCriteria"
               rows={9}
               value={acceptanceCriteria}
-              onChange={event => setAcceptanceCriteria(event.target.value)}
+              onChange={event =>
+                setAcceptanceCriteria(event.target.value)
+              }
               placeholder={copy.criteriaPlaceholder}
               required
             />
@@ -675,7 +826,9 @@ export default function NewTaskForm({
             <div className="ab-compose-criteria-preview">
               {criteria.map((criterion, index) => (
                 <div key={index}>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <span>
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
                   <p>{criterion}</p>
                   <b>{copy.rule}</b>
                 </div>
@@ -746,7 +899,10 @@ export default function NewTaskForm({
             {copy.machineNote}
           </div>
 
-          <button type="submit" className="ab-compose-publish">
+          <button
+            type="submit"
+            className="ab-compose-publish"
+          >
             {copy.broadcast}
             <span>→</span>
           </button>

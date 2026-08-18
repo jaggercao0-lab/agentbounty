@@ -259,6 +259,8 @@ async function runGitHubVerification(task: any, submission: any) {
     token,
     pullRequest,
     criteria,
+    allowManualCriteria:
+      task.verificationType === "HYBRID",
   });
 
   const githubChecks = report.checks.find(

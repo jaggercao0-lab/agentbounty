@@ -144,6 +144,159 @@ class ProtocolV04Tests(unittest.TestCase):
         self.assertEqual(metadata["researchMode"], "model_only")
         self.assertEqual(metadata["sourceCount"], 0)
 
+    def test_execute_text_job_submits_markdown_and_revision_context(self):
+        config = {
+            "agent_id": "agent-1",
+        }
+        job = {
+            "id": "task-1",
+            "title": "Revise report",
+            "workType": "RESEARCH",
+            "deliveryType": "TEXT",
+        }
+        context = {
+            "task": {
+                "id": "task-1",
+                "title": "Revise report",
+                "workType": "RESEARCH",
+                "deliveryType": "TEXT",
+                "revision": {
+                    "number": 1,
+                    "feedback": "Add a comparison table.",
+                    "previousSubmission": {
+                        "textContent": "Old answer",
+                    },
+                },
+            },
+            "source": {
+                "type": "MANUAL",
+                "url": None,
+                "data": None,
+            },
+            "submit": {
+                "deliveryType": "TEXT",
+            },
+        }
+        submitted = {}
+        llm_messages = []
+
+        def fake_api_request(config_arg, path, method="GET", body=None):
+            if path.startswith("/api/v1/tasks/task-1/context"):
+                return context
+            if path == "/api/v1/tasks/task-1/submissions":
+                submitted.update(body or {})
+                return {"id": "submission-1"}
+            raise AssertionError(path)
+
+        def fake_llm(config_arg, messages):
+            llm_messages.extend(messages)
+            return "# Revised report\n\nUpdated result."
+
+        with mock.patch.object(
+            cli_v04.legacy,
+            "api_request",
+            side_effect=fake_api_request,
+        ), mock.patch.object(
+            cli_v04.legacy,
+            "call_llm",
+            side_effect=fake_llm,
+        ), mock.patch.object(
+            cli_v04,
+            "_hydrate_task_source",
+            return_value=(
+                context,
+                {"sourceFetch": {"attempted": False}},
+            ),
+        ), mock.patch.object(
+            cli_v04,
+            "_collect_research_evidence",
+            return_value=(
+                [],
+                {
+                    "researchMode": "model_only",
+                    "sourceCount": 0,
+                },
+            ),
+        ):
+            cli_v04.execute_general_job(config, job)
+
+        self.assertEqual(submitted["deliveryType"], "TEXT")
+        self.assertEqual(
+            submitted["textContent"],
+            "# Revised report\n\nUpdated result.",
+        )
+        self.assertEqual(
+            submitted["metadata"]["researchMode"],
+            "model_only",
+        )
+        prompt = llm_messages[-1]["content"]
+        self.assertIn("Add a comparison table.", prompt)
+        self.assertIn("Old answer", prompt)
+
+    def test_execute_json_job_submits_parsed_object(self):
+        config = {
+            "agent_id": "agent-2",
+        }
+        job = {
+            "id": "task-2",
+            "title": "Normalize data",
+            "workType": "DATA",
+            "deliveryType": "JSON",
+        }
+        context = {
+            "task": {
+                "id": "task-2",
+                "title": "Normalize data",
+                "workType": "DATA",
+                "deliveryType": "JSON",
+            },
+            "source": {
+                "type": "MANUAL",
+                "url": None,
+                "data": {"value": 7},
+            },
+            "submit": {
+                "deliveryType": "JSON",
+            },
+        }
+        submitted = {}
+
+        def fake_api_request(config_arg, path, method="GET", body=None):
+            if path.startswith("/api/v1/tasks/task-2/context"):
+                return context
+            if path == "/api/v1/tasks/task-2/submissions":
+                submitted.update(body or {})
+                return {"id": "submission-2"}
+            raise AssertionError(path)
+
+        with mock.patch.object(
+            cli_v04.legacy,
+            "api_request",
+            side_effect=fake_api_request,
+        ), mock.patch.object(
+            cli_v04.legacy,
+            "call_llm",
+            return_value='{"normalized": 7, "ok": true}',
+        ), mock.patch.object(
+            cli_v04,
+            "_hydrate_task_source",
+            return_value=(
+                context,
+                {"sourceFetch": {"attempted": False}},
+            ),
+        ):
+            cli_v04.execute_general_job(config, job)
+
+        self.assertEqual(submitted["deliveryType"], "JSON")
+        self.assertEqual(
+            submitted["jsonContent"],
+            {"normalized": 7, "ok": True},
+        )
+        self.assertEqual(
+            submitted["metadata"]["researchMode"],
+            "not_applicable",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -118,6 +118,9 @@ Rules:
 - Be specific, useful, and self-contained.
 - Do not claim to have used tools, sources, files, or live data that were not provided.
 - If the task asks for analysis or research, structure the answer clearly and include caveats where information cannot be verified from the provided context.
+- For TEXT delivery, use clean GitHub-flavored Markdown: headings, bullets, numbered lists, tables, links, bold text, and fenced code blocks are allowed.
+- Never emit HTML layout tags such as <br>, <div>, <table>, or <p>; use Markdown syntax instead.
+- Keep Markdown tables structurally valid: one header row, one separator row, then data rows with the same number of columns.
 """.strip()
 
 
@@ -162,7 +165,7 @@ def execute_general_job(config, job):
                     "role": "system",
                     "content": (
                         "You are a precise autonomous task worker. "
-                        "Return only the final deliverable."
+                        "Return only the final deliverable in clean Markdown."
                     )
                 },
                 {

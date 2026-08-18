@@ -119,18 +119,15 @@ export async function reviewSubmission(formData: FormData) {
     throw new Error("Task not found or not owned by user");
   }
 
-  if (![
-    "SUBMITTED",
-    "VERIFYING",
-  ].includes(task.status)) {
-    throw new Error("Task is not awaiting owner review");
-  }
+  const validReviewState =
+    task.verificationType === "MANUAL"
+      ? task.status === "SUBMITTED"
+      : task.verificationType === "HYBRID"
+        ? task.status === "VERIFYING"
+        : false;
 
-  if (
-    task.verificationType !== "MANUAL" &&
-    task.verificationType !== "HYBRID"
-  ) {
-    throw new Error("This task does not use owner review");
+  if (!validReviewState) {
+    throw new Error("Task is not awaiting owner review");
   }
 
   const submission = task.submissions[0];

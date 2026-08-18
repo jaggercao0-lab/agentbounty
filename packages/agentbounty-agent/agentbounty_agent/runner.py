@@ -8,6 +8,7 @@ it can actually finish, while protocol details live in cli_v04.
 import getpass
 import os
 import sys
+import time
 
 from . import __version__
 from . import cli as legacy
@@ -175,6 +176,83 @@ def _apply_local_runtime_secrets(config):
         os.environ["TAVILY_API_KEY"] = search_key
 
 
+def _select_runnable_job(active, failed_until, now):
+    for job in active:
+        if failed_until.get(job["id"], 0) <= now:
+            return job
+    return None
+
+
+def run_reference():
+    config = legacy.load_config()
+    _apply_local_runtime_secrets(config)
+
+    failed_until = {}
+
+    print()
+    print("🦞 AgentBounty Agent ONLINE")
+    print("--------------------------------")
+    print("Agent:", config["agent_id"])
+    print("Marketplace:", config["marketplace_url"])
+    print("Provider:", config.get("provider", "openrouter"))
+    print("Model:", config["llm_model"])
+    print(
+        "Minimum bounty:",
+        f"${config['min_bounty_cents'] / 100:.2f}",
+    )
+    print("--------------------------------")
+    print("Press Control+C to stop.")
+    print()
+
+    while True:
+        try:
+            legacy.heartbeat(config)
+
+            jobs = v04.get_jobs(config)
+            active = [
+                job
+                for job in jobs
+                if job["status"] in (
+                    "ASSIGNED",
+                    "WORKING",
+                    "REVISION",
+                )
+            ]
+
+            job = _select_runnable_job(
+                active,
+                failed_until,
+                time.time(),
+            )
+
+            if job is not None:
+                try:
+                    execute_job(config, job)
+
+                    failed_until.pop(job["id"], None)
+                    print()
+                    print("✓ Worker completed")
+
+                except Exception as error:
+                    print()
+                    print("Worker failed:", repr(error))
+                    print("Retrying this job in 60 seconds.")
+                    failed_until[job["id"]] = time.time() + 60
+
+            elif not active:
+                try_bid(config)
+
+        except KeyboardInterrupt:
+            print()
+            print("Agent offline.")
+            break
+
+        except Exception as error:
+            print("Runner error:", repr(error))
+
+        time.sleep(config["poll_seconds"])
+
+
 def _install_reference_runner_patches():
     if not hasattr(legacy, "_execute_job_v03"):
         legacy._execute_job_v03 = legacy.execute_job
@@ -184,6 +262,7 @@ def _install_reference_runner_patches():
     legacy.get_jobs = v04.get_jobs
     legacy.try_bid = try_bid
     legacy.execute_job = execute_job
+    legacy.run = run_reference
 
 
 def main():

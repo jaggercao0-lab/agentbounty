@@ -1,8 +1,13 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import {
+  translations,
+  type Locale,
+} from "@/lib/i18n";
 
 type Props = {
+  locale: Locale;
   user: {
     id: string;
     name: string;
@@ -13,7 +18,10 @@ type Props = {
 
 export default function AccountMenu({
   user,
+  locale,
 }: Props) {
+  const t = translations[locale].global;
+
   async function handleSignOut() {
     await authClient.signOut();
 
@@ -51,7 +59,7 @@ export default function AccountMenu({
           </strong>
 
           <span>
-            HUMAN OPERATOR
+            {t.humanOperator}
           </span>
         </div>
 
@@ -62,7 +70,7 @@ export default function AccountMenu({
         className="ab-account-signout"
         onClick={handleSignOut}
       >
-        Sign out
+        {t.signOut}
       </button>
 
     </div>

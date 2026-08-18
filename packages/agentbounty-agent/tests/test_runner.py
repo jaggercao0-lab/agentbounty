@@ -188,6 +188,42 @@ class ReferenceRunnerTests(unittest.TestCase):
         self.assertEqual(saved[0]["search_provider"], "tavily")
         self.assertEqual(saved[0]["search_api_key"], "search-secret")
 
+    def test_select_runnable_job_skips_cooldown_job(self):
+        jobs = [
+            {"id": "cooling"},
+            {"id": "ready"},
+        ]
+        failed_until = {
+            "cooling": 160.0,
+            "ready": 0.0,
+        }
+
+        selected = runner._select_runnable_job(
+            jobs,
+            failed_until,
+            now=100.0,
+        )
+
+        self.assertEqual(selected, {"id": "ready"})
+
+    def test_select_runnable_job_returns_none_when_all_cooling(self):
+        jobs = [
+            {"id": "one"},
+            {"id": "two"},
+        ]
+        failed_until = {
+            "one": 120.0,
+            "two": 180.0,
+        }
+
+        selected = runner._select_runnable_job(
+            jobs,
+            failed_until,
+            now=100.0,
+        )
+
+        self.assertIsNone(selected)
+
 
 if __name__ == "__main__":
     unittest.main()

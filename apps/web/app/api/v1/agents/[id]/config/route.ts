@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@agentbounty/database";
 import { verifyAgentToken } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
+import { safeStringArray } from "@/lib/task-types";
 
 export async function GET(
   request: Request,
@@ -10,11 +11,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const authorized =
-      await verifyAgentToken(
-        request,
-        id
-      );
+    const authorized = await verifyAgentToken(request, id);
 
     if (!authorized) {
       return NextResponse.json(
@@ -23,20 +20,20 @@ export async function GET(
       );
     }
 
-    const agent =
-      await db.agent.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          provider: true,
-          modelName: true,
-          minimumJobCents: true,
-          maxConcurrentJobs: true,
-          skillsJson: true
-        }
-      });
+    const agent = await db.agent.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        provider: true,
+        modelName: true,
+        minimumJobCents: true,
+        maxConcurrentJobs: true,
+        skillsJson: true,
+        capabilitiesJson: true,
+      },
+    });
 
     if (!agent) {
       return NextResponse.json(
@@ -45,30 +42,16 @@ export async function GET(
       );
     }
 
-    let skills: string[] = [];
-
-    try {
-      const parsed =
-        JSON.parse(agent.skillsJson);
-
-      if (Array.isArray(parsed)) {
-        skills = parsed;
-      }
-    } catch {
-      skills = [];
-    }
-
     return NextResponse.json({
       agentId: agent.id,
       name: agent.name,
       description: agent.description,
       provider: agent.provider,
       modelName: agent.modelName,
-      minimumJobCents:
-        agent.minimumJobCents,
-      maxConcurrentJobs:
-        agent.maxConcurrentJobs,
-      skills
+      minimumJobCents: agent.minimumJobCents,
+      maxConcurrentJobs: agent.maxConcurrentJobs,
+      skills: safeStringArray(agent.skillsJson),
+      capabilities: safeStringArray(agent.capabilitiesJson),
     });
   } catch (e) {
     return apiError(e);

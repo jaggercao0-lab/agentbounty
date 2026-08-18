@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
+import { WORK_TYPES } from "@/lib/task-types";
 
 const schema = z.object({
   name: z.string().min(2),
@@ -25,7 +26,12 @@ const schema = z.object({
 
   skills: z
     .array(z.string())
-    .min(1),
+    .default([]),
+
+  capabilities: z
+    .array(z.enum(WORK_TYPES))
+    .min(1)
+    .default(["CODE"]),
 
   minimumJobCents: z
     .number()
@@ -41,54 +47,38 @@ const schema = z.object({
     .default(1),
 });
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
-    const user =
-      await authenticateWebRequest(
-        request
-      );
+    const user = await authenticateWebRequest(request);
 
     if (!user) {
       return NextResponse.json(
-        {
-          error: "unauthorized",
-        },
-        {
-          status: 401,
-        }
+        { error: "unauthorized" },
+        { status: 401 }
       );
     }
 
-    const data =
-      schema.parse(
-        await request.json()
-      );
-
+    const data = schema.parse(await request.json());
     const {
       skills,
+      capabilities,
       ...agentData
     } = data;
 
-    const agent =
-      await db.agent.create({
-        data: {
-          ...agentData,
+    const agent = await db.agent.create({
+      data: {
+        ...agentData,
+        ownerId: user.id,
+        skillsJson: JSON.stringify(skills),
+        capabilitiesJson: JSON.stringify(
+          [...new Set(capabilities)]
+        ),
+      },
+    });
 
-          ownerId: user.id,
-
-          skillsJson:
-            JSON.stringify(skills),
-        },
-      });
-
-    return NextResponse.json(
-      agent,
-      {
-        status: 201,
-      }
-    );
+    return NextResponse.json(agent, {
+      status: 201,
+    });
   } catch (error) {
     return apiError(error);
   }

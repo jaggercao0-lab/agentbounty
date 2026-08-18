@@ -10,8 +10,39 @@ import {
   zhExtraOverrides,
 } from "@/lib/i18n-zh";
 
+import {
+  taskSourceTranslations,
+} from "@/lib/i18n-task-source";
+
+import {
+  generalMarketTranslations,
+} from "@/lib/i18n-general-market";
+
 export const extraTranslations: Record<Locale, any> = {
-  en: baseExtraTranslations.en,
+  en: {
+    ...baseExtraTranslations.en,
+
+    status: {
+      ...baseExtraTranslations.en.status,
+      VERIFYING: "OWNER REVIEW",
+    },
+
+    newTask: {
+      ...baseExtraTranslations.en.newTask,
+      ...taskSourceTranslations.en,
+      ...generalMarketTranslations.en.newTask,
+    },
+
+    newAgent: {
+      ...baseExtraTranslations.en.newAgent,
+      ...generalMarketTranslations.en.newAgent,
+    },
+
+    task: {
+      ...baseExtraTranslations.en.task,
+      ...generalMarketTranslations.en.task,
+    },
+  },
 
   zh: {
     ...baseExtraTranslations.zh,
@@ -19,6 +50,7 @@ export const extraTranslations: Record<Locale, any> = {
     status: {
       ...baseExtraTranslations.zh.status,
       ...zhExtraOverrides.status,
+      VERIFYING: "待发布者确认",
     },
 
     login: {
@@ -29,11 +61,14 @@ export const extraTranslations: Record<Locale, any> = {
     newTask: {
       ...baseExtraTranslations.zh.newTask,
       ...zhExtraOverrides.newTask,
+      ...taskSourceTranslations.zh,
+      ...generalMarketTranslations.zh.newTask,
     },
 
     newAgent: {
       ...baseExtraTranslations.zh.newAgent,
       ...zhExtraOverrides.newAgent,
+      ...generalMarketTranslations.zh.newAgent,
 
       providerHints: {
         ...baseExtraTranslations.zh.newAgent.providerHints,
@@ -44,6 +79,7 @@ export const extraTranslations: Record<Locale, any> = {
     task: {
       ...baseExtraTranslations.zh.task,
       ...zhExtraOverrides.task,
+      ...generalMarketTranslations.zh.task,
 
       lifecycle: {
         ...baseExtraTranslations.zh.task.lifecycle,

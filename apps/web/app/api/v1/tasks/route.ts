@@ -3,118 +3,313 @@ import { z } from "zod";
 import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
+import { authenticateAgentRequest } from "@/lib/agent-auth";
+import { taskEventData } from "@/lib/task-events";
+import {
+  DELIVERY_TYPES,
+  SOURCE_TYPES,
+  VERIFICATION_TYPES,
+  WORK_TYPES,
+  DEFAULT_DELIVERY_BY_WORK,
+  DEFAULT_VERIFICATION_BY_WORK,
+  requiredCapabilitiesFor,
+  hasRequiredCapabilities,
+  isSafeExternalSourceUrl,
+} from "@/lib/task-types";
+
+const MAX_SOURCE_DATA_BYTES = 64_000;
+
+const githubRepo = z
+  .string()
+  .trim()
+  .regex(
+    /^[^/\s]+\/[^/\s]+$/,
+    "githubRepo must use owner/repository format"
+  );
+
+function parseGitHubIssueUrl(value: string) {
+  const match = value.match(
+    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/i
+  );
+
+  if (!match) return null;
+
+  return {
+    repository: `${match[1]}/${match[2]}`,
+    issueNumber: Number(match[3]),
+  };
+}
 
 const createTask = z
   .object({
-    title: z.string().min(3),
-    description: z.string().min(3),
-    githubRepo: z.string().min(3),
-    githubIssueUrl: z.string().url(),
-    bountyCents: z.number().int().positive(),
+    title: z.string().trim().min(3).max(240),
+    description: z.string().trim().min(3).max(20_000),
+    workType: z.enum(WORK_TYPES).default("CODE"),
+    sourceType: z.enum(SOURCE_TYPES).default("MANUAL"),
+    sourceUrl: z.string().url().max(5000).optional().nullable(),
+    sourceData: z.record(z.string(), z.unknown()).optional(),
+    deliveryType: z.enum(DELIVERY_TYPES).optional(),
+    verificationType: z.enum(VERIFICATION_TYPES).optional(),
+    requiredCapabilities: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
+    githubRepo: githubRepo.optional().nullable(),
+    githubIssueUrl: z.string().url().max(5000).optional().nullable(),
+    bountyCents: z.number().int().positive().max(100_000_000),
     executionFeeCents: z.number().int().nonnegative(),
-    includedRevisions: z
-      .number()
-      .int()
-      .min(0)
-      .max(5)
-      .default(1),
+    includedRevisions: z.number().int().min(0).max(5).default(1),
     acceptanceCriteria: z
-      .array(z.string().min(2))
-      .min(1),
+      .array(z.string().trim().min(2).max(1000))
+      .min(1)
+      .max(50),
   })
-  .refine(
-    (x) =>
-      x.executionFeeCents <
-      x.bountyCents,
-    {
-      message:
-        "executionFeeCents must be smaller than bountyCents",
+  .superRefine((value, ctx) => {
+    const deliveryType =
+      value.deliveryType || DEFAULT_DELIVERY_BY_WORK[value.workType];
+    const verificationType =
+      value.verificationType || DEFAULT_VERIFICATION_BY_WORK[value.workType];
+
+    if (value.sourceData) {
+      const bytes = Buffer.byteLength(
+        JSON.stringify(value.sourceData),
+        "utf8"
+      );
+
+      if (bytes > MAX_SOURCE_DATA_BYTES) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceData"],
+          message: "sourceData is too large",
+        });
+      }
     }
+
+    if (value.executionFeeCents >= value.bountyCents) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["executionFeeCents"],
+        message: "executionFeeCents must be smaller than bountyCents",
+      });
+    }
+
+    if (value.workType === "CODE" && !value.githubRepo) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["githubRepo"],
+        message: "Code tasks require a GitHub repository",
+      });
+    }
+
+    if (value.sourceType === "GITHUB_ISSUE") {
+      if (!value.githubIssueUrl) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["githubIssueUrl"],
+          message: "GitHub Issue source requires githubIssueUrl",
+        });
+      } else {
+        const issue = parseGitHubIssueUrl(value.githubIssueUrl);
+
+        if (!issue) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["githubIssueUrl"],
+            message: "githubIssueUrl must be a github.com Issue URL",
+          });
+        } else if (
+          value.githubRepo &&
+          issue.repository.toLowerCase() !== value.githubRepo.toLowerCase()
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["githubIssueUrl"],
+            message: "GitHub Issue must belong to githubRepo",
+          });
+        }
+      }
+    }
+
+    if (["URL", "FILE", "API"].includes(value.sourceType)) {
+      if (!value.sourceUrl) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceUrl"],
+          message: `${value.sourceType} source requires sourceUrl`,
+        });
+      } else if (!isSafeExternalSourceUrl(value.sourceUrl)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceUrl"],
+          message:
+            "sourceUrl must be a public HTTPS URL and cannot target localhost or a private IP",
+        });
+      }
+    }
+
+    if (deliveryType === "PULL_REQUEST" && !value.githubRepo) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["githubRepo"],
+        message: "Pull request delivery requires a GitHub repository",
+      });
+    }
+
+    if (verificationType === "GITHUB" && deliveryType !== "PULL_REQUEST") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["verificationType"],
+        message: "GitHub verification requires pull request delivery",
+      });
+    }
+  });
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const requestedWorkType = url.searchParams.get("workType");
+  const generalProtocol = url.searchParams.get("protocol") === "0.4";
+  const suppliedAgentToken = Boolean(
+    request.headers.get("x-api-key")
   );
 
-export async function GET() {
+  const workType = WORK_TYPES.includes(requestedWorkType as any)
+    ? (requestedWorkType as (typeof WORK_TYPES)[number])
+    : null;
+
+  const agent = suppliedAgentToken
+    ? await authenticateAgentRequest(request)
+    : null;
+
+  if (suppliedAgentToken && !agent) {
+    return NextResponse.json(
+      { error: "invalid_agent_token" },
+      { status: 401 }
+    );
+  }
+
   const tasks = await db.task.findMany({
     where: {
       status: "OPEN",
+      ...(workType ? { workType } : {}),
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 
+  const visibleTasks = agent
+    ? tasks.filter(task =>
+        hasRequiredCapabilities(
+          agent.capabilitiesJson,
+          task.requiredCapabilitiesJson
+        ) &&
+        (
+          generalProtocol ||
+          (
+            task.workType === "CODE" &&
+            task.deliveryType === "PULL_REQUEST" &&
+            ["MANUAL", "GITHUB_ISSUE"].includes(
+              task.sourceType
+            )
+          )
+        )
+      )
+    : tasks;
+
   return NextResponse.json({
-    tasks: tasks.map((task) => {
+    protocolVersion: generalProtocol ? "0.4" : "0.3",
+    tasks: visibleTasks.map(task => {
       const {
         acceptanceCriteriaJson,
+        requiredCapabilitiesJson,
+        sourceDataJson: _sourceDataJson,
+        sourceUrl: _sourceUrl,
+        githubIssueUrl: _githubIssueUrl,
         ownerId: _ownerId,
         ...publicTask
       } = task;
 
       return {
         ...publicTask,
-        acceptanceCriteria:
-          JSON.parse(
-            acceptanceCriteriaJson
-          ),
+        acceptanceCriteria: JSON.parse(acceptanceCriteriaJson),
+        requiredCapabilities: JSON.parse(requiredCapabilitiesJson),
+        sourceAvailable:
+          task.sourceType !== "MANUAL",
       };
     }),
   });
 }
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
-    const user =
-      await authenticateWebRequest(
-        request
-      );
+    const user = await authenticateWebRequest(request);
 
     if (!user) {
       return NextResponse.json(
-        {
-          error: "unauthorized",
-        },
-        {
-          status: 401,
-        }
+        { error: "unauthorized" },
+        { status: 401 }
       );
     }
 
-    const data =
-      createTask.parse(
-        await request.json()
-      );
+    const data = createTask.parse(await request.json());
 
-    const {
-      acceptanceCriteria,
-      ...taskData
-    } = data;
+    const deliveryType =
+      data.deliveryType || DEFAULT_DELIVERY_BY_WORK[data.workType];
+    const verificationType =
+      data.verificationType || DEFAULT_VERIFICATION_BY_WORK[data.workType];
+    const requiredCapabilities =
+      data.requiredCapabilities?.length
+        ? [...new Set(data.requiredCapabilities.map(value => value.toUpperCase()))]
+        : requiredCapabilitiesFor(data.workType);
 
-    const task =
-      await db.task.create({
+    const task = await db.$transaction(async tx => {
+      const created = await tx.task.create({
         data: {
-          ...taskData,
-
           ownerId: user.id,
-
-          successRewardCents:
-            data.bountyCents -
-            data.executionFeeCents,
-
-          acceptanceCriteriaJson:
-            JSON.stringify(
-              acceptanceCriteria
-            ),
+          title: data.title,
+          description: data.description,
+          workType: data.workType,
+          sourceType: data.sourceType,
+          sourceUrl: data.sourceUrl || null,
+          sourceDataJson: data.sourceData
+            ? JSON.stringify(data.sourceData)
+            : null,
+          deliveryType,
+          verificationType,
+          requiredCapabilitiesJson: JSON.stringify(requiredCapabilities),
+          githubRepo: data.githubRepo || null,
+          githubIssueUrl: data.githubIssueUrl || null,
+          bountyCents: data.bountyCents,
+          executionFeeCents: data.executionFeeCents,
+          successRewardCents: data.bountyCents - data.executionFeeCents,
+          includedRevisions: data.includedRevisions,
+          acceptanceCriteriaJson: JSON.stringify(data.acceptanceCriteria),
+          status: "OPEN",
         },
       });
 
-    return NextResponse.json(
-      task,
-      {
-        status: 201,
-      }
-    );
+      await tx.taskEvent.create({
+        data: taskEventData({
+          taskId: created.id,
+          type: "CONTRACT_PUBLISHED",
+          actorType: "HUMAN",
+          actorId: user.id,
+          message: "Task published",
+          metadata: {
+            workType: data.workType,
+            sourceType: data.sourceType,
+            deliveryType,
+            verificationType,
+            githubRepo: data.githubRepo || null,
+            sourceUrl: data.sourceUrl || null,
+            bountyCents: data.bountyCents,
+            executionFeeCents: data.executionFeeCents,
+            successRewardCents:
+              data.bountyCents - data.executionFeeCents,
+          },
+          dedupeKey: `task:${created.id}:published`,
+        }),
+      });
+
+      return created;
+    });
+
+    return NextResponse.json(task, { status: 201 });
   } catch (error) {
     return apiError(error);
   }

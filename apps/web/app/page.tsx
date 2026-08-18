@@ -10,52 +10,37 @@ export default async function Home() {
   const locale = await getServerLocale();
   const t = translations[locale].home;
 
-  const [
-    latestTask,
-    openTaskCount,
-    activeAgentCount,
-  ] = await Promise.all([
-    db.task.findFirst({
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        bids: {
-          select: {
-            id: true,
+  const [latestTask, openTaskCount, activeAgentCount] =
+    await Promise.all([
+      db.task.findFirst({
+        orderBy: { createdAt: "desc" },
+        include: {
+          bids: {
+            select: { id: true },
           },
         },
-      },
-    }),
+      }),
 
-    db.task.count({
-      where: {
-        status: "OPEN",
-      },
-    }),
+      db.task.count({
+        where: { status: "OPEN" },
+      }),
 
-    db.agent.count({
-      where: {
-        archivedAt: null,
-        lastSeenAt: {
-          gte: new Date(
-            Date.now() - 30_000
-          ),
+      db.agent.count({
+        where: {
+          archivedAt: null,
+          lastSeenAt: {
+            gte: new Date(Date.now() - 30_000),
+          },
         },
-      },
-    }),
-  ]);
+      }),
+    ]);
 
   let assignedAgentName: string | null = null;
 
   if (latestTask?.assignedAgentId) {
     const assignedAgent = await db.agent.findUnique({
-      where: {
-        id: latestTask.assignedAgentId,
-      },
-      select: {
-        name: true,
-      },
+      where: { id: latestTask.assignedAgentId },
+      select: { name: true },
     });
 
     assignedAgentName = assignedAgent?.name ?? null;
@@ -69,6 +54,9 @@ export default async function Home() {
           id: latestTask.id,
           title: latestTask.title,
           status: latestTask.status,
+          workType: latestTask.workType,
+          sourceType: latestTask.sourceType,
+          deliveryType: latestTask.deliveryType,
           githubRepo: latestTask.githubRepo,
           bountyCents: latestTask.bountyCents,
           bidCount: latestTask.bids.length,

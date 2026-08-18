@@ -1,9 +1,14 @@
+"""Legacy reference runner for simple CODE + PULL_REQUEST tasks only.
+
+It supports direct task descriptions and GitHub Issue sources. Code tasks that
+depend on external URL, file or API inputs should use a custom protocol 0.4
+runtime that explicitly consumes task_context().
+"""
+
 import os
 import sys
 import time
-import json
 import subprocess
-import urllib.request
 import urllib.error
 
 from agentbounty import AgentBountyClient
@@ -15,7 +20,6 @@ BASE_URL = os.environ.get(
 ).rstrip("/")
 
 API_KEY = os.environ["AGENTBOUNTY_API_KEY"]
-
 AGENT_ID = os.environ["AGENT_ID"]
 
 POLL_SECONDS = int(
@@ -43,54 +47,37 @@ worker_path = os.path.join(
 failed_until = {}
 
 
-def api_get(path):
-    req = urllib.request.Request(
-        BASE_URL + path,
-        headers={
-            "x-api-key": API_KEY,
-            "Content-Type": "application/json"
-        },
-        method="GET"
-    )
-
-    with urllib.request.urlopen(req) as response:
-        return json.loads(
-            response.read().decode("utf-8")
-        )
-
-
 def heartbeat():
-    req = urllib.request.Request(
-        BASE_URL + f"/api/v1/agents/{AGENT_ID}/heartbeat",
-        data=b"{}",
-        headers={
-            "x-api-key": API_KEY,
-            "Content-Type": "application/json"
-        },
-        method="POST"
-    )
+    client.heartbeat(AGENT_ID)
 
-    with urllib.request.urlopen(req) as response:
-        response.read()
+
+def supported_code_task(task):
+    return (
+        task.get("workType") == "CODE"
+        and
+        task.get("deliveryType") == "PULL_REQUEST"
+        and
+        task.get("sourceType") in ("MANUAL", "GITHUB_ISSUE")
+    )
 
 
 def get_jobs():
-    return api_get(
-        f"/api/v1/agents/{AGENT_ID}/jobs"
-    ).get("jobs", [])
+    return [
+        job
+        for job in client.jobs(AGENT_ID)
+        if supported_code_task(job)
+    ]
 
 
 def run_job(job):
     task_id = job["id"]
 
-    now = time.time()
-
-    if failed_until.get(task_id, 0) > now:
+    if failed_until.get(task_id, 0) > time.time():
         return
 
     print()
     print("=" * 60)
-    print("WORK RECEIVED")
+    print("CODE WORK RECEIVED")
     print("Task:", job["title"])
     print("Task ID:", task_id)
     print("Status:", job["status"])
@@ -123,12 +110,14 @@ def run_job(job):
 
 
 def try_bid():
-    tasks = client.open_tasks()
+    tasks = client.open_tasks("CODE")
 
     suitable = [
         task
         for task in tasks
         if (
+            supported_code_task(task)
+            and
             task["bountyCents"] >= MIN_BOUNTY_CENTS
             and
             task["bountyCents"] <= MAX_BOUNTY_CENTS
@@ -138,7 +127,6 @@ def try_bid():
     if not suitable:
         return
 
-    # Highest bounty first for now.
     suitable.sort(
         key=lambda task: task["bountyCents"],
         reverse=True
@@ -152,7 +140,7 @@ def try_bid():
             AGENT_ID,
             task["bountyCents"],
             (
-                "Autonomous JaggerClaw bid. "
+                "Autonomous coding worker bid. "
                 "Execution uses the agent owner's compute."
             )
         )
@@ -172,20 +160,21 @@ def try_bid():
             )
             print("Bid:", bid["id"])
 
-    except urllib.error.HTTPError as e:
-        text = e.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        text = error.read().decode("utf-8")
         print(
             "Bid error:",
-            e.code,
+            error.code,
             text
         )
 
 
 print()
-print("🦞 JaggerClaw is ONLINE")
-print("------------------------------")
+print("🦞 AgentBounty CODE runner ONLINE")
+print("--------------------------------")
 print("Agent ID:", AGENT_ID)
 print("Marketplace:", BASE_URL)
+print("Task mode: CODE / PR / direct-or-Issue source")
 print(
     "Bid range:",
     f"${MIN_BOUNTY_CENTS / 100:.2f}",
@@ -194,7 +183,7 @@ print(
 )
 print("Polling every:", POLL_SECONDS, "seconds")
 print("Model:", os.environ.get("LLM_MODEL"))
-print("------------------------------")
+print("--------------------------------")
 print("Press Control+C to stop.")
 print()
 
@@ -215,21 +204,19 @@ while True:
         ]
 
         if active_jobs:
-            # V0.5: one job at a time.
             run_job(active_jobs[0])
-
         else:
             try_bid()
 
     except KeyboardInterrupt:
         print()
-        print("JaggerClaw offline.")
+        print("Coding runner offline.")
         break
 
-    except Exception as e:
+    except Exception as error:
         print(
             "Runner error:",
-            repr(e)
+            repr(error)
         )
 
     time.sleep(POLL_SECONDS)

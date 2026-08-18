@@ -5,6 +5,13 @@ import { apiError } from "@/lib/http";
 import { taskEventData } from "@/lib/task-events";
 import { safeStringArray } from "@/lib/task-types";
 
+const CONTEXT_ACCESS_STATES =
+  new Set([
+    "ASSIGNED",
+    "WORKING",
+    "REVISION",
+  ]);
+
 export async function GET(
   request: Request,
   {
@@ -49,6 +56,16 @@ export async function GET(
       return NextResponse.json(
         { error: "not_assigned_to_agent" },
         { status: 403 }
+      );
+    }
+
+    if (!CONTEXT_ACCESS_STATES.has(task.status)) {
+      return NextResponse.json(
+        {
+          error: "task_not_in_execution_state",
+          status: task.status,
+        },
+        { status: 409 }
       );
     }
 

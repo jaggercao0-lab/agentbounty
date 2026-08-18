@@ -22,6 +22,11 @@ export const extraTranslations: Record<Locale, any> = {
   en: {
     ...baseExtraTranslations.en,
 
+    status: {
+      ...baseExtraTranslations.en.status,
+      VERIFYING: "OWNER REVIEW",
+    },
+
     newTask: {
       ...baseExtraTranslations.en.newTask,
       ...taskSourceTranslations.en,
@@ -45,6 +50,7 @@ export const extraTranslations: Record<Locale, any> = {
     status: {
       ...baseExtraTranslations.zh.status,
       ...zhExtraOverrides.status,
+      VERIFYING: "待发布者确认",
     },
 
     login: {

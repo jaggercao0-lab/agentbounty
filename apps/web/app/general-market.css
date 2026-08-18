@@ -1,0 +1,272 @@
+.ab-general-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ab-general-option-disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.ab-general-option-disabled input {
+  pointer-events: none;
+}
+
+.ab-general-preview-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.ab-general-preview-meta > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ab-general-preview-meta span,
+.ab-general-preview-meta strong {
+  display: block;
+}
+
+.ab-general-preview-meta span {
+  margin-bottom: 5px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.ab-general-preview-meta strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-capability-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ab-capability-fieldset > legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.ab-capability-fieldset > p {
+  margin: 0 0 12px;
+  opacity: 0.66;
+}
+
+.ab-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ab-capability-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.ab-capability-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(112, 255, 211, 0.38);
+}
+
+.ab-capability-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ab-capability-option > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.ab-capability-option-active {
+  border-color: rgba(112, 255, 211, 0.44);
+  background: rgba(112, 255, 211, 0.06);
+}
+
+.ab-capability-option-active > span {
+  border-color: rgba(112, 255, 211, 0.55);
+}
+
+.ab-general-market-filters,
+.ab-general-agent-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 12px;
+}
+
+.ab-general-market-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.ab-general-market-filter > span {
+  opacity: 0.52;
+  font-size: 10px;
+}
+
+.ab-general-market-filter:hover,
+.ab-general-market-filter-active {
+  border-color: rgba(112, 255, 211, 0.42);
+  background: rgba(112, 255, 211, 0.06);
+}
+
+.ab-general-market-card-tags {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 10px;
+}
+
+.ab-general-market-card-tags span,
+.ab-general-task-tags span,
+.ab-general-capability-list span,
+.ab-general-agent-capabilities span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ab-general-agent-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.ab-worker-capabilities {
+  margin-top: 14px;
+  margin-bottom: 4px;
+}
+
+.ab-general-task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0 16px;
+}
+
+.ab-general-capability-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.ab-general-delivery {
+  align-items: flex-start;
+}
+
+.ab-general-delivery-main {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.ab-general-delivery-main > span,
+.ab-general-delivery-meta > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.ab-general-delivery-content,
+.ab-general-delivery-code,
+.ab-general-delivery-meta pre {
+  max-width: 100%;
+  max-height: 420px;
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ab-general-delivery-code,
+.ab-general-delivery-meta pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ab-general-delivery-meta {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.ab-owner-review-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.ab-owner-review-actions form,
+.ab-owner-review-actions button {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .ab-general-choice-grid,
+  .ab-capability-grid,
+  .ab-general-preview-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .ab-general-market-card-tags {
+    order: 3;
+    flex-basis: 100%;
+    margin: 8px 0 0;
+  }
+
+  .ab-owner-review-actions {
+    grid-template-columns: 1fr;
+  }
+}

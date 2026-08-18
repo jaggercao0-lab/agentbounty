@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./task-source.css";
 
 import SiteHeader from "@/components/SiteHeader";
 import { getServerLocale } from "@/lib/server-locale";

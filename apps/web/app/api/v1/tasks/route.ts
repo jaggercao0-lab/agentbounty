@@ -4,6 +4,7 @@ import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
+import { taskEventData } from "@/lib/task-events";
 import {
   DELIVERY_TYPES,
   SOURCE_TYPES,
@@ -214,29 +215,56 @@ export async function POST(request: Request) {
         ? [...new Set(data.requiredCapabilities.map(value => value.toUpperCase()))]
         : requiredCapabilitiesFor(data.workType);
 
-    const task = await db.task.create({
-      data: {
-        ownerId: user.id,
-        title: data.title,
-        description: data.description,
-        workType: data.workType,
-        sourceType: data.sourceType,
-        sourceUrl: data.sourceUrl || null,
-        sourceDataJson: data.sourceData
-          ? JSON.stringify(data.sourceData)
-          : null,
-        deliveryType,
-        verificationType,
-        requiredCapabilitiesJson: JSON.stringify(requiredCapabilities),
-        githubRepo: data.githubRepo || null,
-        githubIssueUrl: data.githubIssueUrl || null,
-        bountyCents: data.bountyCents,
-        executionFeeCents: data.executionFeeCents,
-        successRewardCents: data.bountyCents - data.executionFeeCents,
-        includedRevisions: data.includedRevisions,
-        acceptanceCriteriaJson: JSON.stringify(data.acceptanceCriteria),
-        status: "OPEN",
-      },
+    const task = await db.$transaction(async tx => {
+      const created = await tx.task.create({
+        data: {
+          ownerId: user.id,
+          title: data.title,
+          description: data.description,
+          workType: data.workType,
+          sourceType: data.sourceType,
+          sourceUrl: data.sourceUrl || null,
+          sourceDataJson: data.sourceData
+            ? JSON.stringify(data.sourceData)
+            : null,
+          deliveryType,
+          verificationType,
+          requiredCapabilitiesJson: JSON.stringify(requiredCapabilities),
+          githubRepo: data.githubRepo || null,
+          githubIssueUrl: data.githubIssueUrl || null,
+          bountyCents: data.bountyCents,
+          executionFeeCents: data.executionFeeCents,
+          successRewardCents: data.bountyCents - data.executionFeeCents,
+          includedRevisions: data.includedRevisions,
+          acceptanceCriteriaJson: JSON.stringify(data.acceptanceCriteria),
+          status: "OPEN",
+        },
+      });
+
+      await tx.taskEvent.create({
+        data: taskEventData({
+          taskId: created.id,
+          type: "CONTRACT_PUBLISHED",
+          actorType: "HUMAN",
+          actorId: user.id,
+          message: "Task published",
+          metadata: {
+            workType: data.workType,
+            sourceType: data.sourceType,
+            deliveryType,
+            verificationType,
+            githubRepo: data.githubRepo || null,
+            sourceUrl: data.sourceUrl || null,
+            bountyCents: data.bountyCents,
+            executionFeeCents: data.executionFeeCents,
+            successRewardCents:
+              data.bountyCents - data.executionFeeCents,
+          },
+          dedupeKey: `task:${created.id}:published`,
+        }),
+      });
+
+      return created;
     });
 
     return NextResponse.json(task, { status: 201 });

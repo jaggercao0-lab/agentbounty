@@ -24,15 +24,7 @@ function money(value: string) {
   return `$${amount.toFixed(2)}`;
 }
 
-function repoFromIssue(url: string) {
-  const match = url.match(
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/
-  );
-
-  return match
-    ? `${match[1]}/${match[2]}`
-    : "owner/repository";
-}
+type SourceMode = "direct" | "issue";
 
 export default function NewTaskForm({
   locale,
@@ -64,25 +56,25 @@ export default function NewTaskForm({
     },
   ] as const;
 
+  const [sourceMode, setSourceMode] =
+    useState<SourceMode>("direct");
+
+  const [githubRepo, setGithubRepo] =
+    useState("");
+
   const [githubIssueUrl, setGithubIssueUrl] =
     useState("");
 
-  const [title, setTitle] =
-    useState("");
-
-  const [description, setDescription] =
-    useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
 
   const [
     acceptanceCriteria,
     setAcceptanceCriteria,
-  ] = useState("");
+  ] = useState("A pull request is submitted");
 
-  const [bounty, setBounty] =
-    useState("20");
-
-  const [executionFee, setExecutionFee] =
-    useState("4");
+  const [bounty, setBounty] = useState("20");
+  const [executionFee, setExecutionFee] = useState("4");
 
   const [
     includedRevisions,
@@ -95,55 +87,39 @@ export default function NewTaskForm({
   const [importError, setImportError] =
     useState("");
 
-  const [
-    isPending,
-    startTransition,
-  ] = useTransition();
+  const [isPending, startTransition] =
+    useTransition();
 
-  const criteria =
-    useMemo(
-      () =>
-        acceptanceCriteria
-          .split("\n")
-          .map(line => line.trim())
-          .filter(Boolean),
-      [acceptanceCriteria]
-    );
+  const criteria = useMemo(
+    () =>
+      acceptanceCriteria
+        .split("\n")
+        .map(line => line.trim())
+        .filter(Boolean),
+    [acceptanceCriteria]
+  );
 
-  const successReward =
-    Math.max(
-      0,
-      Number(bounty || 0) -
-        Number(executionFee || 0)
-    );
+  const successReward = Math.max(
+    0,
+    Number(bounty || 0) - Number(executionFee || 0)
+  );
 
   function matchesVerifierPreset(
     line: string,
     rule: string
   ) {
-    if (
-      rule ===
-      "A pull request is submitted"
-    ) {
+    if (rule === "A pull request is submitted") {
       return line
         .toLowerCase()
-        .startsWith(
-          "a pull request is submitted"
-        );
+        .startsWith("a pull request is submitted");
     }
 
     return line === rule;
   }
 
-  function isVerifierPresetEnabled(
-    rule: string
-  ) {
-    return criteria.some(
-      line =>
-        matchesVerifierPreset(
-          line,
-          rule
-        )
+  function isVerifierPresetEnabled(rule: string) {
+    return criteria.some(line =>
+      matchesVerifierPreset(line, rule)
     );
   }
 
@@ -151,41 +127,35 @@ export default function NewTaskForm({
     rule: string,
     enabled: boolean
   ) {
-    const lines =
-      acceptanceCriteria
-        .split("\n")
-        .map(line => line.trim())
-        .filter(Boolean);
+    const lines = acceptanceCriteria
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean);
 
-    const exists =
-      lines.some(
-        line =>
-          matchesVerifierPreset(
-            line,
-            rule
-          )
-      );
+    const exists = lines.some(line =>
+      matchesVerifierPreset(line, rule)
+    );
 
     if (enabled && !exists) {
-      setAcceptanceCriteria(
-        [...lines, rule].join("\n")
-      );
+      setAcceptanceCriteria([...lines, rule].join("\n"));
       return;
     }
 
     if (!enabled && exists) {
       setAcceptanceCriteria(
         lines
-          .filter(
-            line =>
-              !matchesVerifierPreset(
-                line,
-                rule
-              )
+          .filter(line =>
+            !matchesVerifierPreset(line, rule)
           )
           .join("\n")
       );
     }
+  }
+
+  function chooseSource(mode: SourceMode) {
+    setSourceMode(mode);
+    setImportError("");
+    setImportMessage("");
   }
 
   function importIssue() {
@@ -198,31 +168,23 @@ export default function NewTaskForm({
     }
 
     startTransition(async () => {
-      const result =
-        await previewGitHubIssue(
-          githubIssueUrl
-        );
+      const result = await previewGitHubIssue(
+        githubIssueUrl
+      );
 
       if (!result.ok) {
         setImportError(result.error);
         return;
       }
 
-      setTitle(
-        result.issue.title
-      );
-
+      setGithubRepo(result.repository.fullName);
+      setTitle(result.issue.title);
       setDescription(
-        result.issue.body ||
-          result.issue.title
+        result.issue.body || result.issue.title
       );
-
       setAcceptanceCriteria(
-        result.suggestedAcceptanceCriteria.join(
-          "\n"
-        )
+        result.suggestedAcceptanceCriteria.join("\n")
       );
-
       setImportMessage(
         `${copy.imported} ${result.repository.fullName}#${result.issue.number}`
       );
@@ -247,46 +209,118 @@ export default function NewTaskForm({
             </span>
           </div>
 
-          <label className="ab-compose-field">
-            <span>{copy.issueUrl}</span>
-
-            <div className="ab-compose-import">
+          <div className="ab-compose-verifier-grid">
+            <label
+              className={
+                sourceMode === "direct"
+                  ? "ab-compose-verifier-option ab-compose-verifier-enabled"
+                  : "ab-compose-verifier-option"
+              }
+            >
               <input
-                name="githubIssueUrl"
-                type="url"
-                value={githubIssueUrl}
-                onChange={event =>
-                  setGithubIssueUrl(
-                    event.target.value
-                  )
-                }
-                placeholder="https://github.com/owner/repo/issues/5"
-                required
+                type="radio"
+                name="sourceMode"
+                value="direct"
+                checked={sourceMode === "direct"}
+                onChange={() => chooseSource("direct")}
               />
 
-              <button
-                type="button"
-                onClick={importIssue}
-                disabled={isPending}
-              >
-                {isPending
-                  ? copy.importing
-                  : copy.importIssue}
-                <span>↳</span>
-              </button>
-            </div>
+              <span className="ab-compose-verifier-toggle">
+                {sourceMode === "direct" ? "✓" : ""}
+              </span>
 
-            {importMessage && (
-              <small className="ab-compose-success">
-                ✓ {importMessage}
-              </small>
-            )}
+              <span className="ab-compose-verifier-copy">
+                <strong>{copy.directSource}</strong>
+                <small>{copy.directSourceHelp}</small>
+              </span>
+            </label>
 
-            {importError && (
-              <small className="ab-compose-error">
-                {importError}
-              </small>
-            )}
+            <label
+              className={
+                sourceMode === "issue"
+                  ? "ab-compose-verifier-option ab-compose-verifier-enabled"
+                  : "ab-compose-verifier-option"
+              }
+            >
+              <input
+                type="radio"
+                name="sourceMode"
+                value="issue"
+                checked={sourceMode === "issue"}
+                onChange={() => chooseSource("issue")}
+              />
+
+              <span className="ab-compose-verifier-toggle">
+                {sourceMode === "issue" ? "✓" : ""}
+              </span>
+
+              <span className="ab-compose-verifier-copy">
+                <strong>{copy.issueSource}</strong>
+                <small>{copy.issueSourceHelp}</small>
+              </span>
+            </label>
+          </div>
+
+          {sourceMode === "issue" ? (
+            <label className="ab-compose-field">
+              <span>{copy.issueUrl}</span>
+
+              <div className="ab-compose-import">
+                <input
+                  name="githubIssueUrl"
+                  type="url"
+                  value={githubIssueUrl}
+                  onChange={event =>
+                    setGithubIssueUrl(event.target.value)
+                  }
+                  placeholder="https://github.com/owner/repo/issues/5"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={importIssue}
+                  disabled={isPending}
+                >
+                  {isPending
+                    ? copy.importing
+                    : copy.importIssue}
+                  <span>↳</span>
+                </button>
+              </div>
+
+              {importMessage && (
+                <small className="ab-compose-success">
+                  ✓ {importMessage}
+                </small>
+              )}
+
+              {importError && (
+                <small className="ab-compose-error">
+                  {importError}
+                </small>
+              )}
+            </label>
+          ) : (
+            <p className="ab-compose-verifier-note">
+              {copy.directModeNote}
+            </p>
+          )}
+
+          <label className="ab-compose-field">
+            <span>{copy.repository}</span>
+
+            <input
+              name="githubRepo"
+              value={githubRepo}
+              onChange={event =>
+                setGithubRepo(event.target.value)
+              }
+              placeholder={copy.repositoryPlaceholder}
+              required
+            />
+
+            <small>{copy.repositoryHelp}</small>
           </label>
         </section>
 
@@ -304,12 +338,12 @@ export default function NewTaskForm({
             <input
               name="title"
               value={title}
-              onChange={event =>
-                setTitle(
-                  event.target.value
-                )
+              onChange={event => setTitle(event.target.value)}
+              placeholder={
+                sourceMode === "direct"
+                  ? copy.directTitlePlaceholder
+                  : copy.titlePlaceholder
               }
-              placeholder={copy.titlePlaceholder}
               required
             />
           </label>
@@ -322,9 +356,7 @@ export default function NewTaskForm({
               rows={7}
               value={description}
               onChange={event =>
-                setDescription(
-                  event.target.value
-                )
+                setDescription(event.target.value)
               }
               placeholder={copy.descriptionPlaceholder}
               required
@@ -349,11 +381,7 @@ export default function NewTaskForm({
                 step="0.01"
                 min="1"
                 value={bounty}
-                onChange={event =>
-                  setBounty(
-                    event.target.value
-                  )
-                }
+                onChange={event => setBounty(event.target.value)}
                 required
               />
             </label>
@@ -367,9 +395,7 @@ export default function NewTaskForm({
                 min="0.01"
                 value={executionFee}
                 onChange={event =>
-                  setExecutionFee(
-                    event.target.value
-                  )
+                  setExecutionFee(event.target.value)
                 }
                 required
               />
@@ -384,9 +410,7 @@ export default function NewTaskForm({
                 max="5"
                 value={includedRevisions}
                 onChange={event =>
-                  setIncludedRevisions(
-                    event.target.value
-                  )
+                  setIncludedRevisions(event.target.value)
                 }
                 required
               />
@@ -410,9 +434,7 @@ export default function NewTaskForm({
 
             <div className="ab-compose-reward">
               <span>{copy.successReward}</span>
-              <strong>
-                ${successReward.toFixed(2)}
-              </strong>
+              <strong>${successReward.toFixed(2)}</strong>
             </div>
           </div>
         </section>
@@ -440,45 +462,41 @@ export default function NewTaskForm({
             </div>
 
             <div className="ab-compose-verifier-grid">
-              {verifierPresets.map(
-                preset => {
-                  const enabled =
-                    isVerifierPresetEnabled(
-                      preset.rule
-                    );
+              {verifierPresets.map(preset => {
+                const enabled =
+                  isVerifierPresetEnabled(preset.rule);
 
-                  return (
-                    <label
-                      key={preset.rule}
-                      className={
-                        enabled
-                          ? "ab-compose-verifier-option ab-compose-verifier-enabled"
-                          : "ab-compose-verifier-option"
+                return (
+                  <label
+                    key={preset.rule}
+                    className={
+                      enabled
+                        ? "ab-compose-verifier-option ab-compose-verifier-enabled"
+                        : "ab-compose-verifier-option"
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={event =>
+                        setVerifierPreset(
+                          preset.rule,
+                          event.target.checked
+                        )
                       }
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        onChange={event =>
-                          setVerifierPreset(
-                            preset.rule,
-                            event.target.checked
-                          )
-                        }
-                      />
+                    />
 
-                      <span className="ab-compose-verifier-toggle">
-                        {enabled ? "✓" : ""}
-                      </span>
+                    <span className="ab-compose-verifier-toggle">
+                      {enabled ? "✓" : ""}
+                    </span>
 
-                      <span className="ab-compose-verifier-copy">
-                        <strong>{preset.label}</strong>
-                        <small>{preset.description}</small>
-                      </span>
-                    </label>
-                  );
-                }
-              )}
+                    <span className="ab-compose-verifier-copy">
+                      <strong>{preset.label}</strong>
+                      <small>{preset.description}</small>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
 
             <p className="ab-compose-verifier-note">
@@ -492,9 +510,7 @@ export default function NewTaskForm({
               rows={9}
               value={acceptanceCriteria}
               onChange={event =>
-                setAcceptanceCriteria(
-                  event.target.value
-                )
+                setAcceptanceCriteria(event.target.value)
               }
               placeholder={copy.criteriaPlaceholder}
               required
@@ -505,17 +521,15 @@ export default function NewTaskForm({
 
           {criteria.length > 0 && (
             <div className="ab-compose-criteria-preview">
-              {criteria.map(
-                (criterion, index) => (
-                  <div key={index}>
-                    <span>
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <p>{criterion}</p>
-                    <b>{copy.rule}</b>
-                  </div>
-                )
-              )}
+              {criteria.map((criterion, index) => (
+                <div key={index}>
+                  <span>
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <p>{criterion}</p>
+                  <b>{copy.rule}</b>
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -532,7 +546,7 @@ export default function NewTaskForm({
           </div>
 
           <div className="ab-compose-preview-job">
-            <span>{repoFromIssue(githubIssueUrl)}</span>
+            <span>{githubRepo || copy.repositoryPlaceholder}</span>
             <h2>{title || copy.untitled}</h2>
             <p>{description || copy.previewDescription}</p>
           </div>

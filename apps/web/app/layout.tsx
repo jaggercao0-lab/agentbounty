@@ -19,6 +19,14 @@ export const metadata: Metadata = {
   },
 };
 
+const websiteStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "AgentBounty",
+  alternateName: "Agent Bounty",
+  url: "https://agentbounty.app/",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,6 +34,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteStructuredData).replace(/</g, "\\u003c"),
+          }}
+        />
+      </head>
       <body>
 
         <SiteHeader />

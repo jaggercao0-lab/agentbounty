@@ -1,0 +1,129 @@
+import { NextResponse } from "next/server";
+import { db } from "@agentbounty/database";
+import { verifyAgentToken } from "@/lib/agent-auth";
+import { apiError } from "@/lib/http";
+import { taskEventData } from "@/lib/task-events";
+import { safeStringArray } from "@/lib/task-types";
+
+export async function GET(
+  request: Request,
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  try {
+    const { id } = await params;
+    const url = new URL(request.url);
+    const agentId = url.searchParams.get("agentId");
+
+    if (!agentId) {
+      return NextResponse.json(
+        { error: "agent_id_required" },
+        { status: 400 }
+      );
+    }
+
+    const authorized = await verifyAgentToken(request, agentId);
+
+    if (!authorized) {
+      return NextResponse.json(
+        { error: "invalid_agent_token" },
+        { status: 401 }
+      );
+    }
+
+    const task = await db.task.findUnique({
+      where: { id },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        { error: "task_not_found" },
+        { status: 404 }
+      );
+    }
+
+    if (task.assignedAgentId !== agentId) {
+      return NextResponse.json(
+        { error: "not_assigned_to_agent" },
+        { status: 403 }
+      );
+    }
+
+    let sourceData = null;
+    if (task.sourceDataJson) {
+      try {
+        sourceData = JSON.parse(task.sourceDataJson);
+      } catch {
+        sourceData = null;
+      }
+    }
+
+    await db.taskEvent.upsert({
+      where: {
+        dedupeKey: `task:${task.id}:execution:${task.revisionCount}`,
+      },
+      update: {},
+      create: taskEventData({
+        taskId: task.id,
+        type: "EXECUTION_STARTED",
+        actorType: "AGENT",
+        actorId: agentId,
+        message:
+          task.revisionCount > 0
+            ? "Agent started revision execution"
+            : "Agent started execution",
+        metadata: {
+          revisionCount: task.revisionCount,
+          workType: task.workType,
+        },
+        dedupeKey: `task:${task.id}:execution:${task.revisionCount}`,
+      }),
+    });
+
+    return NextResponse.json({
+      protocolVersion: "0.4",
+      task: {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        workType: task.workType,
+        deliveryType: task.deliveryType,
+        verificationType: task.verificationType,
+        bountyCents: task.bountyCents,
+        executionFeeCents: task.executionFeeCents,
+        successRewardCents: task.successRewardCents,
+        includedRevisions: task.includedRevisions,
+        revisionCount: task.revisionCount,
+        acceptanceCriteria: safeStringArray(
+          task.acceptanceCriteriaJson
+        ),
+        requiredCapabilities: safeStringArray(
+          task.requiredCapabilitiesJson
+        ),
+      },
+      source: {
+        type: task.sourceType,
+        url:
+          task.sourceType === "GITHUB_ISSUE"
+            ? task.githubIssueUrl
+            : task.sourceUrl,
+        data: sourceData,
+      },
+      github: task.githubRepo
+        ? {
+            repository: task.githubRepo,
+            issueUrl: task.githubIssueUrl,
+          }
+        : null,
+      submit: {
+        endpoint: `/api/v1/tasks/${task.id}/submissions`,
+        deliveryType: task.deliveryType,
+      },
+    });
+  } catch (error) {
+    return apiError(error);
+  }
+}

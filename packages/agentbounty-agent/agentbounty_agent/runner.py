@@ -6,6 +6,7 @@ it can actually finish, while protocol details live in cli_v04.
 """
 
 import getpass
+import json
 import os
 import sys
 import time
@@ -16,6 +17,7 @@ from . import cli_v04 as v04
 
 
 _LEGACY_CONFIGURE = legacy.configure
+_BASE_GENERAL_TASK_PROMPT = v04._general_task_prompt
 
 SUPPORTED_GENERAL_PATHS = {
     ("RESEARCH", "TEXT"),
@@ -90,6 +92,70 @@ def try_bid(config):
 
         # At most one new bid per polling cycle.
         return
+
+
+def revision_aware_prompt(context, research_evidence=None):
+    """Build a revision prompt where feedback augments, not replaces, the task."""
+    task = dict(context.get("task") or {})
+    revision = (
+        context.get("revision")
+        or task.get("revision")
+        or {}
+    )
+
+    feedback = str(revision.get("feedback") or "").strip()
+    previous = revision.get("previousSubmission")
+
+    if not feedback and not previous:
+        return _BASE_GENERAL_TASK_PROMPT(
+            context,
+            research_evidence=research_evidence,
+        )
+
+    # Present the original contract separately from revision-only state so the
+    # model cannot confuse the latest feedback with a replacement task.
+    original_task = dict(task)
+    original_task.pop("revision", None)
+
+    base_context = dict(context)
+    base_context["task"] = original_task
+    base_context.pop("revision", None)
+
+    base_prompt = _BASE_GENERAL_TASK_PROMPT(
+        base_context,
+        research_evidence=research_evidence,
+    )
+
+    return (
+        base_prompt
+        + "\n\n"
+        + "REVISION MODE — IMPORTANT:\n"
+        + "This is a revision of the SAME paid task, not a new task.\n"
+        + "The original TASK above remains authoritative in full.\n"
+        + "The revision feedback supplements the original contract unless it "
+        + "explicitly asks to replace or remove something.\n\n"
+        + "REVISION INSTRUCTIONS:\n"
+        + (feedback or "No written feedback was supplied.")
+        + "\n\n"
+        + "PREVIOUS DELIVERY:\n"
+        + json.dumps(
+            previous,
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n\n"
+        + "Revision requirements:\n"
+        + "- Produce a COMPLETE replacement deliverable, not only the changed "
+        + "section or the new material requested in feedback.\n"
+        + "- Continue to satisfy the original title, description, source "
+        + "requirements, and EVERY original acceptance criterion.\n"
+        + "- Apply the revision instructions in addition to those original "
+        + "requirements.\n"
+        + "- Preserve correct and still-relevant content from the previous "
+        + "delivery unless the feedback requires changing or removing it.\n"
+        + "- Before returning the final answer, check that a reader can use "
+        + "this revision by itself without seeing the previous delivery."
+    )
 
 
 def execute_job(config, job):
@@ -263,6 +329,7 @@ def _install_reference_runner_patches():
     legacy.try_bid = try_bid
     legacy.execute_job = execute_job
     legacy.run = run_reference
+    v04._general_task_prompt = revision_aware_prompt
 
 
 def main():

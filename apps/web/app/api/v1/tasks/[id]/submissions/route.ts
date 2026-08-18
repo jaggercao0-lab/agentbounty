@@ -5,6 +5,7 @@ import { apiError } from "@/lib/http";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
 import { DELIVERY_TYPES } from "@/lib/task-types";
+import { verifySubmittedTask } from "@/lib/verification/service";
 
 const MAX_JSON_BYTES = 500_000;
 const MAX_METADATA_BYTES = 64_000;
@@ -296,7 +297,45 @@ export async function POST(
       return created;
     });
 
-    return NextResponse.json(submission, { status: 201 });
+    let automaticVerification = null;
+
+    // Artifact checks are local and deterministic, so run them immediately.
+    // GitHub/PR verification can depend on external CI and remains queued.
+    if (
+      task.deliveryType !== "PULL_REQUEST" &&
+      ["AUTOMATIC", "HYBRID"].includes(task.verificationType)
+    ) {
+      try {
+        const result = await verifySubmittedTask(id);
+
+        automaticVerification = result.ok
+          ? {
+              status: result.status,
+              verificationStatus: result.verificationStatus,
+              passed: result.passed,
+            }
+          : {
+              error: result.reason,
+              status: result.status,
+            };
+      } catch (error) {
+        // The delivery is already durable. Leave it SUBMITTED so the system
+        // verification queue or owner retry can safely process it later.
+        console.error(
+          "Immediate artifact verification failed",
+          id,
+          error
+        );
+      }
+    }
+
+    return NextResponse.json(
+      {
+        ...submission,
+        automaticVerification,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     if (
       error instanceof Error &&

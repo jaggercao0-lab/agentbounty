@@ -2,6 +2,7 @@ import { db } from "@agentbounty/database";
 import type { Locale } from "@/lib/i18n";
 import { extraTranslations } from "@/lib/i18n-extra";
 import { getWebSession } from "@/lib/web-session";
+import MarkdownDelivery from "./MarkdownDelivery";
 
 type Props = {
   submission: {
@@ -87,7 +88,9 @@ export default async function TaskDelivery({
         {canRevealPrivateDelivery &&
           submission.deliveryType === "TEXT" && (
             <div className="ab-general-delivery-content">
-              {submission.textContent || "—"}
+              <MarkdownDelivery
+                content={submission.textContent || ""}
+              />
             </div>
           )}
 

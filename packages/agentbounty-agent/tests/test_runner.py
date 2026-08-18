@@ -7,44 +7,80 @@ from agentbounty_agent import runner
 
 class ReferenceRunnerTests(unittest.TestCase):
     def test_can_execute_supported_paths(self):
-        self.assertTrue(
-            runner.can_execute_task({
+        supported = [
+            {
                 "workType": "CODE",
                 "deliveryType": "PULL_REQUEST",
-            })
-        )
-        self.assertTrue(
-            runner.can_execute_task({
+            },
+            {
                 "workType": "RESEARCH",
                 "deliveryType": "TEXT",
-            })
-        )
-        self.assertTrue(
-            runner.can_execute_task({
-                "workType": "AUTOMATION",
+            },
+            {
+                "workType": "RESEARCH",
                 "deliveryType": "JSON",
-            })
-        )
-        self.assertTrue(
-            runner.can_execute_task({
+            },
+            {
+                "workType": "DATA",
+                "deliveryType": "TEXT",
+            },
+            {
                 "workType": "DATA",
                 "deliveryType": "JSON",
-            })
-        )
+            },
+            {
+                "workType": "AUTOMATION",
+                "deliveryType": "TEXT",
+            },
+            {
+                "workType": "AUTOMATION",
+                "deliveryType": "JSON",
+            },
+            {
+                "workType": "OTHER",
+                "deliveryType": "TEXT",
+            },
+            {
+                "workType": "OTHER",
+                "deliveryType": "JSON",
+            },
+        ]
 
-    def test_can_execute_rejects_file_media_path(self):
-        self.assertFalse(
-            runner.can_execute_task({
+        for task in supported:
+            with self.subTest(task=task):
+                self.assertTrue(runner.can_execute_task(task))
+
+    def test_can_execute_rejects_unsupported_paths(self):
+        unsupported = [
+            {
                 "workType": "IMAGE",
                 "deliveryType": "FILE",
-            })
-        )
-        self.assertFalse(
-            runner.can_execute_task({
+            },
+            {
+                "workType": "IMAGE",
+                "deliveryType": "JSON",
+            },
+            {
                 "workType": "VIDEO",
                 "deliveryType": "FILE",
-            })
-        )
+            },
+            {
+                "workType": "VIDEO",
+                "deliveryType": "TEXT",
+            },
+            {
+                "workType": "CODE",
+                "deliveryType": "TEXT",
+            },
+            {
+                "workType": "OTHER",
+                "deliveryType": "URL",
+            },
+        ]
+
+        for task in unsupported:
+            with self.subTest(task=task):
+                self.assertFalse(runner.can_execute_task(task))
 
     def test_try_bid_ignores_unsupported_highest_bounty(self):
         config = {
@@ -58,7 +94,7 @@ class ReferenceRunnerTests(unittest.TestCase):
                 "title": "Generate image",
                 "bountyCents": 90000,
                 "workType": "IMAGE",
-                "deliveryType": "FILE",
+                "deliveryType": "JSON",
             },
             {
                 "id": "research",

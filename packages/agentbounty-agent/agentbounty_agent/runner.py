@@ -14,9 +14,15 @@ from . import cli as legacy
 from . import cli_v04 as v04
 
 
-SUPPORTED_GENERAL_DELIVERIES = {
-    "TEXT",
-    "JSON",
+SUPPORTED_GENERAL_PATHS = {
+    ("RESEARCH", "TEXT"),
+    ("RESEARCH", "JSON"),
+    ("DATA", "TEXT"),
+    ("DATA", "JSON"),
+    ("AUTOMATION", "TEXT"),
+    ("AUTOMATION", "JSON"),
+    ("OTHER", "TEXT"),
+    ("OTHER", "JSON"),
 }
 
 
@@ -29,7 +35,7 @@ def can_execute_task(task):
     if work_type == "CODE" and delivery_type == "PULL_REQUEST":
         return True
 
-    return delivery_type in SUPPORTED_GENERAL_DELIVERIES
+    return (work_type, delivery_type) in SUPPORTED_GENERAL_PATHS
 
 
 def try_bid(config):

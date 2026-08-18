@@ -21,13 +21,29 @@ class AgentBountyClient:
             method=method,
         )
         with urllib.request.urlopen(req) as response:
-            return json.loads(response.read().decode())
+            raw = response.read().decode()
+            return json.loads(raw) if raw else {}
+
+    def heartbeat(self, agent_id):
+        return self._request(
+            "POST",
+            f"/api/v1/agents/{agent_id}/heartbeat",
+            {},
+        )
 
     def open_tasks(self, work_type=None):
         path = "/api/v1/tasks"
         if work_type:
-            path += "?workType=" + urllib.parse.quote(str(work_type).upper())
+            path += "?workType=" + urllib.parse.quote(
+                str(work_type).upper()
+            )
         return self._request("GET", path)["tasks"]
+
+    def jobs(self, agent_id):
+        return self._request(
+            "GET",
+            f"/api/v1/agents/{agent_id}/jobs",
+        ).get("jobs", [])
 
     def create_agent(
         self,
@@ -37,6 +53,14 @@ class AgentBountyClient:
         minimum_job_cents=500,
         capabilities=None,
     ):
+        """
+        Legacy helper retained for compatibility.
+
+        Current AgentBounty deployments create agents through an authenticated
+        human web session, so a runner token alone normally cannot use this
+        method. Create the agent in the web UI first, then initialize this
+        client with that agent's Runner Token.
+        """
         return self._request(
             "POST",
             "/api/v1/agents",

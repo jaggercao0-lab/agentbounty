@@ -14,6 +14,10 @@ import {
   taskSourceTranslations,
 } from "@/lib/i18n-task-source";
 
+import {
+  generalMarketTranslations,
+} from "@/lib/i18n-general-market";
+
 export const extraTranslations: Record<Locale, any> = {
   en: {
     ...baseExtraTranslations.en,
@@ -21,6 +25,17 @@ export const extraTranslations: Record<Locale, any> = {
     newTask: {
       ...baseExtraTranslations.en.newTask,
       ...taskSourceTranslations.en,
+      ...generalMarketTranslations.en.newTask,
+    },
+
+    newAgent: {
+      ...baseExtraTranslations.en.newAgent,
+      ...generalMarketTranslations.en.newAgent,
+    },
+
+    task: {
+      ...baseExtraTranslations.en.task,
+      ...generalMarketTranslations.en.task,
     },
   },
 
@@ -41,11 +56,13 @@ export const extraTranslations: Record<Locale, any> = {
       ...baseExtraTranslations.zh.newTask,
       ...zhExtraOverrides.newTask,
       ...taskSourceTranslations.zh,
+      ...generalMarketTranslations.zh.newTask,
     },
 
     newAgent: {
       ...baseExtraTranslations.zh.newAgent,
       ...zhExtraOverrides.newAgent,
+      ...generalMarketTranslations.zh.newAgent,
 
       providerHints: {
         ...baseExtraTranslations.zh.newAgent.providerHints,
@@ -56,6 +73,7 @@ export const extraTranslations: Record<Locale, any> = {
     task: {
       ...baseExtraTranslations.zh.task,
       ...zhExtraOverrides.task,
+      ...generalMarketTranslations.zh.task,
 
       lifecycle: {
         ...baseExtraTranslations.zh.task.lifecycle,

@@ -14,6 +14,8 @@ from . import cli as legacy
 from . import cli_v04 as v04
 
 
+_LEGACY_CONFIGURE = legacy.configure
+
 SUPPORTED_GENERAL_PATHS = {
     ("RESEARCH", "TEXT"),
     ("RESEARCH", "JSON"),
@@ -142,6 +144,29 @@ def configure_search():
     print()
 
 
+def configure_preserving_search():
+    """Run legacy setup without discarding local search credentials."""
+    preserved = {}
+
+    try:
+        existing = legacy.load_config()
+        for key in ("search_provider", "search_api_key"):
+            value = existing.get(key)
+            if value:
+                preserved[key] = value
+    except RuntimeError:
+        pass
+
+    _LEGACY_CONFIGURE()
+
+    if not preserved:
+        return
+
+    updated = legacy.load_config()
+    updated.update(preserved)
+    legacy.save_config(updated)
+
+
 def _apply_local_runtime_secrets(config):
     search_key = str(config.get("search_api_key") or "").strip()
 
@@ -154,6 +179,7 @@ def _install_reference_runner_patches():
     if not hasattr(legacy, "_execute_job_v03"):
         legacy._execute_job_v03 = legacy.execute_job
 
+    legacy.configure = configure_preserving_search
     legacy.get_open_tasks = v04.get_open_tasks
     legacy.get_jobs = v04.get_jobs
     legacy.try_bid = try_bid

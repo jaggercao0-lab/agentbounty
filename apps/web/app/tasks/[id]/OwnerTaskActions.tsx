@@ -1,35 +1,30 @@
 "use client";
 
-import {
-  useRouter,
-} from "next/navigation";
-
-import {
-  useState,
-} from "react";
-
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { Locale } from "@/lib/i18n";
 import { extraTranslations } from "@/lib/i18n-extra";
+import { reviewSubmission } from "./actions";
 
 type Props = {
   taskId: string;
   status: string;
+  verificationType: string;
   locale: Locale;
 };
 
 export default function OwnerTaskActions({
   taskId,
   status,
+  verificationType,
   locale,
 }: Props) {
   const router = useRouter();
   const copy = extraTranslations[locale].task.owner;
+  const taskCopy = extraTranslations[locale].task;
 
-  const [
-    loading,
-    setLoading,
-  ] = useState<"verify" | "pay" | null>(null);
-
+  const [loading, setLoading] =
+    useState<"verify" | "pay" | null>(null);
   const [message, setMessage] = useState("");
 
   async function retryVerification() {
@@ -37,25 +32,26 @@ export default function OwnerTaskActions({
     setMessage("");
 
     try {
-      const response =
-        await fetch(
-          `/api/v1/tasks/${taskId}/verify-github`,
-          { method: "POST" }
-        );
+      const response = await fetch(
+        `/api/v1/tasks/${taskId}/verify-github`,
+        { method: "POST" }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(
-          data.error || copy.retryFailed
-        );
+        setMessage(data.error || copy.retryFailed);
         return;
       }
 
       if (data.pending === true) {
         setMessage(copy.checksRunning);
       } else if (data.passed === true) {
-        setMessage(copy.verified);
+        setMessage(
+          data.status === "VERIFYING"
+            ? taskCopy.hybridReviewHelp
+            : copy.verified
+        );
       } else if (data.status === "REVISION") {
         setMessage(copy.revision);
       } else if (data.status === "CANCELLED") {
@@ -78,18 +74,15 @@ export default function OwnerTaskActions({
     setMessage("");
 
     try {
-      const response =
-        await fetch(
-          `/api/v1/tasks/${taskId}/pay`,
-          { method: "POST" }
-        );
+      const response = await fetch(
+        `/api/v1/tasks/${taskId}/pay`,
+        { method: "POST" }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(
-          data.error || copy.paymentFailed
-        );
+        setMessage(data.error || copy.paymentFailed);
         return;
       }
 
@@ -103,11 +96,53 @@ export default function OwnerTaskActions({
     }
   }
 
-  if (
-    status !== "SUBMITTED" &&
-    status !== "ACCEPTED"
-  ) {
-    return null;
+  const awaitingOwnerReview =
+    (verificationType === "MANUAL" && status === "SUBMITTED") ||
+    (verificationType === "HYBRID" && status === "VERIFYING");
+
+  if (awaitingOwnerReview) {
+    return (
+      <section className="ab-auto-verify">
+        <div className="ab-auto-verify-head">
+          <div className="ab-auto-verify-signal">
+            <i />
+          </div>
+
+          <div>
+            <span>{taskCopy.reviewDelivery}</span>
+            <h3>
+              {verificationType === "HYBRID"
+                ? taskCopy.hybridReviewHelp
+                : taskCopy.manualReviewHelp}
+            </h3>
+          </div>
+        </div>
+
+        <div className="ab-owner-review-actions">
+          <form action={reviewSubmission}>
+            <input type="hidden" name="taskId" value={taskId} />
+            <input type="hidden" name="decision" value="ACCEPT" />
+            <button
+              type="submit"
+              className="ab-settlement-button"
+            >
+              {taskCopy.approveDelivery}
+            </button>
+          </form>
+
+          <form action={reviewSubmission}>
+            <input type="hidden" name="taskId" value={taskId} />
+            <input type="hidden" name="decision" value="REVISION" />
+            <button
+              type="submit"
+              className="ab-auto-verify-retry"
+            >
+              {taskCopy.requestRevision}
+            </button>
+          </form>
+        </div>
+      </section>
+    );
   }
 
   if (status === "SUBMITTED") {
@@ -132,7 +167,7 @@ export default function OwnerTaskActions({
 
           <div>
             <span>{copy.source}</span>
-            <strong>GITHUB CI</strong>
+            <strong>{verificationType}</strong>
           </div>
 
           <div>
@@ -146,13 +181,17 @@ export default function OwnerTaskActions({
         </p>
 
         <div className="ab-auto-verify-flow">
-          <span>PR</span>
+          <span>{verificationType === "GITHUB" ? "PR" : "OUTPUT"}</span>
           <i>→</i>
-          <span>CI</span>
+          <span>{verificationType === "GITHUB" ? "CI" : "RULES"}</span>
           <i>→</i>
           <span>{copy.verify}</span>
           <i>→</i>
-          <span>{copy.accept}</span>
+          <span>
+            {verificationType === "HYBRID"
+              ? taskCopy.reviewDelivery
+              : copy.accept}
+          </span>
         </div>
 
         <button
@@ -173,6 +212,10 @@ export default function OwnerTaskActions({
         )}
       </section>
     );
+  }
+
+  if (status !== "ACCEPTED") {
+    return null;
   }
 
   return (

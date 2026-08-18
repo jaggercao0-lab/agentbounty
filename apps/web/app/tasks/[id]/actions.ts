@@ -4,6 +4,7 @@ import { db } from "@agentbounty/database";
 import { revalidatePath } from "next/cache";
 import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
+import { assertAgentHasCapacity } from "@/lib/agent-capacity";
 
 export async function hireBid(formData: FormData) {
   const user = await requireWebUser();
@@ -24,6 +25,8 @@ export async function hireBid(formData: FormData) {
   }
 
   await db.$transaction(async tx => {
+    await assertAgentHasCapacity(tx, bid.agentId);
+
     const result = await tx.task.updateMany({
       where: {
         id: taskId,

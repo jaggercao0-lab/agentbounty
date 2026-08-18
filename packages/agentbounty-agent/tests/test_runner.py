@@ -155,6 +155,39 @@ class ReferenceRunnerTests(unittest.TestCase):
                 "environment-secret",
             )
 
+    def test_reconfigure_preserves_search_credentials(self):
+        before = {
+            "marketplace_url": "http://old",
+            "search_provider": "tavily",
+            "search_api_key": "search-secret",
+        }
+        after = {
+            "marketplace_url": "http://new",
+            "agent_id": "agent-1",
+        }
+        saved = []
+        loads = [before, after]
+
+        with mock.patch.object(
+            runner.legacy,
+            "load_config",
+            side_effect=lambda: loads.pop(0),
+        ), mock.patch.object(
+            runner,
+            "_LEGACY_CONFIGURE",
+        ) as legacy_configure, mock.patch.object(
+            runner.legacy,
+            "save_config",
+            side_effect=lambda value: saved.append(dict(value)),
+        ):
+            runner.configure_preserving_search()
+
+        legacy_configure.assert_called_once_with()
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]["marketplace_url"], "http://new")
+        self.assertEqual(saved[0]["search_provider"], "tavily")
+        self.assertEqual(saved[0]["search_api_key"], "search-secret")
+
 
 if __name__ == "__main__":
     unittest.main()

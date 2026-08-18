@@ -21,6 +21,37 @@ type Props = {
   locale: Locale;
 };
 
+type ResearchSource = {
+  id: string;
+  title: string;
+  url: string;
+};
+
+function safeResearchSources(value: unknown): ResearchSource[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object"
+    )
+    .map(item => ({
+      id: typeof item.id === "string" ? item.id : "",
+      title: typeof item.title === "string" ? item.title : "",
+      url: typeof item.url === "string" ? item.url : "",
+    }))
+    .filter(item => {
+      if (!item.id || !item.title || !item.url) return false;
+
+      try {
+        const parsed = new URL(item.url);
+        return ["http:", "https:"].includes(parsed.protocol);
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 20);
+}
+
 export default async function TaskDelivery({
   submission,
   locale,
@@ -36,11 +67,9 @@ export default async function TaskDelivery({
     select: { ownerId: true },
   });
 
-  const canRevealPrivateDelivery =
-    Boolean(
-      task &&
-      session?.user?.id === task.ownerId
-    );
+  const canRevealPrivateDelivery = Boolean(
+    task && session?.user?.id === task.ownerId
+  );
 
   let metadata: Record<string, unknown> | null = null;
   if (
@@ -53,6 +82,37 @@ export default async function TaskDelivery({
       metadata = null;
     }
   }
+
+  const researchSources = safeResearchSources(
+    metadata?.researchSources
+  );
+  const researchMode =
+    typeof metadata?.researchMode === "string"
+      ? metadata.researchMode
+      : null;
+  const searchProvider =
+    typeof metadata?.searchProvider === "string"
+      ? metadata.searchProvider
+      : null;
+  const searchQueries = Array.isArray(metadata?.searchQueries)
+    ? metadata.searchQueries.filter(
+        (value): value is string => typeof value === "string"
+      ).slice(0, 8)
+    : [];
+
+  const genericMetadata = metadata
+    ? Object.fromEntries(
+        Object.entries(metadata).filter(([key]) =>
+          ![
+            "researchSources",
+            "researchMode",
+            "searchProvider",
+            "searchQueries",
+            "sourceCount",
+          ].includes(key)
+        )
+      )
+    : null;
 
   const privateDelivery =
     submission.deliveryType !== "PULL_REQUEST";
@@ -111,6 +171,64 @@ export default async function TaskDelivery({
           )}
       </div>
 
+      {canRevealPrivateDelivery && researchMode && (
+        <div className="ab-research-evidence">
+          <div className="ab-research-evidence-head">
+            <div>
+              <span>
+                {locale === "zh" ? "调研证据" : "Research evidence"}
+              </span>
+              <strong>
+                {researchMode === "web_grounded"
+                  ? locale === "zh"
+                    ? "已联网检索"
+                    : "Web-grounded"
+                  : locale === "zh"
+                    ? "仅模型知识"
+                    : "Model-only"}
+              </strong>
+            </div>
+
+            {searchProvider && (
+              <span className="ab-research-provider">
+                {searchProvider}
+              </span>
+            )}
+          </div>
+
+          {searchQueries.length > 0 && (
+            <div className="ab-research-queries">
+              {searchQueries.map((query, index) => (
+                <span key={`${query}-${index}`}>{query}</span>
+              ))}
+            </div>
+          )}
+
+          {researchSources.length > 0 ? (
+            <div className="ab-research-sources">
+              {researchSources.map(source => (
+                <a
+                  key={`${source.id}-${source.url}`}
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>{source.id}</span>
+                  <strong>{source.title}</strong>
+                  <small>{source.url}</small>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="ab-research-no-sources">
+              {locale === "zh"
+                ? "本次交付没有附带实时网页来源。"
+                : "No live web sources were attached to this delivery."}
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
         <span>{copy.submitted}</span>
         <strong>
@@ -140,10 +258,10 @@ export default async function TaskDelivery({
         </div>
       )}
 
-      {metadata && Object.keys(metadata).length > 0 && (
+      {genericMetadata && Object.keys(genericMetadata).length > 0 && (
         <div className="ab-general-delivery-meta">
           <span>METADATA</span>
-          <pre>{JSON.stringify(metadata, null, 2)}</pre>
+          <pre>{JSON.stringify(genericMetadata, null, 2)}</pre>
         </div>
       )}
     </div>

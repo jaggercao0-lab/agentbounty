@@ -4,14 +4,67 @@ import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
+import { DELIVERY_TYPES } from "@/lib/task-types";
 
 const schema = z.object({
-  // Kept temporarily for backwards compatibility
-  // with older runners. The token remains authoritative.
+  // Kept for backwards compatibility with older runners.
+  // The authenticated token remains authoritative.
   agentId: z.string().min(1).optional(),
-  pullRequestUrl: z.string().url(),
+  deliveryType: z.enum(DELIVERY_TYPES).optional(),
+  pullRequestUrl: z.string().url().optional(),
+  artifactUrl: z.string().url().optional(),
+  textContent: z.string().max(200_000).optional(),
+  jsonContent: z.union([
+    z.string().max(500_000),
+    z.record(z.string(), z.unknown()),
+    z.array(z.unknown()),
+  ]).optional(),
+  mimeType: z.string().max(200).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   notes: z.string().max(5000).optional(),
 });
+
+function validateDelivery(
+  deliveryType: string,
+  data: z.infer<typeof schema>
+) {
+  switch (deliveryType) {
+    case "PULL_REQUEST":
+      if (!data.pullRequestUrl) {
+        throw new Error("pull_request_url_required");
+      }
+      break;
+
+    case "TEXT":
+      if (!data.textContent?.trim()) {
+        throw new Error("text_content_required");
+      }
+      break;
+
+    case "FILE":
+    case "URL":
+      if (!data.artifactUrl) {
+        throw new Error("artifact_url_required");
+      }
+      break;
+
+    case "JSON":
+      if (data.jsonContent === undefined) {
+        throw new Error("json_content_required");
+      }
+      if (typeof data.jsonContent === "string") {
+        try {
+          JSON.parse(data.jsonContent);
+        } catch {
+          throw new Error("invalid_json_content");
+        }
+      }
+      break;
+
+    default:
+      throw new Error("unsupported_delivery_type");
+  }
+}
 
 export async function POST(
   request: Request,
@@ -22,8 +75,7 @@ export async function POST(
   }
 ) {
   try {
-    const agent =
-      await authenticateAgentRequest(request);
+    const agent = await authenticateAgentRequest(request);
 
     if (!agent) {
       return NextResponse.json(
@@ -33,15 +85,9 @@ export async function POST(
     }
 
     const { id } = await params;
+    const data = schema.parse(await request.json());
 
-    const data =
-      schema.parse(await request.json());
-
-    // Do not allow a runner to impersonate another agent.
-    if (
-      data.agentId &&
-      data.agentId !== agent.id
-    ) {
+    if (data.agentId && data.agentId !== agent.id) {
       return NextResponse.json(
         { error: "agent_id_mismatch" },
         { status: 403 }
@@ -54,6 +100,8 @@ export async function POST(
         id: true,
         status: true,
         assignedAgentId: true,
+        deliveryType: true,
+        verificationType: true,
       },
     });
 
@@ -64,24 +112,15 @@ export async function POST(
       );
     }
 
-    if (
-      task.assignedAgentId !== agent.id
-    ) {
+    if (task.assignedAgentId !== agent.id) {
       return NextResponse.json(
-        {
-          error:
-            "task_not_assigned_to_agent",
-        },
+        { error: "task_not_assigned_to_agent" },
         { status: 403 }
       );
     }
 
     if (
-      ![
-        "ASSIGNED",
-        "WORKING",
-        "REVISION",
-      ].includes(task.status)
+      !["ASSIGNED", "WORKING", "REVISION"].includes(task.status)
     ) {
       return NextResponse.json(
         {
@@ -92,99 +131,110 @@ export async function POST(
       );
     }
 
-    const submission =
-      await db.$transaction(async (tx) => {
-        const updated =
-          await tx.task.updateMany({
-            where: {
-              id,
-              assignedAgentId: agent.id,
-              status: {
-                in: [
-                  "ASSIGNED",
-                  "WORKING",
-                  "REVISION",
-                ],
-              },
-            },
-            data: {
-              status: "SUBMITTED",
-            },
-          });
+    if (data.deliveryType && data.deliveryType !== task.deliveryType) {
+      return NextResponse.json(
+        {
+          error: "delivery_type_mismatch",
+          expected: task.deliveryType,
+        },
+        { status: 409 }
+      );
+    }
 
-        if (updated.count !== 1) {
-          throw new Error(
-            "TASK_STATE_CHANGED"
-          );
-        }
+    validateDelivery(task.deliveryType, data);
 
-        const created =
-          await tx.submission.create({
-            data: {
-              taskId:
-                id,
+    const normalizedJsonContent =
+      data.jsonContent === undefined
+        ? null
+        : typeof data.jsonContent === "string"
+          ? data.jsonContent
+          : JSON.stringify(data.jsonContent);
 
-              agentId:
-                agent.id,
-
-              pullRequestUrl:
-                data.pullRequestUrl,
-
-              notes:
-                data.notes,
-            },
-          });
-
-        await tx.taskEvent.create({
-          data:
-            taskEventData({
-              taskId:
-                id,
-
-              type:
-                "DELIVERY_SUBMITTED",
-
-              actorType:
-                "AGENT",
-
-              actorId:
-                agent.id,
-
-              message:
-                "Pull request submitted",
-
-              metadata: {
-                submissionId:
-                  created.id,
-
-                pullRequestUrl:
-                  created.pullRequestUrl,
-              },
-
-              dedupeKey:
-                `submission:${created.id}:submitted`,
-            }),
-        });
-
-        return created;
+    const submission = await db.$transaction(async tx => {
+      const updated = await tx.task.updateMany({
+        where: {
+          id,
+          assignedAgentId: agent.id,
+          status: {
+            in: ["ASSIGNED", "WORKING", "REVISION"],
+          },
+        },
+        data: {
+          status: "SUBMITTED",
+        },
       });
 
-    return NextResponse.json(
-      submission,
-      { status: 201 }
-    );
+      if (updated.count !== 1) {
+        throw new Error("TASK_STATE_CHANGED");
+      }
+
+      const created = await tx.submission.create({
+        data: {
+          taskId: id,
+          agentId: agent.id,
+          deliveryType: task.deliveryType,
+          pullRequestUrl: data.pullRequestUrl || null,
+          artifactUrl: data.artifactUrl || null,
+          textContent: data.textContent || null,
+          jsonContent: normalizedJsonContent,
+          mimeType: data.mimeType || null,
+          metadataJson: data.metadata
+            ? JSON.stringify(data.metadata)
+            : null,
+          notes: data.notes,
+          verificationStatus:
+            task.verificationType === "MANUAL"
+              ? "PENDING"
+              : null,
+        },
+      });
+
+      await tx.taskEvent.create({
+        data: taskEventData({
+          taskId: id,
+          type: "DELIVERY_SUBMITTED",
+          actorType: "AGENT",
+          actorId: agent.id,
+          message: `${task.deliveryType} delivery submitted`,
+          metadata: {
+            submissionId: created.id,
+            deliveryType: task.deliveryType,
+            pullRequestUrl: created.pullRequestUrl,
+            artifactUrl: created.artifactUrl,
+          },
+          dedupeKey: `submission:${created.id}:submitted`,
+        }),
+      });
+
+      return created;
+    });
+
+    return NextResponse.json(submission, { status: 201 });
   } catch (error) {
     if (
       error instanceof Error &&
-      error.message ===
-        "TASK_STATE_CHANGED"
+      error.message === "TASK_STATE_CHANGED"
     ) {
       return NextResponse.json(
-        {
-          error:
-            "task_not_submittable",
-        },
+        { error: "task_not_submittable" },
         { status: 409 }
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      [
+        "pull_request_url_required",
+        "text_content_required",
+        "artifact_url_required",
+        "json_content_required",
+        "invalid_json_content",
+        "unsupported_delivery_type",
+      ].includes(error.message)
+    ) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
       );
     }
 

@@ -172,7 +172,10 @@ export async function GET(request: Request) {
           generalProtocol ||
           (
             task.workType === "CODE" &&
-            task.deliveryType === "PULL_REQUEST"
+            task.deliveryType === "PULL_REQUEST" &&
+            ["MANUAL", "GITHUB_ISSUE"].includes(
+              task.sourceType
+            )
           )
         )
       )

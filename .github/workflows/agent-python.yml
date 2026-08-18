@@ -1,0 +1,39 @@
+name: Agent Python
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - feat/general-task-market
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install agent package
+        run: python -m pip install -e ./packages/agentbounty-agent
+
+      - name: Compile Python sources
+        run: python -m compileall -q packages/agentbounty-agent/agentbounty_agent
+
+      - name: Run unit tests
+        run: python -m unittest discover -s packages/agentbounty-agent/tests -v

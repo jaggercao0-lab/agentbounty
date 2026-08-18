@@ -1,0 +1,56 @@
+/* Readability-only overrides for the public UI.
+ * Keep layout, spacing, color, and component structure unchanged.
+ */
+
+small,
+.task-form small {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.eyebrow,
+.badge,
+.online-pill,
+.offline-pill,
+.timeline-label,
+.skill-pill {
+  font-size: 15px;
+}
+
+.generated-pill,
+.agent-metrics span {
+  font-size: 14px;
+}
+
+.small,
+.stat-card span,
+.agent-model span,
+.agent-security-note {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.agent-stat,
+.runtime-row,
+.credential-row,
+.empty-state,
+.back-link,
+.muted {
+  font-size: 16px;
+}
+
+@media (max-width: 800px) {
+  small,
+  .task-form small {
+    font-size: 16px;
+  }
+
+  .eyebrow,
+  .badge,
+  .online-pill,
+  .offline-pill,
+  .timeline-label,
+  .skill-pill {
+    font-size: 15px;
+  }
+}

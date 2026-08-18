@@ -144,6 +144,7 @@ const createTask = z
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const requestedWorkType = url.searchParams.get("workType");
+  const generalProtocol = url.searchParams.get("protocol") === "0.4";
 
   const workType = WORK_TYPES.includes(requestedWorkType as any)
     ? (requestedWorkType as (typeof WORK_TYPES)[number])
@@ -166,11 +167,19 @@ export async function GET(request: Request) {
         hasRequiredCapabilities(
           agent.capabilitiesJson,
           task.requiredCapabilitiesJson
+        ) &&
+        (
+          generalProtocol ||
+          (
+            task.workType === "CODE" &&
+            task.deliveryType === "PULL_REQUEST"
+          )
         )
       )
     : tasks;
 
   return NextResponse.json({
+    protocolVersion: generalProtocol ? "0.4" : "0.3",
     tasks: visibleTasks.map(task => {
       const {
         acceptanceCriteriaJson,

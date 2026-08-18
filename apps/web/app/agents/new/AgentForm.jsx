@@ -2,40 +2,34 @@
 
 import { useState } from "react";
 import { createAgent } from "./actions";
+import { extraTranslations } from "@/lib/i18n-extra";
 
 const PROVIDERS = {
   openrouter: {
     label: "OpenRouter",
     defaultModel: "openrouter/free",
-    hint: "Use models available through OpenRouter."
   },
-
   openai: {
     label: "OpenAI",
     defaultModel: "",
-    hint: "Use an OpenAI model with your own API key."
   },
-
   anthropic: {
     label: "Anthropic",
     defaultModel: "",
-    hint: "Use a Claude model with your own Anthropic API key."
   },
-
   ollama: {
     label: "Ollama",
     defaultModel: "",
-    hint: "Run a local model through Ollama."
   },
-
   custom: {
     label: "Custom",
     defaultModel: "",
-    hint: "Connect an OpenAI-compatible API endpoint."
-  }
+  },
 };
 
-export default function AgentForm() {
+export default function AgentForm({ locale }) {
+  const copy = extraTranslations[locale].newAgent;
+
   const [provider, setProvider] =
     useState("openrouter");
 
@@ -49,13 +43,22 @@ export default function AgentForm() {
     );
   }
 
+  const modelPlaceholder =
+    provider === "ollama"
+      ? "qwen3-coder"
+      : provider === "anthropic"
+        ? copy.claudeModel
+        : provider === "openai"
+          ? copy.openAIModel
+          : copy.modelPlaceholder;
+
   return (
     <form
       action={createAgent}
       className="task-form"
     >
       <label>
-        <span>Agent name</span>
+        <span>{copy.agentName}</span>
 
         <input
           name="name"
@@ -65,7 +68,7 @@ export default function AgentForm() {
       </label>
 
       <label>
-        <span>Description</span>
+        <span>{copy.descriptionLabel}</span>
 
         <textarea
           name="description"
@@ -77,7 +80,7 @@ export default function AgentForm() {
 
       <div className="form-row">
         <label>
-          <span>Provider</span>
+          <span>{copy.provider}</span>
 
           <select
             name="provider"
@@ -86,30 +89,16 @@ export default function AgentForm() {
               changeProvider(event.target.value)
             }
           >
-            <option value="openrouter">
-              OpenRouter
-            </option>
-
-            <option value="openai">
-              OpenAI
-            </option>
-
-            <option value="anthropic">
-              Anthropic
-            </option>
-
-            <option value="ollama">
-              Ollama
-            </option>
-
-            <option value="custom">
-              Custom
-            </option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="ollama">Ollama</option>
+            <option value="custom">Custom</option>
           </select>
         </label>
 
         <label>
-          <span>Model</span>
+          <span>{copy.model}</span>
 
           <input
             name="modelName"
@@ -117,21 +106,13 @@ export default function AgentForm() {
             onChange={(event) =>
               setModelName(event.target.value)
             }
-            placeholder={
-              provider === "ollama"
-                ? "qwen3-coder"
-                : provider === "anthropic"
-                  ? "Claude model name"
-                  : provider === "openai"
-                    ? "OpenAI model name"
-                    : "Model name"
-            }
+            placeholder={modelPlaceholder}
             required
           />
         </label>
 
         <label>
-          <span>Minimum job (USD)</span>
+          <span>{copy.minJob}</span>
 
           <input
             name="minimumJob"
@@ -149,53 +130,37 @@ export default function AgentForm() {
         </strong>
 
         <p>
-          {PROVIDERS[provider].hint}
+          {copy.providerHints[provider]}
         </p>
 
         {provider === "ollama" ? (
-          <p>
-            Ollama runs locally and does not
-            require a provider API key.
-          </p>
+          <p>{copy.ollamaLocal}</p>
         ) : (
-          <p>
-            Your provider API key stays on
-            your own machine.
-          </p>
+          <p>{copy.providerKeyLocal}</p>
         )}
       </div>
 
       <label>
-        <span>Skills</span>
+        <span>{copy.skills}</span>
 
         <input
           name="skills"
           placeholder="coding, github, typescript, python"
         />
 
-        <small>
-          Separate skills with commas.
-        </small>
+        <small>{copy.skillsHelp}</small>
       </label>
 
       <div className="security-box">
-        <strong>
-          Bring your own model.
-        </strong>
-
-        <p>
-          AgentBounty does not require your
-          model API key. Credentials are
-          configured locally through the
-          AgentBounty CLI.
-        </p>
+        <strong>{copy.bringModel}</strong>
+        <p>{copy.securityBody}</p>
       </div>
 
       <button
         type="submit"
         className="primary-button"
       >
-        Create agent →
+        {copy.create}
       </button>
     </form>
   );

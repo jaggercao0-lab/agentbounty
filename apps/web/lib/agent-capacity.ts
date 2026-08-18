@@ -1,10 +1,12 @@
 import { Prisma } from "@prisma/client";
 
+// maxConcurrentJobs limits work that can require runner execution right now.
+// SUBMITTED and VERIFYING are waiting on verification/owner review, so they do
+// not consume an execution slot and must not prevent the Agent from taking new
+// work. REVISION does consume a slot because the runner must execute again.
 const ACTIVE_CAPACITY_STATES = [
   "ASSIGNED",
   "WORKING",
-  "SUBMITTED",
-  "VERIFYING",
   "REVISION",
 ] as const;
 

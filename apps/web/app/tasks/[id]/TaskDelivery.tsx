@@ -94,10 +94,13 @@ export default async function TaskDelivery({
     typeof metadata?.searchProvider === "string"
       ? metadata.searchProvider
       : null;
-  const searchQueries = Array.isArray(metadata?.searchQueries)
-    ? metadata.searchQueries.filter(
-        (value): value is string => typeof value === "string"
-      ).slice(0, 8)
+  const rawSearchQueries = metadata?.searchQueries;
+  const searchQueries = Array.isArray(rawSearchQueries)
+    ? rawSearchQueries
+        .filter(
+          (value): value is string => typeof value === "string"
+        )
+        .slice(0, 8)
     : [];
 
   const genericMetadata = metadata

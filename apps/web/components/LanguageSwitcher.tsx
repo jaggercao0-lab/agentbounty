@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { ChangeEvent } from "react";
 
 import type { Locale } from "@/lib/i18n";
 
@@ -16,7 +17,7 @@ export default function LanguageSwitcher({
   const router = useRouter();
 
   function handleChange(
-    event: React.ChangeEvent<HTMLSelectElement>
+    event: ChangeEvent<HTMLSelectElement>
   ) {
     const nextLocale = event.target.value === "zh" ? "zh" : "en";
 

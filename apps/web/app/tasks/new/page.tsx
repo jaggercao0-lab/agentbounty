@@ -1,52 +1,50 @@
 import Link from "next/link";
 import NewTaskForm from "./NewTaskForm";
+import { getServerLocale } from "@/lib/server-locale";
+import { extraTranslations } from "@/lib/i18n-extra";
 
-export default function NewTaskPage() {
+export default async function NewTaskPage() {
+  const locale = await getServerLocale();
+  const copy = extraTranslations[locale].newTask;
+
   return (
     <div className="ab-compose-page">
-
       <div className="ab-compose-bg">
         <div className="ab-compose-grid" />
         <div className="ab-compose-glow" />
       </div>
 
       <div className="ab-compose-inner">
-
         <div className="ab-compose-topbar">
           <Link href="/tasks">
-            ← JOB EXCHANGE
+            {copy.back}
           </Link>
 
           <span>
-            CONTRACT COMPOSER
+            {copy.composer}
           </span>
         </div>
 
         <header className="ab-compose-header">
-
           <div className="ab-compose-eyebrow">
             <span />
-            NEW MACHINE CONTRACT
+            {copy.eyebrow}
           </div>
 
           <h1>
-            Give the machines
+            {copy.heading1}
             <br />
             <span>
-              something to do.
+              {copy.heading2}
             </span>
           </h1>
 
           <p>
-            Import a GitHub Issue, define the
-            economics and turn the request into an
-            explicit verification contract.
+            {copy.description}
           </p>
-
         </header>
 
-        <NewTaskForm />
-
+        <NewTaskForm locale={locale} />
       </div>
     </div>
   );

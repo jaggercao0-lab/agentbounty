@@ -12,6 +12,19 @@ const CONTEXT_ACCESS_STATES =
     "REVISION",
   ]);
 
+function metadataFeedback(value: string | null) {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed?.feedback === "string"
+      ? parsed.feedback
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(
   request: Request,
   {
@@ -78,6 +91,48 @@ export async function GET(
       }
     }
 
+    let revision = null;
+
+    if (task.status === "REVISION") {
+      const [revisionEvent, previousSubmission] = await Promise.all([
+        db.taskEvent.findFirst({
+          where: {
+            taskId: task.id,
+            type: "REVISION_REQUESTED",
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+        db.submission.findFirst({
+          where: { taskId: task.id },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+      revision = {
+        number: task.revisionCount,
+        feedback: metadataFeedback(
+          revisionEvent?.metadataJson || null
+        ),
+        previousSubmission: previousSubmission
+          ? {
+              id: previousSubmission.id,
+              deliveryType: previousSubmission.deliveryType,
+              pullRequestUrl: previousSubmission.pullRequestUrl,
+              artifactUrl: previousSubmission.artifactUrl,
+              textContent: previousSubmission.textContent,
+              jsonContent: previousSubmission.jsonContent,
+              mimeType: previousSubmission.mimeType,
+              notes: previousSubmission.notes,
+              verificationStatus:
+                previousSubmission.verificationStatus,
+              verificationReportJson:
+                previousSubmission.verificationReportJson,
+              createdAt: previousSubmission.createdAt,
+            }
+          : null,
+      };
+    }
+
     await db.taskEvent.upsert({
       where: {
         dedupeKey: `task:${task.id}:execution:${task.revisionCount}`,
@@ -129,6 +184,7 @@ export async function GET(
             : task.sourceUrl,
         data: sourceData,
       },
+      revision,
       github: task.githubRepo
         ? {
             repository: task.githubRepo,

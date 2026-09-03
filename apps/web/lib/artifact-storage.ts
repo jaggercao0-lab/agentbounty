@@ -5,7 +5,8 @@ import {
 } from "node:crypto";
 
 export const MAX_ARTIFACT_BYTES = 250 * 1024 * 1024;
-const PRESIGN_TTL_SECONDS = 15 * 60;
+const UPLOAD_TTL_SECONDS = 15 * 60;
+const READ_TTL_SECONDS = 10 * 60;
 
 const MIME_EXTENSIONS: Record<string, string> = {
   "video/mp4": "mp4",
@@ -23,7 +24,7 @@ type ArtifactStorageConfig = {
   bucket: string;
   accessKeyId: string;
   secretAccessKey: string;
-  publicBaseUrl: string;
+  appBaseUrl: URL;
 };
 
 function hmac(key: string | Buffer, value: string) {
@@ -48,34 +49,49 @@ function encodePath(value: string) {
     .join("/");
 }
 
+function decodePath(value: string) {
+  return value
+    .split("/")
+    .map(segment => decodeURIComponent(segment))
+    .join("/");
+}
+
 function getConfig(): ArtifactStorageConfig | null {
   const endpointRaw = process.env.ARTIFACT_S3_ENDPOINT?.trim();
   const bucket = process.env.ARTIFACT_S3_BUCKET?.trim();
   const accessKeyId = process.env.ARTIFACT_S3_ACCESS_KEY_ID?.trim();
   const secretAccessKey = process.env.ARTIFACT_S3_SECRET_ACCESS_KEY?.trim();
-  const publicBaseUrl = process.env.ARTIFACT_PUBLIC_BASE_URL?.trim();
+  const appBaseRaw = process.env.BETTER_AUTH_URL?.trim();
 
   if (
     !endpointRaw ||
     !bucket ||
     !accessKeyId ||
     !secretAccessKey ||
-    !publicBaseUrl
+    !appBaseRaw
   ) {
     return null;
   }
 
   let endpoint: URL;
-  let publicUrl: URL;
+  let appBaseUrl: URL;
 
   try {
     endpoint = new URL(endpointRaw);
-    publicUrl = new URL(publicBaseUrl);
+    appBaseUrl = new URL(appBaseRaw);
   } catch {
     return null;
   }
 
-  if (endpoint.protocol !== "https:" || publicUrl.protocol !== "https:") {
+  if (endpoint.protocol !== "https:") {
+    return null;
+  }
+
+  if (
+    appBaseUrl.protocol !== "https:" &&
+    !(appBaseUrl.protocol === "http:" &&
+      ["localhost", "127.0.0.1"].includes(appBaseUrl.hostname))
+  ) {
     return null;
   }
 
@@ -85,30 +101,12 @@ function getConfig(): ArtifactStorageConfig | null {
     bucket,
     accessKeyId,
     secretAccessKey,
-    publicBaseUrl: publicUrl.toString().replace(/\/$/, ""),
+    appBaseUrl,
   };
 }
 
 export function artifactStorageConfigured() {
   return Boolean(getConfig());
-}
-
-export function isManagedArtifactUrl(value: string | null | undefined) {
-  const config = getConfig();
-  if (!config || !value) return false;
-
-  try {
-    const base = new URL(`${config.publicBaseUrl}/`);
-    const candidate = new URL(value);
-
-    return (
-      candidate.protocol === "https:" &&
-      candidate.origin === base.origin &&
-      candidate.pathname.startsWith(base.pathname)
-    );
-  } catch {
-    return false;
-  }
 }
 
 export function validateArtifactRequest({
@@ -141,17 +139,15 @@ function amzTimestamp(now: Date) {
     .replace(/[:-]|\.\d{3}/g, "");
 }
 
-export function createArtifactUpload({
-  taskId,
-  agentId,
-  contentType,
-  contentLength,
+function presignObjectRequest({
+  method,
+  key,
+  expiresInSeconds,
   now = new Date(),
 }: {
-  taskId: string;
-  agentId: string;
-  contentType: string;
-  contentLength: number;
+  method: "PUT" | "GET" | "HEAD";
+  key: string;
+  expiresInSeconds: number;
   now?: Date;
 }) {
   const config = getConfig();
@@ -159,21 +155,8 @@ export function createArtifactUpload({
     throw new Error("artifact_storage_not_configured");
   }
 
-  const { extension } = validateArtifactRequest({
-    contentType,
-    contentLength,
-  });
-
   const date = amzTimestamp(now).slice(0, 8);
   const amzDate = amzTimestamp(now);
-  const key = [
-    "tasks",
-    taskId,
-    agentId,
-    date,
-    `${randomUUID()}.${extension}`,
-  ].join("/");
-
   const endpointBasePath = config.endpoint.pathname.replace(/\/$/, "");
   const canonicalUri = `${endpointBasePath}/${awsEncode(config.bucket)}/${encodePath(key)}`
     .replace(/\/+/g, "/");
@@ -183,7 +166,7 @@ export function createArtifactUpload({
     ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
     ["X-Amz-Credential", `${config.accessKeyId}/${credentialScope}`],
     ["X-Amz-Date", amzDate],
-    ["X-Amz-Expires", String(PRESIGN_TTL_SECONDS)],
+    ["X-Amz-Expires", String(expiresInSeconds)],
     ["X-Amz-SignedHeaders", "host"],
   ];
 
@@ -195,7 +178,7 @@ export function createArtifactUpload({
 
   const host = config.endpoint.host;
   const canonicalRequest = [
-    "PUT",
+    method,
     canonicalUri,
     canonicalQuery,
     `host:${host}\n`,
@@ -218,16 +201,116 @@ export function createArtifactUpload({
     .update(stringToSign)
     .digest("hex");
 
-  const uploadUrl = (
+  return (
     `${config.endpoint.origin}${canonicalUri}?` +
     `${canonicalQuery}&X-Amz-Signature=${signature}`
   );
+}
+
+function managedArtifactUrl(key: string) {
+  const config = getConfig();
+  if (!config) {
+    throw new Error("artifact_storage_not_configured");
+  }
+
+  const base = config.appBaseUrl.toString().replace(/\/$/, "");
+  return `${base}/api/artifacts/${encodePath(key)}`;
+}
+
+export function managedArtifactKeyFromUrl(
+  value: string | null | undefined
+) {
+  const config = getConfig();
+  if (!config || !value) return null;
+
+  try {
+    const candidate = new URL(value);
+    const base = config.appBaseUrl;
+    const prefix = "/api/artifacts/";
+
+    if (
+      candidate.origin !== base.origin ||
+      !candidate.pathname.startsWith(prefix)
+    ) {
+      return null;
+    }
+
+    const key = decodePath(candidate.pathname.slice(prefix.length));
+    const segments = key.split("/");
+
+    if (
+      segments.length < 5 ||
+      segments[0] !== "tasks" ||
+      segments.some(segment => !segment || segment === "." || segment === "..")
+    ) {
+      return null;
+    }
+
+    return key;
+  } catch {
+    return null;
+  }
+}
+
+export function isManagedArtifactUrl(value: string | null | undefined) {
+  return Boolean(managedArtifactKeyFromUrl(value));
+}
+
+export function artifactTaskIdFromKey(key: string) {
+  const segments = key.split("/");
+  return segments[0] === "tasks" && segments[1]
+    ? segments[1]
+    : null;
+}
+
+export function createArtifactReadUrl({
+  key,
+  method = "GET",
+}: {
+  key: string;
+  method?: "GET" | "HEAD";
+}) {
+  return presignObjectRequest({
+    method,
+    key,
+    expiresInSeconds: READ_TTL_SECONDS,
+  });
+}
+
+export function createArtifactUpload({
+  taskId,
+  agentId,
+  contentType,
+  contentLength,
+}: {
+  taskId: string;
+  agentId: string;
+  contentType: string;
+  contentLength: number;
+}) {
+  const { extension } = validateArtifactRequest({
+    contentType,
+    contentLength,
+  });
+
+  const date = amzTimestamp(new Date()).slice(0, 8);
+  const key = [
+    "tasks",
+    taskId,
+    agentId,
+    date,
+    `${randomUUID()}.${extension}`,
+  ].join("/");
 
   return {
-    uploadUrl,
-    artifactUrl: `${config.publicBaseUrl}/${encodePath(key)}`,
+    uploadUrl: presignObjectRequest({
+      method: "PUT",
+      key,
+      expiresInSeconds: UPLOAD_TTL_SECONDS,
+    }),
+    artifactUrl: managedArtifactUrl(key),
     storageKey: key,
-    expiresInSeconds: PRESIGN_TTL_SECONDS,
+    expiresInSeconds: UPLOAD_TTL_SECONDS,
     headers: {
       "Content-Type": contentType,
     },

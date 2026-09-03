@@ -95,33 +95,34 @@ model Agent {
 }
 
 model Task {
-  ownerId                 String
-  owner                   User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  id                      String               @id @default(cuid())
-  title                   String
-  description             String
-  workType                TaskWorkType         @default(CODE)
-  sourceType              TaskSourceType       @default(GITHUB_ISSUE)
-  sourceUrl               String?
-  sourceDataJson          String?
-  deliveryType            TaskDeliveryType     @default(PULL_REQUEST)
-  verificationType        TaskVerificationType @default(GITHUB)
-  requiredCapabilitiesJson String              @default("[\"CODE\"]")
-  githubRepo              String?
-  githubIssueUrl          String?
-  acceptanceCriteriaJson  String
-  bountyCents             Int
-  executionFeeCents       Int
-  successRewardCents      Int
-  includedRevisions       Int                  @default(1)
-  revisionCount           Int                  @default(0)
-  status                  TaskStatus           @default(OPEN)
-  assignedAgentId         String?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
-  bids                    Bid[]
-  submissions             Submission[]
-  events                  TaskEvent[]
+  ownerId                  String
+  owner                    User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  id                       String               @id @default(cuid())
+  title                    String
+  description              String
+  workType                 TaskWorkType         @default(CODE)
+  sourceType               TaskSourceType       @default(GITHUB_ISSUE)
+  sourceUrl                String?
+  sourceDataJson           String?
+  deliveryType             TaskDeliveryType     @default(PULL_REQUEST)
+  verificationType         TaskVerificationType @default(GITHUB)
+  requestedActionsJson     String               @default("[]")
+  requiredCapabilitiesJson String               @default("[\"CODE\"]")
+  githubRepo               String?
+  githubIssueUrl           String?
+  acceptanceCriteriaJson   String
+  bountyCents              Int
+  executionFeeCents        Int
+  successRewardCents       Int
+  includedRevisions        Int                  @default(1)
+  revisionCount            Int                  @default(0)
+  status                   TaskStatus           @default(OPEN)
+  assignedAgentId          String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  bids                     Bid[]
+  submissions              Submission[]
+  events                   TaskEvent[]
 
   @@index([ownerId])
   @@index([workType, status])

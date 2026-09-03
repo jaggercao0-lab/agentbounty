@@ -1,0 +1,111 @@
+.ab-action-proof {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 15px;
+  border: 1px solid rgba(112, 255, 211, 0.16);
+  border-radius: 11px;
+  background: rgba(112, 255, 211, 0.035);
+}
+
+.ab-action-proof-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ab-action-proof-head > div > span,
+.ab-action-proof-head > div > strong {
+  display: block;
+}
+
+.ab-action-proof-head > div > span {
+  margin-bottom: 5px;
+  color: rgba(112, 255, 211, 0.72);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.ab-action-proof-head > div > strong {
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ab-action-proof-head > b {
+  flex: none;
+  padding: 5px 8px;
+  border: 1px solid rgba(112, 255, 211, 0.22);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.ab-action-proof-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ab-action-proof-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.ab-action-proof-row > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.ab-action-proof-row > span.is-ok {
+  border: 1px solid rgba(112, 255, 211, 0.35);
+  color: rgb(112, 255, 211);
+  background: rgba(112, 255, 211, 0.07);
+}
+
+.ab-action-proof-row > span.is-failed {
+  border: 1px solid rgba(255, 166, 112, 0.35);
+  color: rgb(255, 190, 145);
+  background: rgba(255, 166, 112, 0.07);
+}
+
+.ab-action-proof-row strong,
+.ab-action-proof-row small {
+  display: block;
+}
+
+.ab-action-proof-row strong {
+  margin-bottom: 3px;
+  font-size: 13px;
+}
+
+.ab-action-proof-row small {
+  color: rgba(255, 255, 255, 0.56);
+  line-height: 1.45;
+}
+
+.ab-action-proof-link {
+  display: inline-flex;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .ab-action-proof-head {
+    flex-direction: column;
+  }
+}

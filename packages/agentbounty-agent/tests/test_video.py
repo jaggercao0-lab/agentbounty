@@ -25,6 +25,24 @@ class VideoAgentTests(unittest.TestCase):
         ):
             self.assertTrue(video.video_runtime_available({}))
 
+    def test_unsupported_video_model_is_not_advertised(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            config = {
+                "video_provider": "veo",
+                "video_model": "veo-unknown-preview",
+                "video_api_key": "secret",
+            }
+
+            self.assertFalse(video.video_runtime_available(config))
+            self.assertNotIn(
+                "VIDEO_GENERATE",
+                runner.runtime_action_capabilities(config),
+            )
+            self.assertNotIn(
+                "VIDEO",
+                runner.runtime_work_capabilities(config),
+            )
+
     def test_runtime_capabilities_include_video_only_when_configured(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertNotIn(

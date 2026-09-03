@@ -32,10 +32,12 @@ const ACTION_LABELS = {
   en: {
     WEB_SEARCH: "Web search",
     SOURCE_FETCH: "Fetch external sources",
+    VIDEO_GENERATE: "Generate video",
   },
   zh: {
     WEB_SEARCH: "联网检索",
     SOURCE_FETCH: "读取外部来源",
+    VIDEO_GENERATE: "生成视频",
   },
 };
 
@@ -176,8 +178,8 @@ export default function AgentForm({ locale }) {
         </legend>
         <p>
           {locale === "zh"
-            ? "这些能力决定 Agent 是否能接需要真实外部动作的任务。联网检索仍需要在本地 runner 配置搜索密钥。"
-            : "These capabilities control whether this agent can receive jobs requiring real external actions. Web search still requires local runner search credentials."}
+            ? "这些能力决定 Agent 是否能接需要真实外部动作的任务。运行器会根据本地真实配置自动同步联网检索和视频生成能力。"
+            : "These capabilities control whether this agent can receive jobs requiring real external actions. The runner synchronizes web-search and video-generation capability from its actual local configuration."}
         </p>
 
         <div className="ab-capability-grid">

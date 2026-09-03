@@ -42,5 +42,8 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
+      - name: Check artifact storage signing
+        run: node --experimental-strip-types apps/web/scripts/check-artifact-storage.mjs
+
       - name: Build web app
         run: npm --workspace apps/web run build

@@ -268,6 +268,9 @@ class ReferenceRunnerTests(unittest.TestCase):
             "marketplace_url": "http://old",
             "search_provider": "tavily",
             "search_api_key": "search-secret",
+            "video_provider": "veo",
+            "video_model": "veo-3.1-generate-preview",
+            "video_api_key": "video-secret",
         }
         after = {
             "marketplace_url": "http://new",
@@ -288,13 +291,16 @@ class ReferenceRunnerTests(unittest.TestCase):
             "save_config",
             side_effect=lambda value: saved.append(dict(value)),
         ):
-            runner.configure_preserving_search()
+            runner.configure_preserving_integrations()
 
         legacy_configure.assert_called_once_with()
         self.assertEqual(len(saved), 1)
         self.assertEqual(saved[0]["marketplace_url"], "http://new")
         self.assertEqual(saved[0]["search_provider"], "tavily")
         self.assertEqual(saved[0]["search_api_key"], "search-secret")
+        self.assertEqual(saved[0]["video_provider"], "veo")
+        self.assertEqual(saved[0]["video_model"], "veo-3.1-generate-preview")
+        self.assertEqual(saved[0]["video_api_key"], "video-secret")
 
     def test_revision_prompt_keeps_original_contract_and_previous_delivery(self):
         context = {

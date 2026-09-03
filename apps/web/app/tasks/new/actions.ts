@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
 import { getGitHubPrivateKey } from "@/lib/github-app-key";
+import { artifactStorageConfigured } from "@/lib/artifact-storage";
 import {
   DELIVERY_TYPES,
   SOURCE_TYPES,
@@ -184,6 +185,40 @@ function buildSuggestedCriteria(repo: string, body: string) {
   return [...new Set(criteria)];
 }
 
+function videoOptions(formData: FormData, workType: WorkType) {
+  if (workType !== "VIDEO") return null;
+
+  const aspectRatio = optionalText(formData, "videoAspectRatio") || "16:9";
+  const resolution = optionalText(formData, "videoResolution") || "720p";
+  const durationSeconds = Number(
+    optionalText(formData, "videoDurationSeconds") || "8"
+  );
+
+  if (!["16:9", "9:16"].includes(aspectRatio)) {
+    throw new Error("Invalid video aspect ratio");
+  }
+
+  if (!["720p", "1080p", "4k"].includes(resolution)) {
+    throw new Error("Invalid video resolution");
+  }
+
+  if (![4, 6, 8].includes(durationSeconds)) {
+    throw new Error("Invalid video duration");
+  }
+
+  if (resolution !== "720p" && durationSeconds !== 8) {
+    throw new Error("1080p and 4k video generation require 8 seconds");
+  }
+
+  return {
+    video: {
+      aspectRatio,
+      resolution,
+      durationSeconds,
+    },
+  };
+}
+
 export async function previewGitHubIssue(issueUrl: string) {
   try {
     const { owner, repo, issueNumber, fullName } =
@@ -270,6 +305,12 @@ export async function createTask(formData: FormData) {
     DEFAULT_VERIFICATION_BY_WORK[workType]
   ) as VerificationType;
 
+  if (workType === "VIDEO" && !artifactStorageConfigured()) {
+    throw new Error(
+      "Video task publishing is unavailable until managed artifact storage is configured"
+    );
+  }
+
   const requestedActions = normalizeRequestedActions([
     ...formData
       .getAll("requestedActions")
@@ -277,11 +318,15 @@ export async function createTask(formData: FormData) {
     ...(["URL", "FILE", "API"].includes(sourceType)
       ? ["SOURCE_FETCH"]
       : []),
+    ...(workType === "VIDEO" && deliveryType === "FILE"
+      ? ["VIDEO_GENERATE"]
+      : []),
   ]);
 
   const githubRepoInput = optionalText(formData, "githubRepo");
   const githubIssueUrl = optionalText(formData, "githubIssueUrl");
   const sourceUrl = optionalText(formData, "sourceUrl");
+  const structuredSourceData = videoOptions(formData, workType);
 
   let repository: ReturnType<typeof parseRepo> | null = null;
   if (githubRepoInput) repository = parseRepo(githubRepoInput);
@@ -369,7 +414,9 @@ export async function createTask(formData: FormData) {
       workType,
       sourceType,
       sourceUrl: sourceUrl || null,
-      sourceDataJson: null,
+      sourceDataJson: structuredSourceData
+        ? JSON.stringify(structuredSourceData)
+        : null,
       deliveryType,
       verificationType,
       requestedActionsJson: JSON.stringify(requestedActions),
@@ -400,6 +447,7 @@ export async function createTask(formData: FormData) {
         requestedActions,
         githubRepo: repository?.fullName || null,
         sourceUrl: sourceUrl || null,
+        video: structuredSourceData?.video || null,
         bountyCents,
         executionFeeCents,
         successRewardCents: bountyCents - executionFeeCents,

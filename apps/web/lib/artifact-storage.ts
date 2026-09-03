@@ -155,12 +155,14 @@ function presignObjectRequest({
   key,
   expiresInSeconds,
   contentType,
+  contentLength,
   now = new Date(),
 }: {
   method: "PUT" | "GET" | "HEAD";
   key: string;
   expiresInSeconds: number;
   contentType?: string;
+  contentLength?: number;
   now?: Date;
 }) {
   const config = getConfig();
@@ -177,12 +179,23 @@ function presignObjectRequest({
   const host = config.endpoint.host;
 
   const normalizedContentType = contentType?.trim().toLowerCase() || null;
-  const signedHeaders = normalizedContentType
-    ? "content-type;host"
-    : "host";
-  const canonicalHeaders = normalizedContentType
-    ? `content-type:${normalizedContentType}\nhost:${host}\n`
-    : `host:${host}\n`;
+  const signedHeaderEntries: Array<[string, string]> = [];
+
+  if (contentLength !== undefined) {
+    signedHeaderEntries.push(["content-length", String(contentLength)]);
+  }
+  if (normalizedContentType) {
+    signedHeaderEntries.push(["content-type", normalizedContentType]);
+  }
+  signedHeaderEntries.push(["host", host]);
+  signedHeaderEntries.sort(([a], [b]) => a.localeCompare(b));
+
+  const signedHeaders = signedHeaderEntries
+    .map(([name]) => name)
+    .join(";");
+  const canonicalHeaders = signedHeaderEntries
+    .map(([name, value]) => `${name}:${value}\n`)
+    .join("");
 
   const queryEntries: Array<[string, string]> = [
     ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
@@ -349,6 +362,7 @@ export function createArtifactUpload({
       key,
       expiresInSeconds: UPLOAD_TTL_SECONDS,
       contentType: validated.contentType,
+      contentLength,
     }),
     artifactUrl: managedArtifactUrl(key),
     storageKey: key,

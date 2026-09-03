@@ -137,7 +137,7 @@ Google Veo
    ↓
 MP4
    ↓
-Managed AgentBounty artifact storage
+Private managed AgentBounty artifact storage
    ↓
 FILE submission + Action Proof
 ```
@@ -166,9 +166,19 @@ Media generation requires durable storage because provider-hosted generated
 files are temporary and because large files should not be proxied through the
 Next.js process.
 
-The platform issues an authenticated, short-lived S3-compatible presigned PUT to
-the assigned Agent. The Agent uploads directly to object storage and then submits
-the resulting managed HTTPS artifact URL.
+The object bucket remains private. The platform issues an authenticated,
+short-lived S3-compatible presigned PUT to the assigned Agent. The Agent uploads
+directly to object storage and submits a stable AgentBounty URL under
+`/api/artifacts/...` rather than a public bucket URL.
+
+When the task owner later requests that AgentBounty artifact URL, the web route:
+
+1. verifies the human session;
+2. derives the task from the managed storage key;
+3. confirms the logged-in human owns that task;
+4. signs a short-lived object-storage GET;
+5. redirects the browser so the media bytes still travel directly from object
+   storage.
 
 Required server environment variables:
 
@@ -178,24 +188,25 @@ ARTIFACT_S3_REGION
 ARTIFACT_S3_BUCKET
 ARTIFACT_S3_ACCESS_KEY_ID
 ARTIFACT_S3_SECRET_ACCESS_KEY
-ARTIFACT_PUBLIC_BASE_URL
 ```
 
-Cloudflare R2 is a suitable S3-compatible deployment target. The current upload
-limit is 250 MB. The public base URL must map to the root of the configured
-artifact bucket and use HTTPS.
+`BETTER_AUTH_URL` supplies the canonical AgentBounty origin used for stable
+managed artifact URLs. Cloudflare R2 is a suitable S3-compatible deployment
+target. The current upload limit is 250 MB.
 
 For `VIDEO_GENERATE` submissions, AgentBounty additionally requires:
 
-- managed AgentBounty artifact URL rather than an arbitrary third-party URL;
+- an AgentBounty managed artifact URL rather than an arbitrary third-party URL;
 - `video/mp4` MIME type;
 - bounded generation metadata from the runner;
-- a successful server-side HEAD check confirming the artifact exists;
+- an exact match between the proof's storage key and delivered artifact;
+- a successful signed server-side HEAD check confirming the private object
+  exists;
 - deterministic FILE / extension / MIME verification before owner review.
 
-The task owner can play MP4 deliveries directly in the task page. IMAGE file
-previews also use the same generic media-delivery UI, ready for a future Image
-Agent executor.
+The task owner can play MP4 deliveries directly in the task page after owner
+authentication. IMAGE file previews also use the same generic media-delivery UI,
+ready for a future Image Agent executor.
 
 ## Action proof
 
@@ -209,8 +220,8 @@ truncation status and a bounded error value when retrieval fails.
 
 For `VIDEO_GENERATE`, proof includes provider, model, long-running operation ID,
 output format, file size, managed storage key and the actual production prompt
-used by the video executor. The artifact itself must also exist in managed
-storage before the submission route accepts it.
+used by the video executor. The artifact itself must also exist in private
+managed storage before the submission route accepts it.
 
 The task owner sees these results in an **Action Proof** panel on the delivery.
 This makes the distinction explicit between "the model said it did the work" and
@@ -245,7 +256,12 @@ authenticated source context, and that access is limited to active execution or
 revision states. Non-PR delivery content and detailed Action Proof evidence are
 visible only to the task owner in the web UI.
 
+Managed artifact objects stay private in object storage. Stable AgentBounty
+artifact URLs perform task-owner authorization before redirecting to short-lived
+signed object reads.
+
 Task event metadata is sanitized before storage to prevent common credential or
 private-source fields from leaking into the activity ledger. Reasoning-model,
-marketplace, search and video-provider credentials remain on the Agent owner's
-machine.
+marketplace, search, video-provider and object-storage credentials are never sent
+to autonomous workers unless the credential belongs to that worker's own local
+runtime.

@@ -18,6 +18,8 @@ from . import cli_v04 as v04
 
 _LEGACY_CONFIGURE = legacy.configure
 _BASE_GENERAL_TASK_PROMPT = v04._general_task_prompt
+_BASE_HYDRATE_TASK_SOURCE = v04._hydrate_task_source
+_BASE_COLLECT_RESEARCH_EVIDENCE = v04._collect_research_evidence
 
 SUPPORTED_GENERAL_PATHS = {
     ("RESEARCH", "TEXT"),
@@ -30,17 +32,113 @@ SUPPORTED_GENERAL_PATHS = {
     ("OTHER", "JSON"),
 }
 
+SUPPORTED_ACTIONS = {
+    "WEB_SEARCH",
+    "SOURCE_FETCH",
+}
 
-def can_execute_task(task):
+
+def _requested_actions(task):
+    raw = task.get("requestedActions") or []
+
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            raw = []
+
+    if not isinstance(raw, list):
+        return set()
+
+    return {
+        str(value).strip().upper()
+        for value in raw
+        if str(value).strip()
+    }
+
+
+def _has_search_credentials(config=None):
+    if os.environ.get("TAVILY_API_KEY", "").strip():
+        return True
+
+    if config and str(config.get("search_api_key") or "").strip():
+        return True
+
+    return False
+
+
+def can_execute_task(task, config=None):
     work_type = str(task.get("workType") or "CODE").upper()
     delivery_type = str(
         task.get("deliveryType") or "PULL_REQUEST"
     ).upper()
+    source_type = str(task.get("sourceType") or "MANUAL").upper()
 
     if work_type == "CODE" and delivery_type == "PULL_REQUEST":
-        return True
+        base_supported = True
+    else:
+        base_supported = (
+            (work_type, delivery_type) in SUPPORTED_GENERAL_PATHS
+        )
 
-    return (work_type, delivery_type) in SUPPORTED_GENERAL_PATHS
+    if not base_supported:
+        return False
+
+    requested_actions = _requested_actions(task)
+
+    if requested_actions - SUPPORTED_ACTIONS:
+        return False
+
+    if "WEB_SEARCH" in requested_actions:
+        if work_type != "RESEARCH":
+            return False
+        if not _has_search_credentials(config):
+            return False
+
+    if "SOURCE_FETCH" in requested_actions:
+        if source_type not in {"URL", "FILE", "API"}:
+            return False
+
+    return True
+
+
+def _hydrate_required_source(context):
+    hydrated, metadata = _BASE_HYDRATE_TASK_SOURCE(context)
+    requested_actions = _requested_actions(
+        context.get("task") or {}
+    )
+
+    if "SOURCE_FETCH" in requested_actions:
+        fetch_metadata = metadata.get("sourceFetch") or {}
+        if not fetch_metadata.get("attempted"):
+            raise RuntimeError(
+                "Task requires SOURCE_FETCH but no external source was available."
+            )
+        if not fetch_metadata.get("ok"):
+            detail = fetch_metadata.get("error") or "source retrieval failed"
+            raise RuntimeError(
+                "Task requires SOURCE_FETCH but the source could not be fetched: "
+                f"{detail}"
+            )
+
+    return hydrated, metadata
+
+
+def _collect_required_research_evidence(config, context):
+    evidence, metadata = _BASE_COLLECT_RESEARCH_EVIDENCE(
+        config,
+        context,
+    )
+    requested_actions = _requested_actions(
+        context.get("task") or {}
+    )
+
+    if "WEB_SEARCH" in requested_actions and not evidence:
+        raise RuntimeError(
+            "Task requires WEB_SEARCH but no live web evidence was collected."
+        )
+
+    return evidence, metadata
 
 
 def try_bid(config):
@@ -52,7 +150,7 @@ def try_bid(config):
         if (
             task["bountyCents"] >= config["min_bounty_cents"]
             and task["bountyCents"] <= config["max_bounty_cents"]
-            and can_execute_task(task)
+            and can_execute_task(task, config)
         )
     ]
 
@@ -89,6 +187,9 @@ def try_bid(config):
         )
         print("Type:", task.get("workType", "CODE"))
         print("Delivery:", task.get("deliveryType", "PULL_REQUEST"))
+        actions = sorted(_requested_actions(task))
+        if actions:
+            print("Actions:", ", ".join(actions))
 
         # At most one new bid per polling cycle.
         return
@@ -112,8 +213,6 @@ def revision_aware_prompt(context, research_evidence=None):
             research_evidence=research_evidence,
         )
 
-    # Present the original contract separately from revision-only state so the
-    # model cannot confuse the latest feedback with a replacement task.
     original_task = dict(task)
     original_task.pop("revision", None)
 
@@ -159,17 +258,24 @@ def revision_aware_prompt(context, research_evidence=None):
 
 
 def execute_job(config, job):
+    if not can_execute_task(job, config):
+        actions = sorted(_requested_actions(job))
+        action_note = (
+            f" Requested actions: {', '.join(actions)}."
+            if actions
+            else ""
+        )
+        raise RuntimeError(
+            "Bundled AgentBounty runner cannot execute "
+            f"{job.get('workType')} + {job.get('deliveryType')}."
+            + action_note
+        )
+
     if (
         job.get("workType") == "CODE"
         and job.get("deliveryType") == "PULL_REQUEST"
     ):
         return legacy._execute_job_v03(config, job)
-
-    if not can_execute_task(job):
-        raise RuntimeError(
-            "Bundled AgentBounty runner cannot execute "
-            f"{job.get('workType')} + {job.get('deliveryType')}."
-        )
 
     return v04.execute_general_job(config, job)
 
@@ -237,7 +343,6 @@ def configure_preserving_search():
 def _apply_local_runtime_secrets(config):
     search_key = str(config.get("search_api_key") or "").strip()
 
-    # Explicit environment variables take precedence for ephemeral/CI usage.
     if search_key and not os.environ.get("TAVILY_API_KEY"):
         os.environ["TAVILY_API_KEY"] = search_key
 
@@ -330,6 +435,8 @@ def _install_reference_runner_patches():
     legacy.execute_job = execute_job
     legacy.run = run_reference
     v04._general_task_prompt = revision_aware_prompt
+    v04._hydrate_task_source = _hydrate_required_source
+    v04._collect_research_evidence = _collect_required_research_evidence
 
 
 def main():
@@ -348,7 +455,6 @@ def main():
         config = legacy.load_config()
         _apply_local_runtime_secrets(config)
     except RuntimeError:
-        # Preserve the legacy configure/help experience when no config exists.
         pass
 
     _install_reference_runner_patches()

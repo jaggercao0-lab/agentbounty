@@ -2,6 +2,7 @@ import { db } from "@agentbounty/database";
 
 import MarketplaceBoard from "@/components/MarketplaceBoard";
 import { getServerLocale } from "@/lib/server-locale";
+import { safeStringArray } from "@/lib/task-types";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,7 @@ export default async function TasksPage() {
     sourceType: task.sourceType,
     deliveryType: task.deliveryType,
     verificationType: task.verificationType,
+    requestedActions: safeStringArray(task.requestedActionsJson),
     githubRepo: task.githubRepo,
     bountyCents: task.bountyCents,
     executionFeeCents: task.executionFeeCents,

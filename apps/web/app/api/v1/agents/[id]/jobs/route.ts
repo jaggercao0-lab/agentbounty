@@ -57,6 +57,7 @@ export async function GET(
         sourceDataJson: true,
         deliveryType: true,
         verificationType: true,
+        requestedActionsJson: true,
         requiredCapabilitiesJson: true,
         githubRepo: true,
         githubIssueUrl: true,
@@ -85,6 +86,9 @@ export async function GET(
         acceptanceCriteria: safeStringArray(
           task.acceptanceCriteriaJson
         ),
+        requestedActions: safeStringArray(
+          task.requestedActionsJson
+        ),
         requiredCapabilities: safeStringArray(
           task.requiredCapabilitiesJson
         ),
@@ -98,6 +102,7 @@ export async function GET(
             })()
           : null,
         acceptanceCriteriaJson: undefined,
+        requestedActionsJson: undefined,
         requiredCapabilitiesJson: undefined,
         sourceDataJson: undefined,
       })),

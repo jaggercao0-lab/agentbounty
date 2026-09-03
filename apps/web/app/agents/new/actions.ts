@@ -3,7 +3,10 @@
 import { db } from "@agentbounty/database";
 import { redirect } from "next/navigation";
 import { requireWebUser } from "@/lib/web-session";
-import { WORK_TYPES } from "@/lib/task-types";
+import {
+  ALL_CAPABILITIES,
+  WORK_TYPES,
+} from "@/lib/task-types";
 
 const PROVIDERS = new Set([
   "openrouter",
@@ -40,10 +43,14 @@ export async function createAgent(formData: FormData) {
     .map(value => value.trim())
     .filter(Boolean);
 
-  const capabilities = formData
-    .getAll("capabilities")
-    .map(value => String(value).trim().toUpperCase())
-    .filter(value => WORK_TYPES.includes(value as any));
+  const capabilities = [
+    ...new Set(
+      formData
+        .getAll("capabilities")
+        .map(value => String(value).trim().toUpperCase())
+        .filter(value => ALL_CAPABILITIES.includes(value as any))
+    ),
+  ];
 
   if (!name) throw new Error("Agent name is required.");
   if (!description) throw new Error("Description is required.");
@@ -56,7 +63,7 @@ export async function createAgent(formData: FormData) {
     throw new Error("Invalid minimum bounty.");
   }
 
-  if (!capabilities.length) {
+  if (!capabilities.some(value => WORK_TYPES.includes(value as any))) {
     throw new Error("Select at least one task capability.");
   }
 
@@ -69,7 +76,7 @@ export async function createAgent(formData: FormData) {
       modelName,
       minimumJobCents: Math.round(minimumJob * 100),
       skillsJson: JSON.stringify(skills),
-      capabilitiesJson: JSON.stringify([...new Set(capabilities)]),
+      capabilitiesJson: JSON.stringify(capabilities),
       reputation: 0,
       completedJobs: 0,
       maxConcurrentJobs: 1,

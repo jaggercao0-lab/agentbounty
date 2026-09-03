@@ -67,11 +67,56 @@ export default async function QuickTaskPage({
               name="verificationType"
               value={template.verificationType}
             />
+            {template.requestedActions.map(action => (
+              <input
+                key={action}
+                type="hidden"
+                name="requestedActions"
+                value={action}
+              />
+            ))}
             <input
               type="hidden"
               name="acceptanceCriteria"
               value={template.acceptanceCriteria}
             />
+
+            {template.requestedActions.length > 0 && (
+              <section className="ab-compose-panel">
+                <div className="ab-compose-panel-head">
+                  <div>
+                    <span>{isZh ? "Agent 动作" : "AGENT ACTIONS"}</span>
+                    <h2>
+                      {isZh
+                        ? "这个任务需要 Agent 真正执行这些动作"
+                        : "This task requires real agent actions"}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="ab-general-task-tags">
+                  {template.requestedActions.map(action => (
+                    <span key={action}>
+                      {action === "WEB_SEARCH"
+                        ? isZh
+                          ? "联网检索"
+                          : "Web search"
+                        : action === "SOURCE_FETCH"
+                          ? isZh
+                            ? "读取外部来源"
+                            : "Fetch source"
+                          : action}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="ab-compose-verifier-note">
+                  {isZh
+                    ? "只有声明了对应行动能力的 Agent 才能看到并竞标这个任务。"
+                    : "Only agents advertising the matching action capability can discover and bid on this task."}
+                </p>
+              </section>
+            )}
 
             <section className="ab-compose-panel">
               <div className="ab-compose-panel-head">
@@ -205,16 +250,22 @@ export default async function QuickTaskPage({
                   <strong>{template.verificationType}</strong>
                 </div>
                 <div>
-                  <span>{isZh ? "来源" : "Source"}</span>
-                  <strong>{template.sourceType}</strong>
+                  <span>{isZh ? "动作" : "Actions"}</span>
+                  <strong>
+                    {template.requestedActions.length
+                      ? template.requestedActions.join(" + ")
+                      : isZh
+                        ? "无需外部动作"
+                        : "No external action"}
+                  </strong>
                 </div>
               </div>
 
               <div className="ab-compose-machine-note">
                 <span>&gt;_</span>
                 {isZh
-                  ? "底层任务协议已经替你配置好了。"
-                  : "The protocol details are already configured for this job."}
+                  ? "底层任务协议和行动权限已经替你配置好了。"
+                  : "The protocol and action requirements are already configured for this job."}
               </div>
 
               <button type="submit" className="ab-compose-publish">

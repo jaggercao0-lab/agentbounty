@@ -6,6 +6,7 @@ import { authenticateWebRequest } from "@/lib/web-api-auth";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
 import {
+  ACTION_TYPES,
   DELIVERY_TYPES,
   SOURCE_TYPES,
   VERIFICATION_TYPES,
@@ -15,6 +16,7 @@ import {
   requiredCapabilitiesFor,
   hasRequiredCapabilities,
   isSafeExternalSourceUrl,
+  normalizeRequestedActions,
 } from "@/lib/task-types";
 
 const MAX_SOURCE_DATA_BYTES = 64_000;
@@ -50,7 +52,8 @@ const createTask = z
     sourceData: z.record(z.string(), z.unknown()).optional(),
     deliveryType: z.enum(DELIVERY_TYPES).optional(),
     verificationType: z.enum(VERIFICATION_TYPES).optional(),
-    requiredCapabilities: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
+    requestedActions: z.array(z.enum(ACTION_TYPES)).max(8).optional(),
+    requiredCapabilities: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
     githubRepo: githubRepo.optional().nullable(),
     githubIssueUrl: z.string().url().max(5000).optional().nullable(),
     bountyCents: z.number().int().positive().max(100_000_000),
@@ -66,6 +69,29 @@ const createTask = z
       value.deliveryType || DEFAULT_DELIVERY_BY_WORK[value.workType];
     const verificationType =
       value.verificationType || DEFAULT_VERIFICATION_BY_WORK[value.workType];
+    const requestedActions = value.requestedActions || [];
+
+    if (
+      requestedActions.includes("WEB_SEARCH") &&
+      value.workType !== "RESEARCH"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requestedActions"],
+        message: "WEB_SEARCH is currently supported only for RESEARCH tasks",
+      });
+    }
+
+    if (
+      requestedActions.includes("SOURCE_FETCH") &&
+      !["URL", "FILE", "API"].includes(value.sourceType)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requestedActions"],
+        message: "SOURCE_FETCH requires a URL, FILE or API source",
+      });
+    }
 
     if (value.sourceData) {
       const bytes = Buffer.byteLength(
@@ -216,6 +242,7 @@ export async function GET(request: Request) {
     tasks: visibleTasks.map(task => {
       const {
         acceptanceCriteriaJson,
+        requestedActionsJson,
         requiredCapabilitiesJson,
         sourceDataJson: _sourceDataJson,
         sourceUrl: _sourceUrl,
@@ -227,6 +254,7 @@ export async function GET(request: Request) {
       return {
         ...publicTask,
         acceptanceCriteria: JSON.parse(acceptanceCriteriaJson),
+        requestedActions: JSON.parse(requestedActionsJson),
         requiredCapabilities: JSON.parse(requiredCapabilitiesJson),
         sourceAvailable:
           task.sourceType !== "MANUAL",
@@ -252,10 +280,18 @@ export async function POST(request: Request) {
       data.deliveryType || DEFAULT_DELIVERY_BY_WORK[data.workType];
     const verificationType =
       data.verificationType || DEFAULT_VERIFICATION_BY_WORK[data.workType];
-    const requiredCapabilities =
-      data.requiredCapabilities?.length
-        ? [...new Set(data.requiredCapabilities.map(value => value.toUpperCase()))]
-        : requiredCapabilitiesFor(data.workType);
+    const requestedActions = normalizeRequestedActions([
+      ...(data.requestedActions || []),
+      ...(["URL", "FILE", "API"].includes(data.sourceType)
+        ? ["SOURCE_FETCH"]
+        : []),
+    ]);
+    const requiredCapabilities = [
+      ...new Set([
+        ...requiredCapabilitiesFor(data.workType, requestedActions),
+        ...(data.requiredCapabilities || []).map(value => value.toUpperCase()),
+      ]),
+    ];
 
     const task = await db.$transaction(async tx => {
       const created = await tx.task.create({
@@ -271,6 +307,7 @@ export async function POST(request: Request) {
             : null,
           deliveryType,
           verificationType,
+          requestedActionsJson: JSON.stringify(requestedActions),
           requiredCapabilitiesJson: JSON.stringify(requiredCapabilities),
           githubRepo: data.githubRepo || null,
           githubIssueUrl: data.githubIssueUrl || null,
@@ -295,6 +332,7 @@ export async function POST(request: Request) {
             sourceType: data.sourceType,
             deliveryType,
             verificationType,
+            requestedActions,
             githubRepo: data.githubRepo || null,
             sourceUrl: data.sourceUrl || null,
             bountyCents: data.bountyCents,

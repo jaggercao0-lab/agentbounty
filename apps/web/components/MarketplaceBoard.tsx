@@ -19,6 +19,7 @@ export type MarketTask = {
   sourceType: string;
   deliveryType: string;
   verificationType: string;
+  requestedActions: string[];
   githubRepo: string | null;
   bountyCents: number;
   executionFeeCents: number;
@@ -88,6 +89,21 @@ function statusLabel(status: string, locale: Locale) {
   };
 
   return labels[status] ?? status;
+}
+
+function actionLabel(action: string, locale: Locale) {
+  const labels: Record<Locale, Record<string, string>> = {
+    en: {
+      WEB_SEARCH: "web search",
+      SOURCE_FETCH: "source fetch",
+    },
+    zh: {
+      WEB_SEARCH: "联网检索",
+      SOURCE_FETCH: "读取来源",
+    },
+  };
+
+  return labels[locale][action] || action.replace(/_/g, " ").toLowerCase();
 }
 
 function sourceLabel(task: MarketTask, locale: Locale) {
@@ -309,6 +325,11 @@ export default function MarketplaceBoard({
                     <div className="ab-general-market-card-tags">
                       <span>{WORK_LABELS[locale][task.workType]}</span>
                       <span>{task.deliveryType.replace(/_/g, " ")}</span>
+                      {task.requestedActions.map(action => (
+                        <span key={action}>
+                          ⚡ {actionLabel(action, locale)}
+                        </span>
+                      ))}
                     </div>
 
                     <span className="ab-market-card-time">

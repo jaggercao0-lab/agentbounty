@@ -185,6 +185,9 @@ export async function GET(
         metadata: {
           revisionCount: task.revisionCount,
           workType: task.workType,
+          requestedActions: safeStringArray(
+            task.requestedActionsJson
+          ),
         },
         dedupeKey: `task:${task.id}:execution:${task.revisionCount}`,
       }),
@@ -199,6 +202,9 @@ export async function GET(
         workType: task.workType,
         deliveryType: task.deliveryType,
         verificationType: task.verificationType,
+        requestedActions: safeStringArray(
+          task.requestedActionsJson
+        ),
         bountyCents: task.bountyCents,
         executionFeeCents: task.executionFeeCents,
         successRewardCents: task.successRewardCents,

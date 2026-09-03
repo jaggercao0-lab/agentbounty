@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireWebUser } from "@/lib/web-session";
-import { WORK_TYPES } from "@/lib/task-types";
+import {
+  ALL_CAPABILITIES,
+  WORK_TYPES,
+} from "@/lib/task-types";
 
 export async function updateAgentSettings(formData: FormData) {
   const user = await requireWebUser();
@@ -20,12 +23,12 @@ export async function updateAgentSettings(formData: FormData) {
       formData
         .getAll("capabilities")
         .map(value => String(value).trim().toUpperCase())
-        .filter(value => WORK_TYPES.includes(value as any))
+        .filter(value => ALL_CAPABILITIES.includes(value as any))
     ),
   ];
 
-  if (capabilities.length === 0) {
-    throw new Error("Select at least one capability");
+  if (!capabilities.some(value => WORK_TYPES.includes(value as any))) {
+    throw new Error("Select at least one task capability");
   }
 
   const skills = [

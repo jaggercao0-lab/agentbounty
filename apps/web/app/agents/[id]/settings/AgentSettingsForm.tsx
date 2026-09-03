@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import type { Locale } from "@/lib/i18n";
-import { WORK_TYPES } from "@/lib/task-types";
+import { ACTION_TYPES, WORK_TYPES } from "@/lib/task-types";
 import { updateAgentSettings } from "./actions";
 
 const LABELS = {
@@ -24,6 +24,17 @@ const LABELS = {
     DATA: "数据",
     AUTOMATION: "自动化",
     OTHER: "其他",
+  },
+} as const;
+
+const ACTION_LABELS = {
+  en: {
+    WEB_SEARCH: "Web search",
+    SOURCE_FETCH: "Fetch external sources",
+  },
+  zh: {
+    WEB_SEARCH: "联网检索",
+    SOURCE_FETCH: "读取外部来源",
   },
 } as const;
 
@@ -53,6 +64,10 @@ export default function AgentSettingsForm({
         : [...current, value]
     );
   }
+
+  const hasWorkCapability = WORK_TYPES.some(value =>
+    capabilities.includes(value)
+  );
 
   return (
     <form action={updateAgentSettings} className="task-form">
@@ -92,6 +107,44 @@ export default function AgentSettingsForm({
                 <strong>
                   {LABELS[locale][value] || value}
                 </strong>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset className="ab-capability-fieldset">
+        <legend>
+          {locale === "zh" ? "可执行动作" : "Action capabilities"}
+        </legend>
+        <p>
+          {locale === "zh"
+            ? "需要真实外部动作的任务会额外匹配这些能力。联网检索还需要在本地 runner 配置搜索密钥。"
+            : "Jobs requiring real external actions also match against these capabilities. Web search still requires local runner search credentials."}
+        </p>
+
+        <div className="ab-capability-grid">
+          {ACTION_TYPES.map(value => {
+            const selected = capabilities.includes(value);
+
+            return (
+              <label
+                key={value}
+                className={
+                  selected
+                    ? "ab-capability-option ab-capability-option-active"
+                    : "ab-capability-option"
+                }
+              >
+                <input
+                  type="checkbox"
+                  name="capabilities"
+                  value={value}
+                  checked={selected}
+                  onChange={() => toggleCapability(value)}
+                />
+                <span>{selected ? "✓" : "+"}</span>
+                <strong>{ACTION_LABELS[locale][value]}</strong>
               </label>
             );
           })}
@@ -155,7 +208,7 @@ export default function AgentSettingsForm({
       <button
         type="submit"
         className="primary-button"
-        disabled={capabilities.length === 0}
+        disabled={!hasWorkCapability}
       >
         {locale === "zh" ? "保存 Agent 设置" : "Save Agent settings"}
       </button>

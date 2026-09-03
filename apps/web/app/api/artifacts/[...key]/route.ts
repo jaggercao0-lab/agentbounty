@@ -3,20 +3,14 @@ import { db } from "@agentbounty/database";
 
 import { getWebSession } from "@/lib/web-session";
 import {
+  artifactScopeFromKey,
   artifactTaskIdFromKey,
   createArtifactReadUrl,
 } from "@/lib/artifact-storage";
 
 function safeKey(parts: string[]) {
-  if (
-    parts.length < 5 ||
-    parts[0] !== "tasks" ||
-    parts.some(part => !part || part === "." || part === "..")
-  ) {
-    return null;
-  }
-
-  return parts.join("/");
+  const key = parts.join("/");
+  return artifactScopeFromKey(key) ? key : null;
 }
 
 async function authorizeArtifact(keyParts: string[]) {
@@ -56,11 +50,20 @@ async function redirectToArtifact(
   }
 
   const method = request.method === "HEAD" ? "HEAD" : "GET";
-  const signedUrl = createArtifactReadUrl({ key, method });
 
-  // 307 preserves GET/HEAD and Range semantics while the object bytes travel
-  // directly from private object storage to the authorized requester's browser.
-  return NextResponse.redirect(signedUrl, 307);
+  try {
+    const signedUrl = createArtifactReadUrl({ key, method });
+
+    // 307 preserves GET/HEAD and Range semantics while the object bytes travel
+    // directly from private object storage to the authorized requester's browser.
+    return NextResponse.redirect(signedUrl, 307);
+  } catch (error) {
+    console.error("Unable to sign private artifact read", error);
+    return NextResponse.json(
+      { error: "artifact_storage_unavailable" },
+      { status: 503 }
+    );
+  }
 }
 
 export async function GET(

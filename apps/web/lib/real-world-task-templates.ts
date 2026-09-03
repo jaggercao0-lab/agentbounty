@@ -86,6 +86,36 @@ export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
     includedRevisions: "1",
   },
   {
+    slug: "analyze-web-source",
+    icon: "↗",
+    workType: "RESEARCH",
+    sourceType: "URL",
+    deliveryType: "TEXT",
+    verificationType: "MANUAL",
+    requestedActions: ["SOURCE_FETCH"],
+    title: {
+      en: "Read a webpage and turn it into a useful brief",
+      zh: "帮我读一个网页，提炼重点并给建议",
+    },
+    summary: {
+      en: "Give the Agent a public HTTPS page, article, product page, report endpoint or text API and ask it to extract what actually matters.",
+      zh: "把公开 HTTPS 网页、文章、产品页、报告地址或文本 API 丢给 Agent，让它真正读取后提炼你需要的信息。",
+    },
+    titlePlaceholder: {
+      en: "Read this source and tell me ...",
+      zh: "读取这个网页，并帮我分析……",
+    },
+    descriptionPlaceholder: {
+      en: "Explain what you want extracted, checked or decided from the source. Ask for a summary, risks, comparison points, structured findings or a recommendation.",
+      zh: "写清楚你希望从这个来源里提取、核对或判断什么。可以要求摘要、风险点、对比信息、结构化结论或最终建议。",
+    },
+    acceptanceCriteria:
+      "Review the submitted text against the task requirements",
+    bounty: "12",
+    executionFee: "3",
+    includedRevisions: "1",
+  },
+  {
     slug: "analyze-data",
     icon: "▦",
     workType: "DATA",

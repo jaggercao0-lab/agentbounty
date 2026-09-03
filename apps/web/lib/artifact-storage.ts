@@ -27,6 +27,13 @@ type ArtifactStorageConfig = {
   appBaseUrl: URL;
 };
 
+export type ArtifactScope = {
+  taskId: string;
+  agentId: string;
+  date: string;
+  filename: string;
+};
+
 function hmac(key: string | Buffer, value: string) {
   return createHmac("sha256", key).update(value).digest();
 }
@@ -116,7 +123,8 @@ export function validateArtifactRequest({
   contentType: string;
   contentLength: number;
 }) {
-  const extension = MIME_EXTENSIONS[contentType.toLowerCase()];
+  const normalizedContentType = contentType.trim().toLowerCase();
+  const extension = MIME_EXTENSIONS[normalizedContentType];
 
   if (!extension) {
     throw new Error("unsupported_artifact_mime_type");
@@ -130,7 +138,10 @@ export function validateArtifactRequest({
     throw new Error("invalid_artifact_size");
   }
 
-  return { extension };
+  return {
+    extension,
+    contentType: normalizedContentType,
+  };
 }
 
 function amzTimestamp(now: Date) {
@@ -143,11 +154,13 @@ function presignObjectRequest({
   method,
   key,
   expiresInSeconds,
+  contentType,
   now = new Date(),
 }: {
   method: "PUT" | "GET" | "HEAD";
   key: string;
   expiresInSeconds: number;
+  contentType?: string;
   now?: Date;
 }) {
   const config = getConfig();
@@ -161,13 +174,22 @@ function presignObjectRequest({
   const canonicalUri = `${endpointBasePath}/${awsEncode(config.bucket)}/${encodePath(key)}`
     .replace(/\/+/g, "/");
   const credentialScope = `${date}/${config.region}/s3/aws4_request`;
+  const host = config.endpoint.host;
+
+  const normalizedContentType = contentType?.trim().toLowerCase() || null;
+  const signedHeaders = normalizedContentType
+    ? "content-type;host"
+    : "host";
+  const canonicalHeaders = normalizedContentType
+    ? `content-type:${normalizedContentType}\nhost:${host}\n`
+    : `host:${host}\n`;
 
   const queryEntries: Array<[string, string]> = [
     ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
     ["X-Amz-Credential", `${config.accessKeyId}/${credentialScope}`],
     ["X-Amz-Date", amzDate],
     ["X-Amz-Expires", String(expiresInSeconds)],
-    ["X-Amz-SignedHeaders", "host"],
+    ["X-Amz-SignedHeaders", signedHeaders],
   ];
 
   const canonicalQuery = queryEntries
@@ -176,13 +198,12 @@ function presignObjectRequest({
     .map(([name, value]) => `${name}=${value}`)
     .join("&");
 
-  const host = config.endpoint.host;
   const canonicalRequest = [
     method,
     canonicalUri,
     canonicalQuery,
-    `host:${host}\n`,
-    "host",
+    canonicalHeaders,
+    signedHeaders,
     "UNSIGNED-PAYLOAD",
   ].join("\n");
 
@@ -217,6 +238,35 @@ function managedArtifactUrl(key: string) {
   return `${base}/api/artifacts/${encodePath(key)}`;
 }
 
+export function artifactScopeFromKey(key: string): ArtifactScope | null {
+  const segments = key.split("/");
+
+  if (
+    segments.length !== 5 ||
+    segments[0] !== "tasks" ||
+    segments.some(segment => !segment || segment === "." || segment === "..")
+  ) {
+    return null;
+  }
+
+  const [, taskId, agentId, date, filename] = segments;
+
+  if (!/^\d{8}$/.test(date)) {
+    return null;
+  }
+
+  if (!/^[0-9a-f-]{36}\.[a-z0-9]+$/i.test(filename)) {
+    return null;
+  }
+
+  return {
+    taskId,
+    agentId,
+    date,
+    filename,
+  };
+}
+
 export function managedArtifactKeyFromUrl(
   value: string | null | undefined
 ) {
@@ -236,17 +286,7 @@ export function managedArtifactKeyFromUrl(
     }
 
     const key = decodePath(candidate.pathname.slice(prefix.length));
-    const segments = key.split("/");
-
-    if (
-      segments.length < 5 ||
-      segments[0] !== "tasks" ||
-      segments.some(segment => !segment || segment === "." || segment === "..")
-    ) {
-      return null;
-    }
-
-    return key;
+    return artifactScopeFromKey(key) ? key : null;
   } catch {
     return null;
   }
@@ -257,10 +297,7 @@ export function isManagedArtifactUrl(value: string | null | undefined) {
 }
 
 export function artifactTaskIdFromKey(key: string) {
-  const segments = key.split("/");
-  return segments[0] === "tasks" && segments[1]
-    ? segments[1]
-    : null;
+  return artifactScopeFromKey(key)?.taskId || null;
 }
 
 export function createArtifactReadUrl({
@@ -270,6 +307,10 @@ export function createArtifactReadUrl({
   key: string;
   method?: "GET" | "HEAD";
 }) {
+  if (!artifactScopeFromKey(key)) {
+    throw new Error("invalid_artifact_key");
+  }
+
   return presignObjectRequest({
     method,
     key,
@@ -288,7 +329,7 @@ export function createArtifactUpload({
   contentType: string;
   contentLength: number;
 }) {
-  const { extension } = validateArtifactRequest({
+  const validated = validateArtifactRequest({
     contentType,
     contentLength,
   });
@@ -299,7 +340,7 @@ export function createArtifactUpload({
     taskId,
     agentId,
     date,
-    `${randomUUID()}.${extension}`,
+    `${randomUUID()}.${validated.extension}`,
   ].join("/");
 
   return {
@@ -307,12 +348,13 @@ export function createArtifactUpload({
       method: "PUT",
       key,
       expiresInSeconds: UPLOAD_TTL_SECONDS,
+      contentType: validated.contentType,
     }),
     artifactUrl: managedArtifactUrl(key),
     storageKey: key,
     expiresInSeconds: UPLOAD_TTL_SECONDS,
     headers: {
-      "Content-Type": contentType,
+      "Content-Type": validated.contentType,
     },
   };
 }

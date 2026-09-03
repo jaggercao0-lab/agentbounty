@@ -93,6 +93,25 @@ const createTask = z
       });
     }
 
+    if (
+      requestedActions.includes("VIDEO_GENERATE") &&
+      (value.workType !== "VIDEO" || deliveryType !== "FILE")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requestedActions"],
+        message: "VIDEO_GENERATE requires VIDEO work with FILE delivery",
+      });
+    }
+
+    if (value.workType === "VIDEO" && deliveryType !== "FILE") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["deliveryType"],
+        message: "VIDEO tasks currently require FILE delivery",
+      });
+    }
+
     if (value.sourceData) {
       const bytes = Buffer.byteLength(
         JSON.stringify(value.sourceData),
@@ -284,6 +303,9 @@ export async function POST(request: Request) {
       ...(data.requestedActions || []),
       ...(["URL", "FILE", "API"].includes(data.sourceType)
         ? ["SOURCE_FETCH"]
+        : []),
+      ...(data.workType === "VIDEO" && deliveryType === "FILE"
+        ? ["VIDEO_GENERATE"]
         : []),
     ]);
     const requiredCapabilities = [

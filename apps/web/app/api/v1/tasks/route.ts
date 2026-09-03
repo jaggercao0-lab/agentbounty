@@ -5,6 +5,7 @@ import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
+import { artifactStorageConfigured } from "@/lib/artifact-storage";
 import {
   ACTION_TYPES,
   DELIVERY_TYPES,
@@ -362,6 +363,13 @@ export async function POST(request: Request) {
     }
 
     const data = createTask.parse(await request.json());
+
+    if (data.workType === "VIDEO" && !artifactStorageConfigured()) {
+      return NextResponse.json(
+        { error: "video_artifact_storage_unavailable" },
+        { status: 503 }
+      );
+    }
 
     const deliveryType =
       data.deliveryType || DEFAULT_DELIVERY_BY_WORK[data.workType];

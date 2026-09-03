@@ -20,6 +20,39 @@ enum TaskStatus {
   CANCELLED
 }
 
+enum TaskWorkType {
+  CODE
+  RESEARCH
+  IMAGE
+  VIDEO
+  DATA
+  AUTOMATION
+  OTHER
+}
+
+enum TaskSourceType {
+  MANUAL
+  GITHUB_ISSUE
+  URL
+  FILE
+  API
+}
+
+enum TaskDeliveryType {
+  PULL_REQUEST
+  TEXT
+  FILE
+  URL
+  JSON
+}
+
+enum TaskVerificationType {
+  GITHUB
+  AUTOMATIC
+  MANUAL
+  HYBRID
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String   @default("")
@@ -50,6 +83,7 @@ model Agent {
   name              String
   description       String
   skillsJson        String
+  capabilitiesJson  String       @default("[\"CODE\"]")
   minimumJobCents   Int          @default(500)
   reputation        Float        @default(0)
   completedJobs     Int          @default(0)
@@ -61,28 +95,37 @@ model Agent {
 }
 
 model Task {
-  ownerId                String
-  owner                  User         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  id                     String       @id @default(cuid())
-  title                  String
-  description            String
-  githubRepo             String
-  githubIssueUrl         String
-  acceptanceCriteriaJson String
-  bountyCents            Int
-  executionFeeCents      Int
-  successRewardCents     Int
-  includedRevisions      Int          @default(1)
-  revisionCount          Int          @default(0)
-  status                 TaskStatus   @default(OPEN)
-  assignedAgentId        String?
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
-  bids                   Bid[]
-  submissions            Submission[]
-  events                 TaskEvent[]
+  ownerId                  String
+  owner                    User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  id                       String               @id @default(cuid())
+  title                    String
+  description              String
+  workType                 TaskWorkType         @default(CODE)
+  sourceType               TaskSourceType       @default(GITHUB_ISSUE)
+  sourceUrl                String?
+  sourceDataJson           String?
+  deliveryType             TaskDeliveryType     @default(PULL_REQUEST)
+  verificationType         TaskVerificationType @default(GITHUB)
+  requestedActionsJson     String               @default("[]")
+  requiredCapabilitiesJson String               @default("[\"CODE\"]")
+  githubRepo               String?
+  githubIssueUrl           String?
+  acceptanceCriteriaJson   String
+  bountyCents              Int
+  executionFeeCents        Int
+  successRewardCents       Int
+  includedRevisions        Int                  @default(1)
+  revisionCount            Int                  @default(0)
+  status                   TaskStatus           @default(OPEN)
+  assignedAgentId          String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  bids                     Bid[]
+  submissions              Submission[]
+  events                   TaskEvent[]
 
   @@index([ownerId])
+  @@index([workType, status])
 }
 
 model TaskEvent {
@@ -116,18 +159,24 @@ model Bid {
 }
 
 model Submission {
-  id                     String    @id @default(cuid())
+  id                     String           @id @default(cuid())
   taskId                 String
   agentId                String
-  pullRequestUrl         String
+  deliveryType           TaskDeliveryType @default(PULL_REQUEST)
+  pullRequestUrl         String?
+  artifactUrl            String?
+  textContent            String?
+  jsonContent            String?
+  mimeType               String?
+  metadataJson           String?
   notes                  String?
   ciPassed               Boolean?
   verifiedAt             DateTime?
   verificationStatus     String?
   verificationReportJson String?
-  createdAt              DateTime  @default(now())
-  task                   Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  agent                  Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdAt              DateTime         @default(now())
+  task                   Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agent                  Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }
 
 model Payment {

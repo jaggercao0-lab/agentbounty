@@ -5,8 +5,16 @@ import { db } from "@agentbounty/database";
 import { verifyAgentToken } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
 import { taskEventData } from "@/lib/task-events";
+import { safeStringArray } from "@/lib/task-types";
 
 export const runtime = "nodejs";
+
+const WORK_PACKAGE_STATES =
+  new Set([
+    "ASSIGNED",
+    "WORKING",
+    "REVISION",
+  ]);
 
 async function createAppJwt() {
   const appId =
@@ -42,7 +50,8 @@ async function getInstallationToken(owner: string, repo: string) {
         Authorization: `Bearer ${jwt}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2026-03-10"
-      }
+      },
+      cache: "no-store",
     }
   );
 
@@ -62,7 +71,8 @@ async function getInstallationToken(owner: string, repo: string) {
         Authorization: `Bearer ${jwt}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2026-03-10"
-      }
+      },
+      cache: "no-store",
     }
   );
 
@@ -124,6 +134,28 @@ export async function GET(
       );
     }
 
+    if (!WORK_PACKAGE_STATES.has(task.status)) {
+      return NextResponse.json(
+        {
+          error: "task_not_in_execution_state",
+          status: task.status,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (
+      task.workType !== "CODE" ||
+      task.deliveryType !== "PULL_REQUEST"
+    ) {
+      return NextResponse.json(
+        {
+          error: "coding_pull_request_task_required",
+        },
+        { status: 409 }
+      );
+    }
+
     if (!task.githubRepo) {
       return NextResponse.json(
         { error: "github_repo_missing" },
@@ -142,7 +174,6 @@ export async function GET(
 
     const token = await getInstallationToken(owner, repo);
 
-    // Repository information
     const repoRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
       {
@@ -150,7 +181,8 @@ export async function GET(
           Authorization: `Bearer ${token}`,
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2026-03-10"
-        }
+        },
+        cache: "no-store",
       }
     );
 
@@ -162,7 +194,6 @@ export async function GET(
 
     const repoData = await repoRes.json();
 
-    // Get repository tree
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(repoData.default_branch)}?recursive=1`,
       {
@@ -170,7 +201,8 @@ export async function GET(
           Authorization: `Bearer ${token}`,
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2026-03-10"
-        }
+        },
+        cache: "no-store",
       }
     );
 
@@ -190,12 +222,11 @@ export async function GET(
         size: item.size
       }));
 
-    // Read original GitHub Issue
     let githubIssue = null;
 
     if (task.githubIssueUrl) {
       const issueMatch =
-        task.githubIssueUrl.match(/\/issues\/(\d+)$/);
+        task.githubIssueUrl.match(/\/issues\/(\d+)\/?$/);
 
       if (issueMatch) {
         const issueNumber = Number(issueMatch[1]);
@@ -207,7 +238,8 @@ export async function GET(
               Authorization: `Bearer ${token}`,
               Accept: "application/vnd.github+json",
               "X-GitHub-Api-Version": "2026-03-10"
-            }
+            },
+            cache: "no-store",
           }
         );
 
@@ -224,60 +256,69 @@ export async function GET(
       }
     }
 
+    let sourceData: unknown = null;
+
+    if (task.sourceDataJson) {
+      try {
+        sourceData = JSON.parse(task.sourceDataJson);
+      } catch {
+        sourceData = null;
+      }
+    }
+
     await db.taskEvent.upsert({
       where: {
         dedupeKey:
           `task:${task.id}:execution:${task.revisionCount}`,
       },
-
       update: {},
-
       create:
         taskEventData({
-          taskId:
-            task.id,
-
-          type:
-            "EXECUTION_STARTED",
-
-          actorType:
-            "AGENT",
-
-          actorId:
-            agentId,
-
+          taskId: task.id,
+          type: "EXECUTION_STARTED",
+          actorType: "AGENT",
+          actorId: agentId,
           message:
             task.revisionCount > 0
               ? "Worker started revision execution"
               : "Worker started execution",
-
           metadata: {
-            revisionCount:
-              task.revisionCount,
+            revisionCount: task.revisionCount,
+            workType: task.workType,
           },
-
           dedupeKey:
             `task:${task.id}:execution:${task.revisionCount}`,
         }),
     });
 
     return NextResponse.json({
-      protocolVersion: "0.3",
+      protocolVersion: "0.4",
 
       task: {
         id: task.id,
         title: task.title,
         description: task.description,
-
+        workType: task.workType,
+        deliveryType: task.deliveryType,
+        verificationType: task.verificationType,
         bountyCents: task.bountyCents,
         executionFeeCents: task.executionFeeCents,
         successRewardCents: task.successRewardCents,
-
         includedRevisions: task.includedRevisions,
         revisionCount: task.revisionCount,
-
         acceptanceCriteria:
-          JSON.parse(task.acceptanceCriteriaJson)
+          safeStringArray(task.acceptanceCriteriaJson),
+        requiredCapabilities:
+          safeStringArray(task.requiredCapabilitiesJson),
+      },
+
+      source: {
+        type: task.sourceType,
+        url:
+          task.sourceType === "GITHUB_ISSUE"
+            ? task.githubIssueUrl
+            : task.sourceUrl,
+        data: sourceData,
       },
 
       repository: {

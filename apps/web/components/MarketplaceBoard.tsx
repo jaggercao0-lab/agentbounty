@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -7,13 +8,19 @@ import {
   translations,
   type Locale,
 } from "@/lib/i18n";
+import { WORK_TYPES, type WorkType } from "@/lib/task-types";
 
 export type MarketTask = {
   id: string;
   title: string;
   description: string;
   status: string;
-  githubRepo: string;
+  workType: WorkType;
+  sourceType: string;
+  deliveryType: string;
+  verificationType: string;
+  requestedActions: string[];
+  githubRepo: string | null;
   bountyCents: number;
   executionFeeCents: number;
   successRewardCents: number;
@@ -28,6 +35,31 @@ type Props = {
   locale: Locale;
 };
 
+type Filter = "ALL" | WorkType;
+
+const WORK_LABELS: Record<Locale, Record<Filter, string>> = {
+  en: {
+    ALL: "All",
+    CODE: "Code",
+    RESEARCH: "Research",
+    IMAGE: "Image",
+    VIDEO: "Video",
+    DATA: "Data",
+    AUTOMATION: "Automation",
+    OTHER: "Other",
+  },
+  zh: {
+    ALL: "全部",
+    CODE: "代码",
+    RESEARCH: "调研",
+    IMAGE: "图片",
+    VIDEO: "视频",
+    DATA: "数据",
+    AUTOMATION: "自动化",
+    OTHER: "其他",
+  },
+};
+
 function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -39,19 +71,17 @@ function statusClass(status: string) {
   );
 }
 
-function statusLabel(
-  status: string,
-  locale: Locale
-) {
+function statusLabel(status: string, locale: Locale) {
   if (locale === "en") {
-    return status;
+    return status === "VERIFYING" ? "OWNER REVIEW" : status;
   }
 
   const labels: Record<string, string> = {
-    OPEN: "开放",
-    ASSIGNED: "已分配",
-    WORKING: "执行中",
-    SUBMITTED: "已提交",
+    OPEN: "可接单",
+    ASSIGNED: "已接单",
+    WORKING: "进行中",
+    SUBMITTED: "待验收",
+    VERIFYING: "待发布者确认",
     REVISION: "返工中",
     ACCEPTED: "已验收",
     PAID: "已结算",
@@ -61,12 +91,61 @@ function statusLabel(
   return labels[status] ?? status;
 }
 
+function actionLabel(action: string, locale: Locale) {
+  const labels: Record<Locale, Record<string, string>> = {
+    en: {
+      WEB_SEARCH: "web search",
+      SOURCE_FETCH: "source fetch",
+    },
+    zh: {
+      WEB_SEARCH: "联网检索",
+      SOURCE_FETCH: "读取来源",
+    },
+  };
+
+  return labels[locale][action] || action.replace(/_/g, " ").toLowerCase();
+}
+
+function sourceLabel(task: MarketTask, locale: Locale) {
+  if (task.githubRepo) {
+    return task.githubRepo;
+  }
+
+  const labels: Record<Locale, Record<string, string>> = {
+    en: {
+      MANUAL: "Direct task",
+      GITHUB_ISSUE: "GitHub Issue",
+      URL: "Web source",
+      FILE: "File source",
+      API: "API source",
+    },
+    zh: {
+      MANUAL: "直接发布",
+      GITHUB_ISSUE: "GitHub Issue",
+      URL: "网页来源",
+      FILE: "文件来源",
+      API: "API 来源",
+    },
+  };
+
+  return labels[locale][task.sourceType] || task.sourceType;
+}
+
 export default function MarketplaceBoard({
   tasks,
   activeAgentCount,
   locale,
 }: Props) {
   const t = translations[locale].market;
+  const [filter, setFilter] = useState<Filter>("ALL");
+
+  const filteredTasks = useMemo(
+    () =>
+      filter === "ALL"
+        ? tasks
+        : tasks.filter(task => task.workType === filter),
+    [filter, tasks]
+  );
 
   const openCount = tasks.filter(
     task => task.status === "OPEN"
@@ -77,6 +156,7 @@ export default function MarketplaceBoard({
       "ASSIGNED",
       "WORKING",
       "SUBMITTED",
+      "VERIFYING",
       "REVISION",
     ].includes(task.status)
   ).length;
@@ -156,6 +236,28 @@ export default function MarketplaceBoard({
           </div>
         </section>
 
+        <div className="ab-general-market-filters">
+          {(["ALL", ...WORK_TYPES] as Filter[]).map(value => (
+            <button
+              key={value}
+              type="button"
+              className={
+                filter === value
+                  ? "ab-general-market-filter ab-general-market-filter-active"
+                  : "ab-general-market-filter"
+              }
+              onClick={() => setFilter(value)}
+            >
+              {WORK_LABELS[locale][value]}
+              <span>
+                {value === "ALL"
+                  ? tasks.length
+                  : tasks.filter(task => task.workType === value).length}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="ab-market-toolbar">
           <div>
             <span className="ab-market-toolbar-dot" />
@@ -163,13 +265,11 @@ export default function MarketplaceBoard({
           </div>
 
           <span>
-            {locale === "zh"
-              ? `${tasks.length} ${t.totalContracts}`
-              : `${tasks.length} ${t.totalContracts}`}
+            {filteredTasks.length} {t.totalContracts}
           </span>
         </div>
 
-        {tasks.length === 0 ? (
+        {filteredTasks.length === 0 ? (
           <div className="ab-market-empty">
             <div className="ab-market-empty-icon">&gt;_</div>
             <h2>{t.emptyTitle}</h2>
@@ -197,7 +297,7 @@ export default function MarketplaceBoard({
               },
             }}
           >
-            {tasks.map(task => (
+            {filteredTasks.map(task => (
               <motion.div
                 key={task.id}
                 variants={{
@@ -209,7 +309,7 @@ export default function MarketplaceBoard({
                   href={`/tasks/${task.id}`}
                   className={
                     "ab-market-contract-card " +
-                    (task.status === "WORKING"
+                    (["WORKING", "VERIFYING"].includes(task.status)
                       ? "ab-market-contract-working"
                       : "")
                   }
@@ -222,6 +322,16 @@ export default function MarketplaceBoard({
                       {statusLabel(task.status, locale)}
                     </span>
 
+                    <div className="ab-general-market-card-tags">
+                      <span>{WORK_LABELS[locale][task.workType]}</span>
+                      <span>{task.deliveryType.replace(/_/g, " ")}</span>
+                      {task.requestedActions.map(action => (
+                        <span key={action}>
+                          ⚡ {actionLabel(action, locale)}
+                        </span>
+                      ))}
+                    </div>
+
                     <span className="ab-market-card-time">
                       {new Date(task.createdAt).toLocaleDateString(
                         locale === "zh" ? "zh-CN" : "en-AU"
@@ -232,7 +342,7 @@ export default function MarketplaceBoard({
                   <div className="ab-market-card-main">
                     <div className="ab-market-card-copy">
                       <div className="ab-market-repo">
-                        {task.githubRepo}
+                        {sourceLabel(task, locale)}
                       </div>
                       <h2>{task.title}</h2>
                       <p>{task.description}</p>

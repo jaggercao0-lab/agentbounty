@@ -6,11 +6,13 @@ import AutoRefresh from "@/components/AutoRefresh";
 import { getWebSession } from "@/lib/web-session";
 import { getServerLocale } from "@/lib/server-locale";
 import { extraTranslations } from "@/lib/i18n-extra";
+import { safeStringArray } from "@/lib/task-types";
 
 import { hireBid } from "./actions";
 import OwnerTaskActions from "./OwnerTaskActions";
 import VerificationReport from "./VerificationReport";
 import ActivityTimeline from "./ActivityTimeline";
+import TaskDelivery from "./TaskDelivery";
 
 export const dynamic = "force-dynamic";
 
@@ -46,16 +48,13 @@ export default async function TaskPage({
     },
   });
 
-  if (!task) {
-    notFound();
-  }
+  if (!task) notFound();
 
-  const isOwner =
-    session?.user?.id === task.ownerId;
-
-  const criteria = JSON.parse(
-    task.acceptanceCriteriaJson
-  ) as string[];
+  const isOwner = session?.user?.id === task.ownerId;
+  const criteria = safeStringArray(task.acceptanceCriteriaJson);
+  const requiredCapabilities = safeStringArray(
+    task.requiredCapabilitiesJson
+  );
 
   const assignedAgent = task.assignedAgentId
     ? await db.agent.findUnique({
@@ -72,6 +71,13 @@ export default async function TaskPage({
   const verified =
     Boolean(latestSubmission?.verifiedAt) &&
     ["ACCEPTED", "PAID"].includes(task.status);
+
+  const sourceHref =
+    task.sourceType === "GITHUB_ISSUE"
+      ? task.githubIssueUrl
+      : isOwner
+        ? task.sourceUrl
+        : null;
 
   const stages = [
     {
@@ -90,13 +96,17 @@ export default async function TaskPage({
       done: [
         "WORKING",
         "SUBMITTED",
+        "VERIFYING",
         "ACCEPTED",
         "REVISION",
         "PAID",
       ].includes(task.status),
     },
     {
-      label: copy.lifecycle.prSubmitted,
+      label:
+        task.deliveryType === "PULL_REQUEST"
+          ? copy.lifecycle.prSubmitted
+          : copy.delivery,
       code: "04",
       done: Boolean(latestSubmission),
     },
@@ -126,6 +136,8 @@ export default async function TaskPage({
         return copy.machine.revision;
       case "SUBMITTED":
         return copy.machine.submitted;
+      case "VERIFYING":
+        return copy.hybridReviewHelp;
       case "ACCEPTED":
         return copy.machine.accepted;
       case "PAID":
@@ -148,16 +160,12 @@ export default async function TaskPage({
 
       <div className="ab-task-inner">
         <div className="ab-task-topbar">
-          <Link
-            href="/tasks"
-            className="ab-task-back"
-          >
+          <Link href="/tasks" className="ab-task-back">
             {copy.back}
           </Link>
 
           <div className="ab-task-contract-id">
-            {copy.contract}{" "}
-            {task.id.slice(-8).toUpperCase()}
+            {copy.contract} {task.id.slice(-8).toUpperCase()}
           </div>
         </div>
 
@@ -175,21 +183,32 @@ export default async function TaskPage({
               </span>
 
               <span className="ab-task-repo">
-                {task.githubRepo}
+                {task.githubRepo || task.workType}
               </span>
+            </div>
+
+            <div className="ab-general-task-tags">
+              <span>{task.workType}</span>
+              <span>{task.sourceType}</span>
+              <span>{task.deliveryType}</span>
+              <span>{task.verificationType}</span>
             </div>
 
             <h1>{task.title}</h1>
             <p>{task.description}</p>
 
             <div className="ab-task-header-links">
-              <a
-                href={task.githubIssueUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {copy.githubIssue}
-              </a>
+              {sourceHref && (
+                <a
+                  href={sourceHref}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {task.sourceType === "GITHUB_ISSUE"
+                    ? copy.githubIssue
+                    : copy.sourceLink}
+                </a>
+              )}
 
               {latestSubmission?.pullRequestUrl && (
                 <a
@@ -198,6 +217,16 @@ export default async function TaskPage({
                   rel="noreferrer"
                 >
                   {copy.pullRequest}
+                </a>
+              )}
+
+              {isOwner && latestSubmission?.artifactUrl && (
+                <a
+                  href={latestSubmission.artifactUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {copy.delivery} ↗
                 </a>
               )}
             </div>
@@ -222,7 +251,7 @@ export default async function TaskPage({
         <section className="ab-task-lifecycle">
           {stages.map((stage, index) => (
             <div
-              key={stage.label}
+              key={`${stage.code}-${stage.label}`}
               className={
                 stage.done
                   ? "ab-life-step ab-life-done"
@@ -236,9 +265,7 @@ export default async function TaskPage({
               <div className="ab-life-copy">
                 <strong>{stage.label}</strong>
                 <span>
-                  {stage.done
-                    ? copy.complete
-                    : copy.waiting}
+                  {stage.done ? copy.complete : copy.waiting}
                 </span>
               </div>
 
@@ -270,22 +297,14 @@ export default async function TaskPage({
                 </div>
 
                 <div className="ab-task-panel-count">
-                  {criteria.length}{" "}
-                  {criteria.length === 1
-                    ? copy.rule
-                    : copy.rules}
+                  {criteria.length} {criteria.length === 1 ? copy.rule : copy.rules}
                 </div>
               </div>
 
               <div className="ab-task-criteria">
                 {criteria.map((criterion, index) => (
-                  <div
-                    key={index}
-                    className="ab-task-criterion"
-                  >
-                    <span>
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
+                  <div key={index} className="ab-task-criterion">
+                    <span>{String(index + 1).padStart(2, "0")}</span>
                     <p>{criterion}</p>
                     <i>{copy.contractTag}</i>
                   </div>
@@ -317,49 +336,24 @@ export default async function TaskPage({
                       : latestSubmission.verificationStatus === "FAIL"
                         ? copy.checksFailed
                         : latestSubmission.verificationStatus === "PENDING"
-                          ? copy.checksRunning
+                          ? task.verificationType === "MANUAL"
+                            ? copy.awaitingReview
+                            : copy.checksRunning
                           : copy.awaitingReview}
                   </span>
                 </div>
 
-                <div className="ab-task-delivery">
-                  <div>
-                    <span>PULL REQUEST</span>
-                    <a
-                      href={latestSubmission.pullRequestUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {latestSubmission.pullRequestUrl}{" "}↗
-                    </a>
-                  </div>
+                <TaskDelivery
+                  submission={latestSubmission}
+                  locale={locale}
+                />
 
-                  <div>
-                    <span>{copy.submitted}</span>
-                    <strong>
-                      {latestSubmission.createdAt.toLocaleString(
-                        locale === "zh" ? "zh-CN" : "en"
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>{copy.ciResult}</span>
-                    <strong>
-                      {latestSubmission.ciPassed === true
-                        ? copy.passed
-                        : latestSubmission.ciPassed === false
-                          ? copy.failed
-                          : copy.pending}
-                    </strong>
-                  </div>
-                </div>
-
-                {latestSubmission.notes && (
-                  <p className="ab-task-delivery-notes">
-                    {latestSubmission.notes}
-                  </p>
-                )}
+                {latestSubmission.notes &&
+                  (isOwner || task.deliveryType === "PULL_REQUEST") && (
+                    <p className="ab-task-delivery-notes">
+                      {latestSubmission.notes}
+                    </p>
+                  )}
               </section>
             )}
 
@@ -385,10 +379,7 @@ export default async function TaskPage({
                 </div>
 
                 <div className="ab-task-panel-count">
-                  {task.bids.length}{" "}
-                  {task.bids.length === 1
-                    ? copy.bid
-                    : copy.bids}
+                  {task.bids.length} {task.bids.length === 1 ? copy.bid : copy.bids}
                 </div>
               </div>
 
@@ -401,10 +392,7 @@ export default async function TaskPage({
               ) : (
                 <div className="ab-task-bids">
                   {task.bids.map((bid, index) => (
-                    <div
-                      key={bid.id}
-                      className="ab-task-bid"
-                    >
+                    <div key={bid.id} className="ab-task-bid">
                       <div className="ab-bid-rank">
                         #{String(index + 1).padStart(2, "0")}
                       </div>
@@ -417,8 +405,7 @@ export default async function TaskPage({
                         <div>
                           <strong>{bid.agent.name}</strong>
                           <span>
-                            {bid.agent.completedJobs}{" "}
-                            {copy.jobs} · {copy.reputationShort}{" "}
+                            {bid.agent.completedJobs} {copy.jobs} · {copy.reputationShort}{" "}
                             {bid.agent.reputation.toFixed(1)}
                           </span>
                         </div>
@@ -435,21 +422,10 @@ export default async function TaskPage({
 
                       {isOwner && task.status === "OPEN" && (
                         <form action={hireBid}>
-                          <input
-                            type="hidden"
-                            name="taskId"
-                            value={task.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="bidId"
-                            value={bid.id}
-                          />
-                          <button
-                            type="submit"
-                            className="ab-hire-button"
-                          >
-                            {copy.hire}{" "}{bid.agent.name}
+                          <input type="hidden" name="taskId" value={task.id} />
+                          <input type="hidden" name="bidId" value={bid.id} />
+                          <button type="submit" className="ab-hire-button">
+                            {copy.hire} {bid.agent.name}
                             <span>→</span>
                           </button>
                         </form>
@@ -466,9 +442,39 @@ export default async function TaskPage({
               <OwnerTaskActions
                 taskId={task.id}
                 status={task.status}
+                verificationType={task.verificationType}
                 locale={locale}
               />
             )}
+
+            <section className="ab-task-side-panel">
+              <div className="ab-side-label">{copy.workType}</div>
+
+              <div className="ab-economics-row">
+                <span>{copy.workType}</span>
+                <strong>{task.workType}</strong>
+              </div>
+              <div className="ab-economics-row">
+                <span>{copy.sourceType}</span>
+                <strong>{task.sourceType}</strong>
+              </div>
+              <div className="ab-economics-row">
+                <span>{copy.deliveryType}</span>
+                <strong>{task.deliveryType}</strong>
+              </div>
+              <div className="ab-economics-row">
+                <span>{copy.verificationType}</span>
+                <strong>{task.verificationType}</strong>
+              </div>
+
+              {requiredCapabilities.length > 0 && (
+                <div className="ab-general-capability-list">
+                  {requiredCapabilities.map(value => (
+                    <span key={value}>{value}</span>
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section className="ab-task-side-panel">
               <div className="ab-side-label">
@@ -514,30 +520,24 @@ export default async function TaskPage({
             </section>
 
             <section className="ab-task-side-panel">
-              <div className="ab-side-label">
-                {copy.economics}
-              </div>
+              <div className="ab-side-label">{copy.economics}</div>
 
               <div className="ab-economics-row">
                 <span>{copy.totalBounty}</span>
                 <strong>{money(task.bountyCents)}</strong>
               </div>
-
               <div className="ab-economics-row">
                 <span>{copy.executionProtection}</span>
                 <strong>{money(task.executionFeeCents)}</strong>
               </div>
-
               <div className="ab-economics-row">
                 <span>{copy.successReward}</span>
                 <strong>{money(task.successRewardCents)}</strong>
               </div>
-
               <div className="ab-economics-row">
                 <span>{copy.includedRevisions}</span>
                 <strong>{task.includedRevisions}</strong>
               </div>
-
               <div className="ab-economics-row">
                 <span>{copy.revisionsUsed}</span>
                 <strong>{task.revisionCount}</strong>
@@ -546,9 +546,7 @@ export default async function TaskPage({
 
             {payment && (
               <section className="ab-task-side-panel ab-payment-panel">
-                <div className="ab-side-label">
-                  {copy.settlement}
-                </div>
+                <div className="ab-side-label">{copy.settlement}</div>
                 <div className="ab-payment-check">✓</div>
                 <strong>{copy.settled}</strong>
                 <p>{copy.agentPayout}</p>

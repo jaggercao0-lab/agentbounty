@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
 import { getGitHubPrivateKey } from "@/lib/github-app-key";
+import { artifactStorageConfigured } from "@/lib/artifact-storage";
 import {
   DELIVERY_TYPES,
   SOURCE_TYPES,
@@ -303,6 +304,12 @@ export async function createTask(formData: FormData) {
     VERIFICATION_TYPES,
     DEFAULT_VERIFICATION_BY_WORK[workType]
   ) as VerificationType;
+
+  if (workType === "VIDEO" && !artifactStorageConfigured()) {
+    throw new Error(
+      "Video task publishing is unavailable until managed artifact storage is configured"
+    );
+  }
 
   const requestedActions = normalizeRequestedActions([
     ...formData

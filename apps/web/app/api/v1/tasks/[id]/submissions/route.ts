@@ -5,7 +5,11 @@ import { apiError } from "@/lib/http";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
 import { DELIVERY_TYPES, safeStringArray } from "@/lib/task-types";
-import { isManagedArtifactUrl } from "@/lib/artifact-storage";
+import {
+  createArtifactReadUrl,
+  isManagedArtifactUrl,
+  managedArtifactKeyFromUrl,
+} from "@/lib/artifact-storage";
 import { verifySubmittedTask } from "@/lib/verification/service";
 
 const MAX_JSON_BYTES = 500_000;
@@ -125,7 +129,10 @@ function validateDelivery(
       if (!data.artifactUrl) {
         throw new Error("artifact_url_required");
       }
-      if (!isHttpsUrl(data.artifactUrl)) {
+      if (
+        !isHttpsUrl(data.artifactUrl) &&
+        !isManagedArtifactUrl(data.artifactUrl)
+      ) {
         throw new Error("https_artifact_url_required");
       }
       break;
@@ -148,32 +155,53 @@ function validateDelivery(
   }
 }
 
-function validVideoGenerationProof(value: unknown) {
-  if (!value || typeof value !== "object") return false;
+type VideoGenerationProof = {
+  provider: string;
+  model: string;
+  operationName: string;
+  sizeBytes: number;
+  storageKey: string;
+};
+
+function videoGenerationProof(value: unknown): VideoGenerationProof | null {
+  if (!value || typeof value !== "object") return null;
   const proof = value as Record<string, unknown>;
 
-  return (
-    proof.attempted === true &&
-    proof.ok === true &&
-    typeof proof.provider === "string" &&
-    typeof proof.model === "string" &&
-    typeof proof.operationName === "string" &&
-    typeof proof.sizeBytes === "number" &&
-    proof.sizeBytes > 0
-  );
+  if (
+    proof.attempted !== true ||
+    proof.ok !== true ||
+    typeof proof.provider !== "string" ||
+    typeof proof.model !== "string" ||
+    typeof proof.operationName !== "string" ||
+    typeof proof.sizeBytes !== "number" ||
+    proof.sizeBytes <= 0 ||
+    typeof proof.storageKey !== "string" ||
+    !proof.storageKey
+  ) {
+    return null;
+  }
+
+  return {
+    provider: proof.provider,
+    model: proof.model,
+    operationName: proof.operationName,
+    sizeBytes: proof.sizeBytes,
+    storageKey: proof.storageKey,
+  };
 }
 
-async function verifyManagedVideoArtifact(url: string) {
-  if (!isManagedArtifactUrl(url)) {
-    throw new Error("video_artifact_must_use_managed_storage");
-  }
+async function verifyManagedVideoArtifact(key: string) {
+  const signedHeadUrl = createArtifactReadUrl({
+    key,
+    method: "HEAD",
+  });
 
   let response: Response;
 
   try {
-    response = await fetch(url, {
+    response = await fetch(signedHeadUrl, {
       method: "HEAD",
-      redirect: "error",
+      redirect: "follow",
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
     });
@@ -304,11 +332,21 @@ export async function POST(
         throw new Error("artifact_url_required");
       }
 
-      if (!validVideoGenerationProof(data.metadata?.videoGeneration)) {
+      const proof = videoGenerationProof(data.metadata?.videoGeneration);
+      if (!proof) {
         throw new Error("video_generation_proof_required");
       }
 
-      await verifyManagedVideoArtifact(data.artifactUrl);
+      const storageKey = managedArtifactKeyFromUrl(data.artifactUrl);
+      if (!storageKey) {
+        throw new Error("video_artifact_must_use_managed_storage");
+      }
+
+      if (proof.storageKey !== storageKey) {
+        throw new Error("video_artifact_proof_mismatch");
+      }
+
+      await verifyManagedVideoArtifact(storageKey);
     }
 
     const normalizedJsonContent =
@@ -439,6 +477,7 @@ export async function POST(
         "invalid_video_delivery",
         "video_generation_proof_required",
         "video_artifact_must_use_managed_storage",
+        "video_artifact_proof_mismatch",
         "video_artifact_not_reachable",
         "video_artifact_content_type_mismatch",
         "video_artifact_empty",

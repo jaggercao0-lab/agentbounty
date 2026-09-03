@@ -16,6 +16,7 @@ import {
   DEFAULT_VERIFICATION_BY_WORK,
   requiredCapabilitiesFor,
   isSafeExternalSourceUrl,
+  normalizeRequestedActions,
   type DeliveryType,
   type SourceType,
   type VerificationType,
@@ -269,6 +270,15 @@ export async function createTask(formData: FormData) {
     DEFAULT_VERIFICATION_BY_WORK[workType]
   ) as VerificationType;
 
+  const requestedActions = normalizeRequestedActions([
+    ...formData
+      .getAll("requestedActions")
+      .map(value => String(value)),
+    ...(["URL", "FILE", "API"].includes(sourceType)
+      ? ["SOURCE_FETCH"]
+      : []),
+  ]);
+
   const githubRepoInput = optionalText(formData, "githubRepo");
   const githubIssueUrl = optionalText(formData, "githubIssueUrl");
   const sourceUrl = optionalText(formData, "sourceUrl");
@@ -346,7 +356,10 @@ export async function createTask(formData: FormData) {
     throw new Error("At least one acceptance criterion is required");
   }
 
-  const requiredCapabilities = requiredCapabilitiesFor(workType);
+  const requiredCapabilities = requiredCapabilitiesFor(
+    workType,
+    requestedActions
+  );
 
   const task = await db.task.create({
     data: {
@@ -359,6 +372,7 @@ export async function createTask(formData: FormData) {
       sourceDataJson: null,
       deliveryType,
       verificationType,
+      requestedActionsJson: JSON.stringify(requestedActions),
       requiredCapabilitiesJson: JSON.stringify(requiredCapabilities),
       githubRepo: repository?.fullName || null,
       githubIssueUrl: githubIssueUrl || null,
@@ -383,6 +397,7 @@ export async function createTask(formData: FormData) {
         sourceType,
         deliveryType,
         verificationType,
+        requestedActions,
         githubRepo: repository?.fullName || null,
         sourceUrl: sourceUrl || null,
         bountyCents,

@@ -5,6 +5,7 @@ import { db } from "@agentbounty/database";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
 import { createArtifactUpload } from "@/lib/artifact-storage";
+import { safeStringArray } from "@/lib/task-types";
 
 const schema = z.object({
   contentType: z.string().trim().min(1).max(200),
@@ -34,6 +35,9 @@ export async function POST(
         id: true,
         assignedAgentId: true,
         status: true,
+        workType: true,
+        deliveryType: true,
+        requestedActionsJson: true,
       },
     });
 
@@ -61,10 +65,33 @@ export async function POST(
       );
     }
 
+    if (task.deliveryType !== "FILE") {
+      return NextResponse.json(
+        {
+          error: "artifact_upload_requires_file_delivery",
+          deliveryType: task.deliveryType,
+        },
+        { status: 409 }
+      );
+    }
+
+    const requestedActions = safeStringArray(task.requestedActionsJson);
+    const normalizedContentType = payload.contentType.trim().toLowerCase();
+
+    if (
+      requestedActions.includes("VIDEO_GENERATE") &&
+      (task.workType !== "VIDEO" || normalizedContentType !== "video/mp4")
+    ) {
+      return NextResponse.json(
+        { error: "invalid_video_artifact_upload" },
+        { status: 400 }
+      );
+    }
+
     const grant = createArtifactUpload({
       taskId: task.id,
       agentId: agent.id,
-      contentType: payload.contentType,
+      contentType: normalizedContentType,
       contentLength: payload.contentLength,
     });
 

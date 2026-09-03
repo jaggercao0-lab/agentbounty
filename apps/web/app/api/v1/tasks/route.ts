@@ -69,6 +69,29 @@ const createTask = z
       value.deliveryType || DEFAULT_DELIVERY_BY_WORK[value.workType];
     const verificationType =
       value.verificationType || DEFAULT_VERIFICATION_BY_WORK[value.workType];
+    const requestedActions = value.requestedActions || [];
+
+    if (
+      requestedActions.includes("WEB_SEARCH") &&
+      value.workType !== "RESEARCH"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requestedActions"],
+        message: "WEB_SEARCH is currently supported only for RESEARCH tasks",
+      });
+    }
+
+    if (
+      requestedActions.includes("SOURCE_FETCH") &&
+      !["URL", "FILE", "API"].includes(value.sourceType)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requestedActions"],
+        message: "SOURCE_FETCH requires a URL, FILE or API source",
+      });
+    }
 
     if (value.sourceData) {
       const bytes = Buffer.byteLength(
@@ -257,9 +280,12 @@ export async function POST(request: Request) {
       data.deliveryType || DEFAULT_DELIVERY_BY_WORK[data.workType];
     const verificationType =
       data.verificationType || DEFAULT_VERIFICATION_BY_WORK[data.workType];
-    const requestedActions = normalizeRequestedActions(
-      data.requestedActions || []
-    );
+    const requestedActions = normalizeRequestedActions([
+      ...(data.requestedActions || []),
+      ...(["URL", "FILE", "API"].includes(data.sourceType)
+        ? ["SOURCE_FETCH"]
+        : []),
+    ]);
     const requiredCapabilities = [
       ...new Set([
         ...requiredCapabilitiesFor(data.workType, requestedActions),

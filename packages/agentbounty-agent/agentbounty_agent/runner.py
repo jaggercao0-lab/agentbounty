@@ -14,6 +14,7 @@ import time
 from . import __version__
 from . import cli as legacy
 from . import cli_v04 as v04
+from . import video
 
 
 _LEGACY_CONFIGURE = legacy.configure
@@ -24,6 +25,7 @@ _BASE_COLLECT_RESEARCH_EVIDENCE = v04._collect_research_evidence
 SUPPORTED_GENERAL_PATHS = {
     ("RESEARCH", "TEXT"),
     ("RESEARCH", "JSON"),
+    ("VIDEO", "FILE"),
     ("DATA", "TEXT"),
     ("DATA", "JSON"),
     ("AUTOMATION", "TEXT"),
@@ -35,6 +37,7 @@ SUPPORTED_GENERAL_PATHS = {
 SUPPORTED_ACTIONS = {
     "WEB_SEARCH",
     "SOURCE_FETCH",
+    "VIDEO_GENERATE",
 }
 
 
@@ -74,11 +77,25 @@ def runtime_action_capabilities(config=None):
     if _has_search_credentials(config):
         capabilities.add("WEB_SEARCH")
 
+    if video.video_runtime_available(config):
+        capabilities.add("VIDEO_GENERATE")
+
+    return capabilities
+
+
+def runtime_work_capabilities(config=None):
+    """Return work types whose support is managed by runtime configuration."""
+    capabilities = set()
+
+    if video.video_runtime_available(config):
+        capabilities.add("VIDEO")
+
     return capabilities
 
 
 def runtime_heartbeat(config):
     capabilities = sorted(runtime_action_capabilities(config))
+    work_capabilities = sorted(runtime_work_capabilities(config))
 
     return legacy.api_request(
         config,
@@ -86,6 +103,7 @@ def runtime_heartbeat(config):
         method="POST",
         body={
             "runtimeCapabilities": capabilities,
+            "runtimeWorkCapabilities": work_capabilities,
         },
     )
 
@@ -123,6 +141,17 @@ def can_execute_task(task, config=None):
     if "SOURCE_FETCH" in requested_actions:
         if source_type not in {"URL", "FILE", "API"}:
             return False
+
+    if work_type == "VIDEO":
+        if delivery_type != "FILE":
+            return False
+        if "VIDEO_GENERATE" not in requested_actions:
+            return False
+        if not video.video_runtime_available(config):
+            return False
+
+    if "VIDEO_GENERATE" in requested_actions and work_type != "VIDEO":
+        return False
 
     return True
 
@@ -216,7 +245,6 @@ def try_bid(config):
         if actions:
             print("Actions:", ", ".join(actions))
 
-        # At most one new bid per polling cycle.
         return
 
 
@@ -302,6 +330,12 @@ def execute_job(config, job):
     ):
         return legacy._execute_job_v03(config, job)
 
+    if (
+        job.get("workType") == "VIDEO"
+        and job.get("deliveryType") == "FILE"
+    ):
+        return video.execute_video_job(config, job)
+
     return v04.execute_general_job(config, job)
 
 
@@ -343,13 +377,68 @@ def configure_search():
     print()
 
 
-def configure_preserving_search():
-    """Run legacy setup without discarding local search credentials."""
+def configure_video():
+    config = legacy.load_config()
+    existing_key = str(config.get("video_api_key") or "").strip()
+    existing_model = str(
+        config.get("video_model") or video.DEFAULT_VEO_MODEL
+    ).strip()
+
+    print()
+    print("AgentBounty Video Agent Setup")
+    print("=============================")
+    print()
+    print(
+        "Configure Google Veo locally. The Gemini API key remains on this "
+        "machine and is never sent to the AgentBounty marketplace."
+    )
+    print()
+
+    key_prompt = (
+        "Gemini API Key [Enter to keep existing]: "
+        if existing_key
+        else "Gemini API Key: "
+    )
+    entered_key = getpass.getpass(key_prompt).strip()
+    api_key = entered_key or existing_key
+
+    if not api_key:
+        raise RuntimeError("Gemini API Key is required.")
+
+    model = input(
+        f"Veo model [{existing_model}]: "
+    ).strip() or existing_model
+
+    if not model.startswith("veo-"):
+        raise RuntimeError("Video model must be a Veo model identifier.")
+
+    config["video_provider"] = "veo"
+    config["video_model"] = model
+    config["video_api_key"] = api_key
+    legacy.save_config(config)
+
+    print()
+    print("✓ Video Agent enabled locally.")
+    print("  Provider: Google Veo")
+    print("  Model:", model)
+    print("  Key: stored locally (not displayed)")
+    print("  VIDEO + VIDEO_GENERATE will be advertised on the next heartbeat.")
+    print()
+
+
+def configure_preserving_integrations():
+    """Run legacy setup without discarding local integration credentials."""
     preserved = {}
 
     try:
         existing = legacy.load_config()
-        for key in ("search_provider", "search_api_key"):
+        for key in (
+            "search_provider",
+            "search_api_key",
+            "video_provider",
+            "video_model",
+            "video_api_key",
+        ):
             value = existing.get(key)
             if value:
                 preserved[key] = value
@@ -368,9 +457,13 @@ def configure_preserving_search():
 
 def _apply_local_runtime_secrets(config):
     search_key = str(config.get("search_api_key") or "").strip()
+    video_key = str(config.get("video_api_key") or "").strip()
 
     if search_key and not os.environ.get("TAVILY_API_KEY"):
         os.environ["TAVILY_API_KEY"] = search_key
+
+    if video_key and not os.environ.get("GEMINI_API_KEY"):
+        os.environ["GEMINI_API_KEY"] = video_key
 
 
 def _select_runnable_job(active, failed_until, now):
@@ -386,6 +479,7 @@ def run_reference():
 
     failed_until = {}
     runtime_actions = sorted(runtime_action_capabilities(config))
+    runtime_work = sorted(runtime_work_capabilities(config))
 
     print()
     print("🦞 AgentBounty Agent ONLINE")
@@ -402,6 +496,12 @@ def run_reference():
         "Runtime actions:",
         ", ".join(runtime_actions) if runtime_actions else "none",
     )
+    print(
+        "Runtime work:",
+        ", ".join(runtime_work) if runtime_work else "none",
+    )
+    if video.video_runtime_available(config):
+        print("Video model:", video.video_model(config))
     print("--------------------------------")
     print("Press Control+C to stop.")
     print()
@@ -459,7 +559,7 @@ def _install_reference_runner_patches():
     if not hasattr(legacy, "_execute_job_v03"):
         legacy._execute_job_v03 = legacy.execute_job
 
-    legacy.configure = configure_preserving_search
+    legacy.configure = configure_preserving_integrations
     legacy.get_open_tasks = v04.get_open_tasks
     legacy.get_jobs = v04.get_jobs
     legacy.try_bid = try_bid
@@ -481,6 +581,9 @@ def main():
 
     if len(sys.argv) == 2 and sys.argv[1] == "configure-search":
         return configure_search()
+
+    if len(sys.argv) == 2 and sys.argv[1] == "configure-video":
+        return configure_video()
 
     try:
         config = legacy.load_config()

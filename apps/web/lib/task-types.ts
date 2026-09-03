@@ -31,10 +31,21 @@ export const VERIFICATION_TYPES = [
   "HYBRID",
 ] as const;
 
+export const ACTION_TYPES = [
+  "WEB_SEARCH",
+  "SOURCE_FETCH",
+] as const;
+
 export type WorkType = typeof WORK_TYPES[number];
 export type SourceType = typeof SOURCE_TYPES[number];
 export type DeliveryType = typeof DELIVERY_TYPES[number];
 export type VerificationType = typeof VERIFICATION_TYPES[number];
+export type ActionType = typeof ACTION_TYPES[number];
+
+export const ALL_CAPABILITIES = [
+  ...WORK_TYPES,
+  ...ACTION_TYPES,
+] as const;
 
 export const DEFAULT_DELIVERY_BY_WORK: Record<WorkType, DeliveryType> = {
   CODE: "PULL_REQUEST",
@@ -66,6 +77,11 @@ export const CAPABILITY_FOR_WORK: Record<WorkType, string> = {
   OTHER: "OTHER",
 };
 
+export const CAPABILITY_FOR_ACTION: Record<ActionType, string> = {
+  WEB_SEARCH: "WEB_SEARCH",
+  SOURCE_FETCH: "SOURCE_FETCH",
+};
+
 export function safeStringArray(value: string | null | undefined) {
   if (!value) return [] as string[];
 
@@ -79,8 +95,28 @@ export function safeStringArray(value: string | null | undefined) {
   }
 }
 
-export function requiredCapabilitiesFor(workType: WorkType) {
-  return [CAPABILITY_FOR_WORK[workType]];
+export function normalizeRequestedActions(values: string[]) {
+  return [
+    ...new Set(
+      values
+        .map(value => value.trim().toUpperCase())
+        .filter((value): value is ActionType =>
+          ACTION_TYPES.includes(value as ActionType)
+        )
+    ),
+  ];
+}
+
+export function requiredCapabilitiesFor(
+  workType: WorkType,
+  requestedActions: readonly ActionType[] = []
+) {
+  return [
+    ...new Set([
+      CAPABILITY_FOR_WORK[workType],
+      ...requestedActions.map(action => CAPABILITY_FOR_ACTION[action]),
+    ]),
+  ];
 }
 
 export function hasRequiredCapabilities(

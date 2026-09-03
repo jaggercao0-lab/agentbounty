@@ -26,6 +26,9 @@ export default async function QuickTaskPage({
   if (!template) notFound();
 
   const isZh = locale === "zh";
+  const needsExternalSource = ["URL", "FILE", "API"].includes(
+    template.sourceType
+  );
 
   return (
     <div className="ab-compose-page">
@@ -112,9 +115,50 @@ export default async function QuickTaskPage({
 
                 <p className="ab-compose-verifier-note">
                   {isZh
-                    ? "只有声明了对应行动能力的 Agent 才能看到并竞标这个任务。"
-                    : "Only agents advertising the matching action capability can discover and bid on this task."}
+                    ? "只有声明了对应行动能力的 Agent 才能看到并竞标这个任务；要求的动作没有真正完成时，runner 会阻止交付。"
+                    : "Only agents advertising the matching action capability can discover and bid. The runner blocks delivery if the required action did not actually complete."}
                 </p>
+              </section>
+            )}
+
+            {needsExternalSource && (
+              <section className="ab-compose-panel">
+                <div className="ab-compose-panel-head">
+                  <div>
+                    <span>{isZh ? "任务来源" : "TASK SOURCE"}</span>
+                    <h2>
+                      {template.sourceType === "API"
+                        ? isZh ? "把 API 地址交给 Agent" : "Give the agent an API endpoint"
+                        : template.sourceType === "FILE"
+                          ? isZh ? "把文件链接交给 Agent" : "Give the agent a file URL"
+                          : isZh ? "把网页链接交给 Agent" : "Give the agent a webpage"}
+                    </h2>
+                  </div>
+                  <span className="ab-compose-step">
+                    {isZh ? "必填" : "REQUIRED"}
+                  </span>
+                </div>
+
+                <label className="ab-compose-field">
+                  <span>
+                    {template.sourceType === "API"
+                      ? isZh ? "API 地址" : "API URL"
+                      : template.sourceType === "FILE"
+                        ? isZh ? "文件 URL" : "File URL"
+                        : isZh ? "网页 URL" : "Webpage URL"}
+                  </span>
+                  <input
+                    name="sourceUrl"
+                    type="url"
+                    placeholder="https://..."
+                    required
+                  />
+                  <small>
+                    {isZh
+                      ? "必须是公开 HTTPS 地址。localhost、内网地址和重定向到私有网络的来源会被拒绝。"
+                      : "Must be a public HTTPS URL. localhost, private networks and redirects to private addresses are rejected."}
+                  </small>
+                </label>
               </section>
             )}
 
@@ -242,12 +286,12 @@ export default async function QuickTaskPage({
 
               <div className="ab-general-preview-meta">
                 <div>
-                  <span>{isZh ? "交付" : "Delivery"}</span>
-                  <strong>{template.deliveryType}</strong>
+                  <span>{isZh ? "来源" : "Source"}</span>
+                  <strong>{template.sourceType}</strong>
                 </div>
                 <div>
-                  <span>{isZh ? "验收" : "Verification"}</span>
-                  <strong>{template.verificationType}</strong>
+                  <span>{isZh ? "交付" : "Delivery"}</span>
+                  <strong>{template.deliveryType}</strong>
                 </div>
                 <div>
                   <span>{isZh ? "动作" : "Actions"}</span>
@@ -264,7 +308,7 @@ export default async function QuickTaskPage({
               <div className="ab-compose-machine-note">
                 <span>&gt;_</span>
                 {isZh
-                  ? "底层任务协议和行动权限已经替你配置好了。"
+                  ? "底层任务协议和行动要求已经替你配置好了。"
                   : "The protocol and action requirements are already configured for this job."}
               </div>
 

@@ -27,6 +27,16 @@ type ResearchSource = {
   url: string;
 };
 
+type SourceFetchProof = {
+  attempted: boolean;
+  ok: boolean | null;
+  url: string | null;
+  finalUrl: string | null;
+  contentType: string | null;
+  truncated: boolean;
+  error: string | null;
+};
+
 function safeResearchSources(value: unknown): ResearchSource[] {
   if (!Array.isArray(value)) return [];
 
@@ -52,6 +62,37 @@ function safeResearchSources(value: unknown): ResearchSource[] {
     .slice(0, 20);
 }
 
+function safeSourceFetch(value: unknown): SourceFetchProof | null {
+  if (!value || typeof value !== "object") return null;
+
+  const raw = value as Record<string, unknown>;
+  const attempted = raw.attempted === true;
+
+  if (!attempted) return null;
+
+  return {
+    attempted,
+    ok: typeof raw.ok === "boolean" ? raw.ok : null,
+    url: typeof raw.url === "string" ? raw.url : null,
+    finalUrl: typeof raw.finalUrl === "string" ? raw.finalUrl : null,
+    contentType:
+      typeof raw.contentType === "string" ? raw.contentType : null,
+    truncated: raw.truncated === true,
+    error: typeof raw.error === "string" ? raw.error : null,
+  };
+}
+
+function safeLink(value: string | null) {
+  if (!value) return null;
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function TaskDelivery({
   submission,
   locale,
@@ -64,7 +105,10 @@ export default async function TaskDelivery({
   const session = await getWebSession();
   const task = await db.task.findUnique({
     where: { id: submission.taskId },
-    select: { ownerId: true },
+    select: {
+      ownerId: true,
+      requestedActionsJson: true,
+    },
   });
 
   const canRevealPrivateDelivery = Boolean(
@@ -80,6 +124,20 @@ export default async function TaskDelivery({
       metadata = JSON.parse(submission.metadataJson);
     } catch {
       metadata = null;
+    }
+  }
+
+  let requestedActions: string[] = [];
+  if (task?.requestedActionsJson) {
+    try {
+      const parsed = JSON.parse(task.requestedActionsJson);
+      requestedActions = Array.isArray(parsed)
+        ? parsed.filter(
+            (value): value is string => typeof value === "string"
+          )
+        : [];
+    } catch {
+      requestedActions = [];
     }
   }
 
@@ -102,6 +160,39 @@ export default async function TaskDelivery({
         )
         .slice(0, 8)
     : [];
+  const sourceFetch = safeSourceFetch(metadata?.sourceFetch);
+  const sourceProofLink = safeLink(
+    sourceFetch?.finalUrl || sourceFetch?.url || null
+  );
+
+  const actionProofs = [
+    ...(requestedActions.includes("WEB_SEARCH")
+      ? [{
+          action: "WEB_SEARCH",
+          ok: researchMode === "web_grounded" && researchSources.length > 0,
+          detail:
+            researchMode === "web_grounded"
+              ? locale === "zh"
+                ? `收集到 ${researchSources.length} 个网页来源`
+                : `${researchSources.length} web sources collected`
+              : locale === "zh"
+                ? "没有可验证的实时网页证据"
+                : "No verifiable live web evidence",
+        }]
+      : []),
+    ...(requestedActions.includes("SOURCE_FETCH")
+      ? [{
+          action: "SOURCE_FETCH",
+          ok: sourceFetch?.ok === true,
+          detail:
+            sourceFetch?.ok === true
+              ? sourceFetch.contentType ||
+                (locale === "zh" ? "外部来源读取成功" : "External source fetched")
+              : sourceFetch?.error ||
+                (locale === "zh" ? "没有成功读取来源" : "Source fetch did not succeed"),
+        }]
+      : []),
+  ];
 
   const genericMetadata = metadata
     ? Object.fromEntries(
@@ -112,6 +203,7 @@ export default async function TaskDelivery({
             "searchProvider",
             "searchQueries",
             "sourceCount",
+            "sourceFetch",
           ].includes(key)
         )
       )
@@ -173,6 +265,55 @@ export default async function TaskDelivery({
             </div>
           )}
       </div>
+
+      {canRevealPrivateDelivery && actionProofs.length > 0 && (
+        <div className="ab-action-proof">
+          <div className="ab-action-proof-head">
+            <div>
+              <span>{locale === "zh" ? "动作证明" : "ACTION PROOF"}</span>
+              <strong>
+                {locale === "zh"
+                  ? "不是 Agent 自己说做过，而是运行器留下的执行证据"
+                  : "Runner evidence that required actions actually happened"}
+              </strong>
+            </div>
+            <b>
+              {actionProofs.every(proof => proof.ok)
+                ? locale === "zh" ? "✓ 已证明" : "✓ PROVEN"
+                : locale === "zh" ? "! 未完成" : "! INCOMPLETE"}
+            </b>
+          </div>
+
+          <div className="ab-action-proof-list">
+            {actionProofs.map(proof => (
+              <div key={proof.action} className="ab-action-proof-row">
+                <span className={proof.ok ? "is-ok" : "is-failed"}>
+                  {proof.ok ? "✓" : "!"}
+                </span>
+                <div>
+                  <strong>
+                    {proof.action === "WEB_SEARCH"
+                      ? locale === "zh" ? "联网检索" : "Web search"
+                      : locale === "zh" ? "读取外部来源" : "Source fetch"}
+                  </strong>
+                  <small>{proof.detail}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {sourceProofLink && (
+            <a
+              className="ab-action-proof-link"
+              href={sourceProofLink}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {locale === "zh" ? "查看读取来源" : "Open fetched source"} ↗
+            </a>
+          )}
+        </div>
+      )}
 
       {canRevealPrivateDelivery && researchMode && (
         <div className="ab-research-evidence">

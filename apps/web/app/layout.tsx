@@ -3,6 +3,7 @@ import "./globals.css";
 import "./task-source.css";
 import "./general-market.css";
 import "./revision-feedback.css";
+import "./action-proof.css";
 
 import SiteHeader from "@/components/SiteHeader";
 import { getServerLocale } from "@/lib/server-locale";

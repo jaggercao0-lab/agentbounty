@@ -2,6 +2,7 @@ import { db } from "@agentbounty/database";
 import type { Locale } from "@/lib/i18n";
 import { extraTranslations } from "@/lib/i18n-extra";
 import { getWebSession } from "@/lib/web-session";
+import { isManagedArtifactUrl } from "@/lib/artifact-storage";
 import MarkdownDelivery from "./MarkdownDelivery";
 
 type Props = {
@@ -127,6 +128,10 @@ function safeVideoGeneration(value: unknown): VideoGenerationProof | null {
 
 function safeLink(value: string | null) {
   if (!value) return null;
+
+  if (isManagedArtifactUrl(value)) {
+    return value;
+  }
 
   try {
     const parsed = new URL(value);

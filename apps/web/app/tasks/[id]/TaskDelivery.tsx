@@ -37,6 +37,21 @@ type SourceFetchProof = {
   error: string | null;
 };
 
+type VideoGenerationProof = {
+  attempted: boolean;
+  ok: boolean | null;
+  provider: string | null;
+  model: string | null;
+  operationName: string | null;
+  aspectRatio: string | null;
+  resolution: string | null;
+  durationSeconds: number | null;
+  sizeBytes: number | null;
+  storageKey: string | null;
+  prompt: string | null;
+  error: string | null;
+};
+
 function safeResearchSources(value: unknown): ResearchSource[] {
   if (!Array.isArray(value)) return [];
 
@@ -82,6 +97,34 @@ function safeSourceFetch(value: unknown): SourceFetchProof | null {
   };
 }
 
+function safeVideoGeneration(value: unknown): VideoGenerationProof | null {
+  if (!value || typeof value !== "object") return null;
+
+  const raw = value as Record<string, unknown>;
+  if (raw.attempted !== true) return null;
+
+  return {
+    attempted: true,
+    ok: typeof raw.ok === "boolean" ? raw.ok : null,
+    provider: typeof raw.provider === "string" ? raw.provider : null,
+    model: typeof raw.model === "string" ? raw.model : null,
+    operationName:
+      typeof raw.operationName === "string" ? raw.operationName : null,
+    aspectRatio:
+      typeof raw.aspectRatio === "string" ? raw.aspectRatio : null,
+    resolution:
+      typeof raw.resolution === "string" ? raw.resolution : null,
+    durationSeconds:
+      typeof raw.durationSeconds === "number" ? raw.durationSeconds : null,
+    sizeBytes:
+      typeof raw.sizeBytes === "number" ? raw.sizeBytes : null,
+    storageKey:
+      typeof raw.storageKey === "string" ? raw.storageKey : null,
+    prompt: typeof raw.prompt === "string" ? raw.prompt : null,
+    error: typeof raw.error === "string" ? raw.error : null,
+  };
+}
+
 function safeLink(value: string | null) {
   if (!value) return null;
 
@@ -91,6 +134,16 @@ function safeLink(value: string | null) {
   } catch {
     return null;
   }
+}
+
+function humanBytes(value: number | null) {
+  if (!value || value <= 0) return null;
+
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${Math.max(1, Math.round(value / 1024))} KB`;
 }
 
 export default async function TaskDelivery({
@@ -161,9 +214,26 @@ export default async function TaskDelivery({
         .slice(0, 8)
     : [];
   const sourceFetch = safeSourceFetch(metadata?.sourceFetch);
+  const videoGeneration = safeVideoGeneration(metadata?.videoGeneration);
   const sourceProofLink = safeLink(
     sourceFetch?.finalUrl || sourceFetch?.url || null
   );
+  const artifactLink = safeLink(submission.artifactUrl);
+
+  const videoDetail = videoGeneration
+    ? [
+        videoGeneration.provider,
+        videoGeneration.model,
+        videoGeneration.resolution,
+        videoGeneration.aspectRatio,
+        videoGeneration.durationSeconds
+          ? `${videoGeneration.durationSeconds}s`
+          : null,
+        humanBytes(videoGeneration.sizeBytes),
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   const actionProofs = [
     ...(requestedActions.includes("WEB_SEARCH")
@@ -192,6 +262,21 @@ export default async function TaskDelivery({
                 (locale === "zh" ? "没有成功读取来源" : "Source fetch did not succeed"),
         }]
       : []),
+    ...(requestedActions.includes("VIDEO_GENERATE")
+      ? [{
+          action: "VIDEO_GENERATE",
+          ok:
+            videoGeneration?.ok === true &&
+            submission.mimeType === "video/mp4" &&
+            Boolean(artifactLink),
+          detail:
+            videoGeneration?.ok === true
+              ? videoDetail ||
+                (locale === "zh" ? "视频生成完成" : "Video generation completed")
+              : videoGeneration?.error ||
+                (locale === "zh" ? "没有可验证的视频生成证据" : "No verifiable video-generation evidence"),
+        }]
+      : []),
   ];
 
   const genericMetadata = metadata
@@ -204,6 +289,7 @@ export default async function TaskDelivery({
             "searchQueries",
             "sourceCount",
             "sourceFetch",
+            "videoGeneration",
           ].includes(key)
         )
       )
@@ -230,14 +316,36 @@ export default async function TaskDelivery({
 
         {canRevealPrivateDelivery &&
           ["FILE", "URL"].includes(submission.deliveryType) &&
-          submission.artifactUrl && (
+          artifactLink && (
             <a
-              href={submission.artifactUrl}
+              href={artifactLink}
               target="_blank"
               rel="noreferrer"
             >
-              {submission.artifactUrl} ↗
+              {artifactLink} ↗
             </a>
+          )}
+
+        {canRevealPrivateDelivery &&
+          submission.deliveryType === "FILE" &&
+          submission.mimeType === "video/mp4" &&
+          artifactLink && (
+            <div className="ab-media-preview">
+              <video controls preload="metadata" playsInline>
+                <source src={artifactLink} type="video/mp4" />
+              </video>
+            </div>
+          )}
+
+        {canRevealPrivateDelivery &&
+          submission.deliveryType === "FILE" &&
+          submission.mimeType?.startsWith("image/") &&
+          artifactLink && (
+            <div className="ab-media-preview">
+              {/* External delivery URLs are owner-only; plain img avoids remote-image host coupling. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={artifactLink} alt="Delivered artifact" />
+            </div>
           )}
 
         {canRevealPrivateDelivery &&
@@ -294,7 +402,9 @@ export default async function TaskDelivery({
                   <strong>
                     {proof.action === "WEB_SEARCH"
                       ? locale === "zh" ? "联网检索" : "Web search"
-                      : locale === "zh" ? "读取外部来源" : "Source fetch"}
+                      : proof.action === "SOURCE_FETCH"
+                        ? locale === "zh" ? "读取外部来源" : "Source fetch"
+                        : locale === "zh" ? "视频生成" : "Video generation"}
                   </strong>
                   <small>{proof.detail}</small>
                 </div>
@@ -311,6 +421,15 @@ export default async function TaskDelivery({
             >
               {locale === "zh" ? "查看读取来源" : "Open fetched source"} ↗
             </a>
+          )}
+
+          {videoGeneration?.prompt && (
+            <details className="ab-video-prompt-proof">
+              <summary>
+                {locale === "zh" ? "查看实际视频生成 Prompt" : "View actual generation prompt"}
+              </summary>
+              <pre>{videoGeneration.prompt}</pre>
+            </details>
           )}
         </div>
       )}

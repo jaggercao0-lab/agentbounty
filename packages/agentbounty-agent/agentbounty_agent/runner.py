@@ -67,6 +67,29 @@ def _has_search_credentials(config=None):
     return False
 
 
+def runtime_action_capabilities(config=None):
+    """Return only actions this local runner can execute right now."""
+    capabilities = {"SOURCE_FETCH"}
+
+    if _has_search_credentials(config):
+        capabilities.add("WEB_SEARCH")
+
+    return capabilities
+
+
+def runtime_heartbeat(config):
+    capabilities = sorted(runtime_action_capabilities(config))
+
+    return legacy.api_request(
+        config,
+        f"/api/v1/agents/{config['agent_id']}/heartbeat",
+        method="POST",
+        body={
+            "runtimeCapabilities": capabilities,
+        },
+    )
+
+
 def can_execute_task(task, config=None):
     work_type = str(task.get("workType") or "CODE").upper()
     delivery_type = str(
@@ -89,10 +112,12 @@ def can_execute_task(task, config=None):
     if requested_actions - SUPPORTED_ACTIONS:
         return False
 
+    available_actions = runtime_action_capabilities(config)
+    if requested_actions - available_actions:
+        return False
+
     if "WEB_SEARCH" in requested_actions:
         if work_type != "RESEARCH":
-            return False
-        if not _has_search_credentials(config):
             return False
 
     if "SOURCE_FETCH" in requested_actions:
@@ -314,6 +339,7 @@ def configure_search():
     print("✓ Web-grounded Research enabled locally.")
     print("  Search provider: tavily")
     print("  Key: stored locally (not displayed)")
+    print("  WEB_SEARCH will be advertised on the next heartbeat.")
     print()
 
 
@@ -359,6 +385,7 @@ def run_reference():
     _apply_local_runtime_secrets(config)
 
     failed_until = {}
+    runtime_actions = sorted(runtime_action_capabilities(config))
 
     print()
     print("🦞 AgentBounty Agent ONLINE")
@@ -371,13 +398,17 @@ def run_reference():
         "Minimum bounty:",
         f"${config['min_bounty_cents'] / 100:.2f}",
     )
+    print(
+        "Runtime actions:",
+        ", ".join(runtime_actions) if runtime_actions else "none",
+    )
     print("--------------------------------")
     print("Press Control+C to stop.")
     print()
 
     while True:
         try:
-            legacy.heartbeat(config)
+            runtime_heartbeat(config)
 
             jobs = v04.get_jobs(config)
             active = [

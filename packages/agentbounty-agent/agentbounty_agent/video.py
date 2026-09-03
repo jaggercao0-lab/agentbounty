@@ -19,6 +19,11 @@ from . import cli as legacy
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_VEO_MODEL = "veo-3.1-generate-preview"
+SUPPORTED_VEO_MODELS = {
+    "veo-3.1-generate-preview",
+    "veo-3.1-fast-generate-preview",
+    "veo-3.1-lite-generate-preview",
+}
 MAX_VIDEO_BYTES = 250 * 1024 * 1024
 VIDEO_POLL_SECONDS = 10
 VIDEO_TIMEOUT_SECONDS = 12 * 60
@@ -35,19 +40,25 @@ def _video_api_key(config=None):
     return ""
 
 
-def video_runtime_available(config=None):
-    provider = str(
-        (config or {}).get("video_provider") or "veo"
-    ).strip().lower()
-    return provider == "veo" and bool(_video_api_key(config))
-
-
 def video_model(config=None):
     return str(
         (config or {}).get("video_model")
         or os.environ.get("AGENTBOUNTY_VIDEO_MODEL")
         or DEFAULT_VEO_MODEL
     ).strip()
+
+
+def video_runtime_available(config=None):
+    provider = str(
+        (config or {}).get("video_provider") or "veo"
+    ).strip().lower()
+    model = video_model(config)
+
+    return (
+        provider == "veo"
+        and model in SUPPORTED_VEO_MODELS
+        and bool(_video_api_key(config))
+    )
 
 
 def _video_options(context):
@@ -247,6 +258,12 @@ def _generate_veo_video(config, context):
         )
 
     model = video_model(config)
+    if model not in SUPPORTED_VEO_MODELS:
+        raise RuntimeError(
+            "Unsupported bundled Veo model: "
+            f"{model}. Supported: {', '.join(sorted(SUPPORTED_VEO_MODELS))}"
+        )
+
     options = _video_options(context)
 
     if "lite" in model.lower() and options["resolution"] == "4k":
@@ -409,9 +426,9 @@ def _upload_managed_artifact(config, task_id, local_path, size_bytes):
     artifact_url = str(grant.get("artifactUrl") or "")
     storage_key = str(grant.get("storageKey") or "")
 
-    if not upload_url or not artifact_url:
+    if not upload_url or not artifact_url or not storage_key:
         raise RuntimeError(
-            "AgentBounty artifact storage did not return an upload grant."
+            "AgentBounty artifact storage did not return a complete upload grant."
         )
 
     print("[video] Uploading MP4 to AgentBounty artifact storage...")
@@ -446,7 +463,6 @@ def execute_video_job(config, job):
         ),
     )
 
-    generated = None
     local_path = None
 
     try:

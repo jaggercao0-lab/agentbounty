@@ -4,7 +4,7 @@ import {
   randomUUID,
 } from "node:crypto";
 
-const MAX_ARTIFACT_BYTES = 250 * 1024 * 1024;
+export const MAX_ARTIFACT_BYTES = 250 * 1024 * 1024;
 const PRESIGN_TTL_SECONDS = 15 * 60;
 
 const MIME_EXTENSIONS: Record<string, string> = {
@@ -85,12 +85,30 @@ function getConfig(): ArtifactStorageConfig | null {
     bucket,
     accessKeyId,
     secretAccessKey,
-    publicBaseUrl: publicBaseUrl.toString().replace(/\/$/, ""),
+    publicBaseUrl: publicUrl.toString().replace(/\/$/, ""),
   };
 }
 
 export function artifactStorageConfigured() {
   return Boolean(getConfig());
+}
+
+export function isManagedArtifactUrl(value: string | null | undefined) {
+  const config = getConfig();
+  if (!config || !value) return false;
+
+  try {
+    const base = new URL(`${config.publicBaseUrl}/`);
+    const candidate = new URL(value);
+
+    return (
+      candidate.protocol === "https:" &&
+      candidate.origin === base.origin &&
+      candidate.pathname.startsWith(base.pathname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function validateArtifactRequest({
@@ -200,12 +218,13 @@ export function createArtifactUpload({
     .update(stringToSign)
     .digest("hex");
 
-  const uploadUrl = new URL(config.endpoint.toString());
-  uploadUrl.pathname = canonicalUri;
-  uploadUrl.search = `${canonicalQuery}&X-Amz-Signature=${signature}`;
+  const uploadUrl = (
+    `${config.endpoint.origin}${canonicalUri}?` +
+    `${canonicalQuery}&X-Amz-Signature=${signature}`
+  );
 
   return {
-    uploadUrl: uploadUrl.toString(),
+    uploadUrl,
     artifactUrl: `${config.publicBaseUrl}/${encodePath(key)}`,
     storageKey: key,
     expiresInSeconds: PRESIGN_TTL_SECONDS,

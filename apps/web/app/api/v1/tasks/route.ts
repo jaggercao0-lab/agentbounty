@@ -29,6 +29,27 @@ const githubRepo = z
     "githubRepo must use owner/repository format"
   );
 
+const videoSpecSchema = z
+  .object({
+    aspectRatio: z.enum(["16:9", "9:16"]).default("16:9"),
+    resolution: z.enum(["720p", "1080p", "4k"]).default("720p"),
+    durationSeconds: z
+      .union([z.literal(4), z.literal(6), z.literal(8)])
+      .default(8),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      ["1080p", "4k"].includes(value.resolution) &&
+      value.durationSeconds !== 8
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["durationSeconds"],
+        message: "1080p and 4k video generation require 8 seconds",
+      });
+    }
+  });
+
 function parseGitHubIssueUrl(value: string) {
   const match = value.match(
     /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/i
@@ -40,6 +61,34 @@ function parseGitHubIssueUrl(value: string) {
     repository: `${match[1]}/${match[2]}`,
     issueNumber: Number(match[3]),
   };
+}
+
+function videoSpecFromSourceData(sourceData: Record<string, unknown> | undefined) {
+  return videoSpecSchema.safeParse(sourceData?.video ?? {});
+}
+
+function publicExecutionSpec(
+  workType: string,
+  sourceDataJson: string | null
+) {
+  if (workType !== "VIDEO") return null;
+
+  try {
+    const parsed = sourceDataJson
+      ? JSON.parse(sourceDataJson)
+      : {};
+    const result = videoSpecSchema.safeParse(
+      parsed && typeof parsed === "object"
+        ? (parsed as Record<string, unknown>).video ?? {}
+        : {}
+    );
+
+    return result.success
+      ? { video: result.data }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 const createTask = z
@@ -110,6 +159,20 @@ const createTask = z
         path: ["deliveryType"],
         message: "VIDEO tasks currently require FILE delivery",
       });
+    }
+
+    if (value.workType === "VIDEO") {
+      const result = videoSpecFromSourceData(value.sourceData);
+
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["sourceData", "video", ...issue.path],
+            message: issue.message,
+          });
+        }
+      }
     }
 
     if (value.sourceData) {
@@ -259,6 +322,10 @@ export async function GET(request: Request) {
   return NextResponse.json({
     protocolVersion: generalProtocol ? "0.4" : "0.3",
     tasks: visibleTasks.map(task => {
+      const executionSpec = publicExecutionSpec(
+        task.workType,
+        task.sourceDataJson
+      );
       const {
         acceptanceCriteriaJson,
         requestedActionsJson,
@@ -275,6 +342,7 @@ export async function GET(request: Request) {
         acceptanceCriteria: JSON.parse(acceptanceCriteriaJson),
         requestedActions: JSON.parse(requestedActionsJson),
         requiredCapabilities: JSON.parse(requiredCapabilitiesJson),
+        executionSpec,
         sourceAvailable:
           task.sourceType !== "MANUAL",
       };
@@ -314,6 +382,12 @@ export async function POST(request: Request) {
         ...(data.requiredCapabilities || []).map(value => value.toUpperCase()),
       ]),
     ];
+    const normalizedSourceData = data.workType === "VIDEO"
+      ? {
+          ...(data.sourceData || {}),
+          video: videoSpecSchema.parse(data.sourceData?.video ?? {}),
+        }
+      : data.sourceData;
 
     const task = await db.$transaction(async tx => {
       const created = await tx.task.create({
@@ -324,8 +398,8 @@ export async function POST(request: Request) {
           workType: data.workType,
           sourceType: data.sourceType,
           sourceUrl: data.sourceUrl || null,
-          sourceDataJson: data.sourceData
-            ? JSON.stringify(data.sourceData)
+          sourceDataJson: normalizedSourceData
+            ? JSON.stringify(normalizedSourceData)
             : null,
           deliveryType,
           verificationType,
@@ -357,6 +431,10 @@ export async function POST(request: Request) {
             requestedActions,
             githubRepo: data.githubRepo || null,
             sourceUrl: data.sourceUrl || null,
+            video:
+              data.workType === "VIDEO"
+                ? (normalizedSourceData as { video: unknown }).video
+                : null,
             bountyCents: data.bountyCents,
             executionFeeCents: data.executionFeeCents,
             successRewardCents:

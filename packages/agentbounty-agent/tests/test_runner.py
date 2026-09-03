@@ -82,6 +82,114 @@ class ReferenceRunnerTests(unittest.TestCase):
             with self.subTest(task=task):
                 self.assertFalse(runner.can_execute_task(task))
 
+    def test_web_search_action_requires_local_credentials(self):
+        task = {
+            "workType": "RESEARCH",
+            "deliveryType": "TEXT",
+            "sourceType": "MANUAL",
+            "requestedActions": ["WEB_SEARCH"],
+        }
+
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(
+                runner.can_execute_task(task, {})
+            )
+            self.assertTrue(
+                runner.can_execute_task(
+                    task,
+                    {"search_api_key": "local-secret"},
+                )
+            )
+
+    def test_source_fetch_action_requires_external_source(self):
+        base = {
+            "workType": "DATA",
+            "deliveryType": "JSON",
+            "requestedActions": ["SOURCE_FETCH"],
+        }
+
+        self.assertFalse(
+            runner.can_execute_task(
+                {**base, "sourceType": "MANUAL"},
+                {},
+            )
+        )
+        self.assertTrue(
+            runner.can_execute_task(
+                {**base, "sourceType": "URL"},
+                {},
+            )
+        )
+
+    def test_unknown_action_is_not_accepted(self):
+        task = {
+            "workType": "RESEARCH",
+            "deliveryType": "TEXT",
+            "sourceType": "MANUAL",
+            "requestedActions": ["SEND_MONEY"],
+        }
+
+        self.assertFalse(runner.can_execute_task(task, {}))
+
+    def test_required_web_search_cannot_fall_back_to_model_only(self):
+        context = {
+            "task": {
+                "workType": "RESEARCH",
+                "requestedActions": ["WEB_SEARCH"],
+            }
+        }
+
+        with mock.patch.object(
+            runner,
+            "_BASE_COLLECT_RESEARCH_EVIDENCE",
+            return_value=(
+                [],
+                {
+                    "researchMode": "model_only",
+                    "sourceCount": 0,
+                },
+            ),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "requires WEB_SEARCH",
+            ):
+                runner._collect_required_research_evidence(
+                    {"search_api_key": "secret"},
+                    context,
+                )
+
+    def test_required_source_fetch_must_succeed(self):
+        context = {
+            "task": {
+                "requestedActions": ["SOURCE_FETCH"],
+            },
+            "source": {
+                "type": "URL",
+                "url": "https://example.com/data.json",
+            },
+        }
+
+        with mock.patch.object(
+            runner,
+            "_BASE_HYDRATE_TASK_SOURCE",
+            return_value=(
+                context,
+                {
+                    "sourceFetch": {
+                        "attempted": True,
+                        "ok": False,
+                        "error": "http_503",
+                    }
+                },
+            ),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "requires SOURCE_FETCH",
+            ):
+                runner._hydrate_required_source(context)
+
     def test_try_bid_ignores_unsupported_highest_bounty(self):
         config = {
             "agent_id": "agent-1",

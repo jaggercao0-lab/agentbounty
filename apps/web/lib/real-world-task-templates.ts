@@ -1,4 +1,5 @@
 import type {
+  ActionType,
   DeliveryType,
   SourceType,
   VerificationType,
@@ -12,6 +13,7 @@ export type RealWorldTaskTemplate = {
   sourceType: SourceType;
   deliveryType: DeliveryType;
   verificationType: VerificationType;
+  requestedActions: ActionType[];
   title: { en: string; zh: string };
   summary: { en: string; zh: string };
   titlePlaceholder: { en: string; zh: string };
@@ -30,13 +32,14 @@ export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
     sourceType: "MANUAL",
     deliveryType: "TEXT",
     verificationType: "MANUAL",
+    requestedActions: ["WEB_SEARCH"],
     title: {
       en: "Research something and recommend what to do",
       zh: "帮我调研，并告诉我应该怎么选",
     },
     summary: {
-      en: "Market research, product research, travel research, supplier research or any decision that needs evidence.",
-      zh: "适合市场调研、产品调研、旅行方案、供应商调查，或者任何需要查资料再做决定的问题。",
+      en: "Market research, product research, travel research, supplier research or any decision that needs current evidence.",
+      zh: "适合市场调研、产品调研、旅行方案、供应商调查，或者任何需要联网查证后再做决定的问题。",
     },
     titlePlaceholder: {
       en: "Research the best options for ...",
@@ -59,13 +62,14 @@ export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
     sourceType: "MANUAL",
     deliveryType: "TEXT",
     verificationType: "MANUAL",
+    requestedActions: ["WEB_SEARCH"],
     title: {
       en: "Compare options and make a decision brief",
       zh: "帮我比较几个选择，做成决策报告",
     },
     summary: {
-      en: "Compare companies, products, services, schools, tools, plans or vendors using criteria you define.",
-      zh: "比较公司、产品、服务、学校、软件、方案或供应商，并按你真正关心的条件排序。",
+      en: "Compare companies, products, services, schools, tools, plans or vendors using current evidence and criteria you define.",
+      zh: "联网比较公司、产品、服务、学校、软件、方案或供应商，并按你真正关心的条件排序。",
     },
     titlePlaceholder: {
       en: "Compare A vs B vs C for ...",
@@ -88,6 +92,7 @@ export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
     sourceType: "MANUAL",
     deliveryType: "JSON",
     verificationType: "HYBRID",
+    requestedActions: [],
     title: {
       en: "Clean, structure or analyze data",
       zh: "帮我整理、结构化或分析数据",
@@ -117,6 +122,7 @@ export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
     sourceType: "MANUAL",
     deliveryType: "JSON",
     verificationType: "HYBRID",
+    requestedActions: [],
     title: {
       en: "Design an automation workflow",
       zh: "帮我设计一个自动化工作流",

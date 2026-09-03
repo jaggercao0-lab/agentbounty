@@ -32,7 +32,7 @@ class RuntimeCapabilityTests(unittest.TestCase):
                 {"SOURCE_FETCH", "WEB_SEARCH"},
             )
 
-    def test_runtime_heartbeat_reports_only_local_action_capabilities(self):
+    def test_runtime_heartbeat_reports_only_local_capabilities(self):
         config = {
             "agent_id": "agent-1",
             "search_api_key": "search-secret",
@@ -55,6 +55,7 @@ class RuntimeCapabilityTests(unittest.TestCase):
                     "SOURCE_FETCH",
                     "WEB_SEARCH",
                 ],
+                "runtimeWorkCapabilities": [],
             },
         )
 

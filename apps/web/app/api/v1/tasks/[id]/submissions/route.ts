@@ -6,6 +6,7 @@ import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
 import { DELIVERY_TYPES, safeStringArray } from "@/lib/task-types";
 import {
+  artifactScopeFromKey,
   createArtifactReadUrl,
   isManagedArtifactUrl,
   managedArtifactKeyFromUrl,
@@ -174,6 +175,7 @@ function videoGenerationProof(value: unknown): VideoGenerationProof | null {
     typeof proof.model !== "string" ||
     typeof proof.operationName !== "string" ||
     typeof proof.sizeBytes !== "number" ||
+    !Number.isSafeInteger(proof.sizeBytes) ||
     proof.sizeBytes <= 0 ||
     typeof proof.storageKey !== "string" ||
     !proof.storageKey
@@ -190,16 +192,36 @@ function videoGenerationProof(value: unknown): VideoGenerationProof | null {
   };
 }
 
-async function verifyManagedVideoArtifact(key: string) {
+function containsMp4Ftyp(bytes: Uint8Array) {
+  const limit = Math.min(bytes.length - 3, 64);
+
+  for (let index = 0; index < limit; index += 1) {
+    if (
+      bytes[index] === 0x66 &&
+      bytes[index + 1] === 0x74 &&
+      bytes[index + 2] === 0x79 &&
+      bytes[index + 3] === 0x70
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function verifyManagedVideoArtifact(
+  key: string,
+  expectedSizeBytes: number
+) {
   const signedHeadUrl = createArtifactReadUrl({
     key,
     method: "HEAD",
   });
 
-  let response: Response;
+  let headResponse: Response;
 
   try {
-    response = await fetch(signedHeadUrl, {
+    headResponse = await fetch(signedHeadUrl, {
       method: "HEAD",
       redirect: "follow",
       cache: "no-store",
@@ -209,25 +231,62 @@ async function verifyManagedVideoArtifact(key: string) {
     throw new Error("video_artifact_not_reachable");
   }
 
-  if (!response.ok) {
+  if (!headResponse.ok) {
     throw new Error("video_artifact_not_reachable");
   }
 
-  const contentType = (response.headers.get("content-type") || "")
+  const contentType = (headResponse.headers.get("content-type") || "")
     .split(";", 1)[0]
     .trim()
     .toLowerCase();
 
-  if (contentType && contentType !== "video/mp4") {
+  if (contentType !== "video/mp4") {
     throw new Error("video_artifact_content_type_mismatch");
   }
 
-  const lengthHeader = response.headers.get("content-length");
-  if (lengthHeader) {
-    const length = Number(lengthHeader);
-    if (!Number.isFinite(length) || length <= 0) {
-      throw new Error("video_artifact_empty");
-    }
+  const lengthHeader = headResponse.headers.get("content-length");
+  const contentLength = Number(lengthHeader);
+
+  if (
+    !lengthHeader ||
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0
+  ) {
+    throw new Error("video_artifact_empty");
+  }
+
+  if (contentLength !== expectedSizeBytes) {
+    throw new Error("video_artifact_size_mismatch");
+  }
+
+  const signedGetUrl = createArtifactReadUrl({
+    key,
+    method: "GET",
+  });
+
+  let sampleResponse: Response;
+
+  try {
+    sampleResponse = await fetch(signedGetUrl, {
+      method: "GET",
+      headers: {
+        Range: "bytes=0-255",
+      },
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new Error("video_artifact_signature_check_failed");
+  }
+
+  if (sampleResponse.status !== 206) {
+    throw new Error("video_artifact_signature_check_failed");
+  }
+
+  const sample = new Uint8Array(await sampleResponse.arrayBuffer());
+  if (!containsMp4Ftyp(sample)) {
+    throw new Error("video_artifact_invalid_mp4");
   }
 }
 
@@ -323,7 +382,7 @@ export async function POST(
       if (
         task.workType !== "VIDEO" ||
         task.deliveryType !== "FILE" ||
-        data.mimeType !== "video/mp4"
+        data.mimeType?.trim().toLowerCase() !== "video/mp4"
       ) {
         throw new Error("invalid_video_delivery");
       }
@@ -346,7 +405,19 @@ export async function POST(
         throw new Error("video_artifact_proof_mismatch");
       }
 
-      await verifyManagedVideoArtifact(storageKey);
+      const scope = artifactScopeFromKey(storageKey);
+      if (
+        !scope ||
+        scope.taskId !== id ||
+        scope.agentId !== agent.id
+      ) {
+        throw new Error("video_artifact_scope_mismatch");
+      }
+
+      await verifyManagedVideoArtifact(
+        storageKey,
+        proof.sizeBytes
+      );
     }
 
     const normalizedJsonContent =
@@ -383,7 +454,7 @@ export async function POST(
           artifactUrl: data.artifactUrl || null,
           textContent: data.textContent || null,
           jsonContent: normalizedJsonContent,
-          mimeType: data.mimeType || null,
+          mimeType: data.mimeType?.trim().toLowerCase() || null,
           metadataJson: data.metadata
             ? JSON.stringify(data.metadata)
             : null,
@@ -478,9 +549,13 @@ export async function POST(
         "video_generation_proof_required",
         "video_artifact_must_use_managed_storage",
         "video_artifact_proof_mismatch",
+        "video_artifact_scope_mismatch",
         "video_artifact_not_reachable",
         "video_artifact_content_type_mismatch",
         "video_artifact_empty",
+        "video_artifact_size_mismatch",
+        "video_artifact_signature_check_failed",
+        "video_artifact_invalid_mp4",
       ].includes(error.message)
     ) {
       return NextResponse.json(

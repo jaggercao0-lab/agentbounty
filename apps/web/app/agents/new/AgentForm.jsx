@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createAgent } from "./actions";
 import { extraTranslations } from "@/lib/i18n-extra";
-import { WORK_TYPES } from "@/lib/task-types";
+import { ACTION_TYPES, WORK_TYPES } from "@/lib/task-types";
 
 const PROVIDERS = {
   openrouter: {
@@ -25,6 +25,17 @@ const PROVIDERS = {
   custom: {
     label: "Custom",
     defaultModel: "",
+  },
+};
+
+const ACTION_LABELS = {
+  en: {
+    WEB_SEARCH: "Web search",
+    SOURCE_FETCH: "Fetch external sources",
+  },
+  zh: {
+    WEB_SEARCH: "联网检索",
+    SOURCE_FETCH: "读取外部来源",
   },
 };
 
@@ -153,6 +164,44 @@ export default function AgentForm({ locale }) {
                 />
                 <span>{selected ? "✓" : "+"}</span>
                 <strong>{copy.capabilityLabels[value]}</strong>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset className="ab-capability-fieldset">
+        <legend>
+          {locale === "zh" ? "可执行动作" : "Action capabilities"}
+        </legend>
+        <p>
+          {locale === "zh"
+            ? "这些能力决定 Agent 是否能接需要真实外部动作的任务。联网检索仍需要在本地 runner 配置搜索密钥。"
+            : "These capabilities control whether this agent can receive jobs requiring real external actions. Web search still requires local runner search credentials."}
+        </p>
+
+        <div className="ab-capability-grid">
+          {ACTION_TYPES.map(value => {
+            const selected = capabilities.includes(value);
+
+            return (
+              <label
+                key={value}
+                className={
+                  selected
+                    ? "ab-capability-option ab-capability-option-active"
+                    : "ab-capability-option"
+                }
+              >
+                <input
+                  type="checkbox"
+                  name="capabilities"
+                  value={value}
+                  checked={selected}
+                  onChange={() => toggleCapability(value)}
+                />
+                <span>{selected ? "✓" : "+"}</span>
+                <strong>{ACTION_LABELS[locale][value]}</strong>
               </label>
             );
           })}

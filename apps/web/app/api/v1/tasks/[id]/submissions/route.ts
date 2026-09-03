@@ -4,15 +4,14 @@ import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
-import { DELIVERY_TYPES } from "@/lib/task-types";
+import { DELIVERY_TYPES, safeStringArray } from "@/lib/task-types";
+import { isManagedArtifactUrl } from "@/lib/artifact-storage";
 import { verifySubmittedTask } from "@/lib/verification/service";
 
 const MAX_JSON_BYTES = 500_000;
 const MAX_METADATA_BYTES = 64_000;
 
 const schema = z.object({
-  // Kept for backwards compatibility with older runners.
-  // The authenticated token remains authoritative.
   agentId: z.string().min(1).optional(),
   deliveryType: z.enum(DELIVERY_TYPES).optional(),
   pullRequestUrl: z.string().url().max(5000).optional(),
@@ -149,6 +148,61 @@ function validateDelivery(
   }
 }
 
+function validVideoGenerationProof(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+  const proof = value as Record<string, unknown>;
+
+  return (
+    proof.attempted === true &&
+    proof.ok === true &&
+    typeof proof.provider === "string" &&
+    typeof proof.model === "string" &&
+    typeof proof.operationName === "string" &&
+    typeof proof.sizeBytes === "number" &&
+    proof.sizeBytes > 0
+  );
+}
+
+async function verifyManagedVideoArtifact(url: string) {
+  if (!isManagedArtifactUrl(url)) {
+    throw new Error("video_artifact_must_use_managed_storage");
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: "HEAD",
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new Error("video_artifact_not_reachable");
+  }
+
+  if (!response.ok) {
+    throw new Error("video_artifact_not_reachable");
+  }
+
+  const contentType = (response.headers.get("content-type") || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+
+  if (contentType && contentType !== "video/mp4") {
+    throw new Error("video_artifact_content_type_mismatch");
+  }
+
+  const lengthHeader = response.headers.get("content-length");
+  if (lengthHeader) {
+    const length = Number(lengthHeader);
+    if (!Number.isFinite(length) || length <= 0) {
+      throw new Error("video_artifact_empty");
+    }
+  }
+}
+
 export async function POST(
   request: Request,
   {
@@ -183,8 +237,10 @@ export async function POST(
         id: true,
         status: true,
         assignedAgentId: true,
+        workType: true,
         deliveryType: true,
         verificationType: true,
+        requestedActionsJson: true,
         githubRepo: true,
       },
     });
@@ -230,6 +286,30 @@ export async function POST(
       data,
       task.githubRepo
     );
+
+    const requestedActions = safeStringArray(
+      task.requestedActionsJson
+    );
+
+    if (requestedActions.includes("VIDEO_GENERATE")) {
+      if (
+        task.workType !== "VIDEO" ||
+        task.deliveryType !== "FILE" ||
+        data.mimeType !== "video/mp4"
+      ) {
+        throw new Error("invalid_video_delivery");
+      }
+
+      if (!data.artifactUrl) {
+        throw new Error("artifact_url_required");
+      }
+
+      if (!validVideoGenerationProof(data.metadata?.videoGeneration)) {
+        throw new Error("video_generation_proof_required");
+      }
+
+      await verifyManagedVideoArtifact(data.artifactUrl);
+    }
 
     const normalizedJsonContent =
       data.jsonContent === undefined
@@ -289,6 +369,8 @@ export async function POST(
             deliveryType: task.deliveryType,
             pullRequestUrl: created.pullRequestUrl,
             artifactUrl: created.artifactUrl,
+            mimeType: created.mimeType,
+            actions: requestedActions,
           },
           dedupeKey: `submission:${created.id}:submitted`,
         }),
@@ -299,8 +381,6 @@ export async function POST(
 
     let automaticVerification = null;
 
-    // Artifact checks are local and deterministic, so run them immediately.
-    // GitHub/PR verification can depend on external CI and remains queued.
     if (
       task.deliveryType !== "PULL_REQUEST" &&
       ["AUTOMATIC", "HYBRID"].includes(task.verificationType)
@@ -319,8 +399,6 @@ export async function POST(
               status: result.status,
             };
       } catch (error) {
-        // The delivery is already durable. Leave it SUBMITTED so the system
-        // verification queue or owner retry can safely process it later.
         console.error(
           "Immediate artifact verification failed",
           id,
@@ -358,6 +436,12 @@ export async function POST(
         "json_content_required",
         "invalid_json_content",
         "unsupported_delivery_type",
+        "invalid_video_delivery",
+        "video_generation_proof_required",
+        "video_artifact_must_use_managed_storage",
+        "video_artifact_not_reachable",
+        "video_artifact_content_type_mismatch",
+        "video_artifact_empty",
       ].includes(error.message)
     ) {
       return NextResponse.json(

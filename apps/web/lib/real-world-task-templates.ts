@@ -1,0 +1,148 @@
+import type {
+  DeliveryType,
+  SourceType,
+  VerificationType,
+  WorkType,
+} from "@/lib/task-types";
+
+export type RealWorldTaskTemplate = {
+  slug: string;
+  icon: string;
+  workType: WorkType;
+  sourceType: SourceType;
+  deliveryType: DeliveryType;
+  verificationType: VerificationType;
+  title: { en: string; zh: string };
+  summary: { en: string; zh: string };
+  titlePlaceholder: { en: string; zh: string };
+  descriptionPlaceholder: { en: string; zh: string };
+  acceptanceCriteria: string;
+  bounty: string;
+  executionFee: string;
+  includedRevisions: string;
+};
+
+export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
+  {
+    slug: "research-recommendation",
+    icon: "⌕",
+    workType: "RESEARCH",
+    sourceType: "MANUAL",
+    deliveryType: "TEXT",
+    verificationType: "MANUAL",
+    title: {
+      en: "Research something and recommend what to do",
+      zh: "帮我调研，并告诉我应该怎么选",
+    },
+    summary: {
+      en: "Market research, product research, travel research, supplier research or any decision that needs evidence.",
+      zh: "适合市场调研、产品调研、旅行方案、供应商调查，或者任何需要查资料再做决定的问题。",
+    },
+    titlePlaceholder: {
+      en: "Research the best options for ...",
+      zh: "调研……并给出最值得选择的方案",
+    },
+    descriptionPlaceholder: {
+      en: "Explain the decision you are trying to make, your constraints, budget, location, deadline and what evidence matters. Ask for sources, trade-offs and a final recommendation.",
+      zh: "写清楚你要做什么决定、预算、地点、时间限制和最在意的条件。可以要求 Agent 给出处、优缺点比较和最终建议。",
+    },
+    acceptanceCriteria:
+      "Review the submitted text against the task requirements",
+    bounty: "20",
+    executionFee: "4",
+    includedRevisions: "1",
+  },
+  {
+    slug: "compare-options",
+    icon: "⇄",
+    workType: "RESEARCH",
+    sourceType: "MANUAL",
+    deliveryType: "TEXT",
+    verificationType: "MANUAL",
+    title: {
+      en: "Compare options and make a decision brief",
+      zh: "帮我比较几个选择，做成决策报告",
+    },
+    summary: {
+      en: "Compare companies, products, services, schools, tools, plans or vendors using criteria you define.",
+      zh: "比较公司、产品、服务、学校、软件、方案或供应商，并按你真正关心的条件排序。",
+    },
+    titlePlaceholder: {
+      en: "Compare A vs B vs C for ...",
+      zh: "比较 A / B / C，帮我决定……",
+    },
+    descriptionPlaceholder: {
+      en: "List the options and the criteria that matter. Ask for a comparison table, key risks, hidden trade-offs and a ranked recommendation.",
+      zh: "列出你要比较的对象和判断标准。可以要求对比表、关键风险、隐藏成本以及最终排序。",
+    },
+    acceptanceCriteria:
+      "Review the submitted text against the task requirements",
+    bounty: "15",
+    executionFee: "3",
+    includedRevisions: "1",
+  },
+  {
+    slug: "analyze-data",
+    icon: "▦",
+    workType: "DATA",
+    sourceType: "MANUAL",
+    deliveryType: "JSON",
+    verificationType: "HYBRID",
+    title: {
+      en: "Clean, structure or analyze data",
+      zh: "帮我整理、结构化或分析数据",
+    },
+    summary: {
+      en: "Turn messy information into structured JSON, extract fields, classify records, calculate summaries or flag anomalies.",
+      zh: "把杂乱信息整理成结构化 JSON，提取字段、分类记录、生成汇总，或者找出异常数据。",
+    },
+    titlePlaceholder: {
+      en: "Analyze and structure this data ...",
+      zh: "整理并分析这批数据……",
+    },
+    descriptionPlaceholder: {
+      en: "Paste or describe the data, then specify the output schema and the questions you need answered. Include examples when possible.",
+      zh: "粘贴或描述数据，并写清楚你希望得到的字段结构、统计结果或需要回答的问题。最好附一个输出示例。",
+    },
+    acceptanceCriteria:
+      "JSON REQUIRED\nReview the submitted JSON against the task requirements",
+    bounty: "15",
+    executionFee: "3",
+    includedRevisions: "1",
+  },
+  {
+    slug: "automation-plan",
+    icon: "⚡",
+    workType: "AUTOMATION",
+    sourceType: "MANUAL",
+    deliveryType: "JSON",
+    verificationType: "HYBRID",
+    title: {
+      en: "Design an automation workflow",
+      zh: "帮我设计一个自动化工作流",
+    },
+    summary: {
+      en: "Turn a repetitive business process into a structured automation plan with triggers, steps, inputs, outputs and failure handling.",
+      zh: "把重复的工作流程拆成可执行的自动化方案，包括触发条件、步骤、输入输出和失败处理。",
+    },
+    titlePlaceholder: {
+      en: "Design an automation for ...",
+      zh: "为……设计自动化流程",
+    },
+    descriptionPlaceholder: {
+      en: "Describe what you currently do manually, which tools are involved, what should trigger the workflow, and what a successful result looks like.",
+      zh: "描述你现在手动怎么做、涉及哪些工具、什么条件触发流程，以及最终希望自动得到什么结果。",
+    },
+    acceptanceCriteria:
+      "JSON REQUIRED\nReview the submitted JSON against the task requirements",
+    bounty: "20",
+    executionFee: "4",
+    includedRevisions: "1",
+  },
+];
+
+export function getRealWorldTaskTemplate(slug: string) {
+  return REAL_WORLD_TASK_TEMPLATES.find(
+    template => template.slug === slug
+  );
+}

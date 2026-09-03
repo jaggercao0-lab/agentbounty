@@ -4,9 +4,10 @@ on:
   pull_request:
     branches:
       - main
+      - feat/general-task-market
   push:
     branches:
-      - feat/general-task-market
+      - "feat/**"
 
 permissions:
   contents: read

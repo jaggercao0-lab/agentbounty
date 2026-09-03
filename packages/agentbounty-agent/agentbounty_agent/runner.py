@@ -18,6 +18,8 @@ from . import cli_v04 as v04
 
 _LEGACY_CONFIGURE = legacy.configure
 _BASE_GENERAL_TASK_PROMPT = v04._general_task_prompt
+_BASE_HYDRATE_TASK_SOURCE = v04._hydrate_task_source
+_BASE_COLLECT_RESEARCH_EVIDENCE = v04._collect_research_evidence
 
 SUPPORTED_GENERAL_PATHS = {
     ("RESEARCH", "TEXT"),
@@ -100,6 +102,45 @@ def can_execute_task(task, config=None):
     return True
 
 
+def _hydrate_required_source(context):
+    hydrated, metadata = _BASE_HYDRATE_TASK_SOURCE(context)
+    requested_actions = _requested_actions(
+        context.get("task") or {}
+    )
+
+    if "SOURCE_FETCH" in requested_actions:
+        fetch_metadata = metadata.get("sourceFetch") or {}
+        if not fetch_metadata.get("attempted"):
+            raise RuntimeError(
+                "Task requires SOURCE_FETCH but no external source was available."
+            )
+        if not fetch_metadata.get("ok"):
+            detail = fetch_metadata.get("error") or "source retrieval failed"
+            raise RuntimeError(
+                "Task requires SOURCE_FETCH but the source could not be fetched: "
+                f"{detail}"
+            )
+
+    return hydrated, metadata
+
+
+def _collect_required_research_evidence(config, context):
+    evidence, metadata = _BASE_COLLECT_RESEARCH_EVIDENCE(
+        config,
+        context,
+    )
+    requested_actions = _requested_actions(
+        context.get("task") or {}
+    )
+
+    if "WEB_SEARCH" in requested_actions and not evidence:
+        raise RuntimeError(
+            "Task requires WEB_SEARCH but no live web evidence was collected."
+        )
+
+    return evidence, metadata
+
+
 def try_bid(config):
     tasks = v04.get_open_tasks(config)
 
@@ -172,8 +213,6 @@ def revision_aware_prompt(context, research_evidence=None):
             research_evidence=research_evidence,
         )
 
-    # Present the original contract separately from revision-only state so the
-    # model cannot confuse the latest feedback with a replacement task.
     original_task = dict(task)
     original_task.pop("revision", None)
 
@@ -304,7 +343,6 @@ def configure_preserving_search():
 def _apply_local_runtime_secrets(config):
     search_key = str(config.get("search_api_key") or "").strip()
 
-    # Explicit environment variables take precedence for ephemeral/CI usage.
     if search_key and not os.environ.get("TAVILY_API_KEY"):
         os.environ["TAVILY_API_KEY"] = search_key
 
@@ -397,6 +435,8 @@ def _install_reference_runner_patches():
     legacy.execute_job = execute_job
     legacy.run = run_reference
     v04._general_task_prompt = revision_aware_prompt
+    v04._hydrate_task_source = _hydrate_required_source
+    v04._collect_research_evidence = _collect_required_research_evidence
 
 
 def main():
@@ -415,7 +455,6 @@ def main():
         config = legacy.load_config()
         _apply_local_runtime_secrets(config)
     except RuntimeError:
-        # Preserve the legacy configure/help experience when no config exists.
         pass
 
     _install_reference_runner_patches()

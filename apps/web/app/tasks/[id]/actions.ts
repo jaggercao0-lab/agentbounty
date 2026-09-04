@@ -64,7 +64,6 @@ export async function hireBid(formData: FormData) {
             bidId: bid.id,
             priceCents: bid.priceCents,
           },
-          dedupeKey: `task:${taskId}:assigned`,
         }),
       });
     });

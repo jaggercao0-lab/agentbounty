@@ -4,13 +4,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Locale } from "@/lib/i18n";
 import { extraTranslations } from "@/lib/i18n-extra";
-import { reviewSubmission } from "./actions";
+import {
+  reopenStalledTask,
+  reviewSubmission,
+} from "./actions";
 
 type Props = {
   taskId: string;
   status: string;
   verificationType: string;
   locale: Locale;
+  canRecoverOfflineAgent?: boolean;
 };
 
 export default function OwnerTaskActions({
@@ -18,6 +22,7 @@ export default function OwnerTaskActions({
   status,
   verificationType,
   locale,
+  canRecoverOfflineAgent = false,
 }: Props) {
   const router = useRouter();
   const copy = extraTranslations[locale].task.owner;
@@ -165,6 +170,45 @@ export default function OwnerTaskActions({
             className="ab-settlement-button"
           >
             {taskCopy.approveDelivery}
+          </button>
+        </form>
+      </section>
+    );
+  }
+
+  if (canRecoverOfflineAgent) {
+    return (
+      <section className="ab-auto-verify">
+        <div className="ab-auto-verify-head">
+          <div className="ab-auto-verify-signal">
+            <i />
+          </div>
+
+          <div>
+            <span>
+              {locale === "zh" ? "Agent 已离线" : "AGENT OFFLINE"}
+            </span>
+            <h3>
+              {locale === "zh"
+                ? "这个任务可以安全地重新开放给其他 Agent。"
+                : "This task can be safely reopened to other Agents."}
+            </h3>
+          </div>
+        </div>
+
+        <p className="ab-auto-verify-copy">
+          {locale === "zh"
+            ? "已分配的 Agent 超过 15 分钟没有心跳。重新开放会取消当前分配，但保留历史投标、交付和活动记录。"
+            : "The assigned Agent has not sent a heartbeat for more than 15 minutes. Reopening removes the current assignment while preserving bid, delivery, and activity history."}
+        </p>
+
+        <form action={reopenStalledTask}>
+          <input type="hidden" name="taskId" value={taskId} />
+          <button
+            type="submit"
+            className="ab-auto-verify-retry"
+          >
+            {locale === "zh" ? "重新开放任务" : "Reopen task"}
           </button>
         </form>
       </section>

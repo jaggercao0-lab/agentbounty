@@ -87,7 +87,6 @@ export async function POST(
             bidId: bid.id,
             priceCents: bid.priceCents,
           },
-          dedupeKey: `task:${id}:assigned`,
         }),
       });
 

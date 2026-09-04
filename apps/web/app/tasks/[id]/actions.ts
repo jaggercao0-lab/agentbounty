@@ -7,8 +7,10 @@ import { requireWebUser } from "@/lib/web-session";
 import { taskEventData } from "@/lib/task-events";
 import {
   AgentAtCapacityError,
+  AgentOfflineError,
   assertAgentHasCapacity,
 } from "@/lib/agent-capacity";
+import { agentCanBeRecovered } from "@/lib/agent-presence";
 
 export async function hireBid(formData: FormData) {
   const user = await requireWebUser();
@@ -69,18 +71,103 @@ export async function hireBid(formData: FormData) {
   } catch (error) {
     if (
       error instanceof AgentAtCapacityError ||
-      (
-        error instanceof Error &&
-        error.message === "AGENT_AT_CAPACITY"
-      )
+      (error instanceof Error && error.message === "AGENT_AT_CAPACITY")
     ) {
       redirect(
         `/tasks/${taskId}?hireError=agent_at_capacity`
       );
     }
 
+    if (
+      error instanceof AgentOfflineError ||
+      (error instanceof Error && error.message === "AGENT_OFFLINE")
+    ) {
+      redirect(
+        `/tasks/${taskId}?hireError=agent_offline`
+      );
+    }
+
     throw error;
   }
+
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath("/tasks");
+}
+
+export async function reopenStalledTask(formData: FormData) {
+  const user = await requireWebUser();
+  const taskId = String(formData.get("taskId") || "").trim();
+
+  if (!taskId) {
+    throw new Error("Missing task");
+  }
+
+  const task = await db.task.findUnique({
+    where: { id: taskId },
+    select: {
+      id: true,
+      ownerId: true,
+      status: true,
+      assignedAgentId: true,
+    },
+  });
+
+  if (!task || task.ownerId !== user.id) {
+    throw new Error("Task not found or not owned by user");
+  }
+
+  if (
+    !task.assignedAgentId ||
+    !["ASSIGNED", "WORKING", "REVISION"].includes(task.status)
+  ) {
+    throw new Error("Task is not recoverable");
+  }
+
+  const agent = await db.agent.findUnique({
+    where: { id: task.assignedAgentId },
+    select: {
+      id: true,
+      lastSeenAt: true,
+    },
+  });
+
+  if (agent && !agentCanBeRecovered(agent.lastSeenAt)) {
+    throw new Error("Agent is still recently online");
+  }
+
+  await db.$transaction(async tx => {
+    const result = await tx.task.updateMany({
+      where: {
+        id: task.id,
+        ownerId: user.id,
+        status: task.status,
+        assignedAgentId: task.assignedAgentId,
+      },
+      data: {
+        status: "OPEN",
+        assignedAgentId: null,
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new Error("TASK_STATE_CHANGED");
+    }
+
+    await tx.taskEvent.create({
+      data: taskEventData({
+        taskId: task.id,
+        type: "AGENT_RELEASED_OFFLINE",
+        actorType: "HUMAN",
+        actorId: user.id,
+        message: "Task reopened after assigned Agent went offline",
+        metadata: {
+          previousAgentId: task.assignedAgentId,
+          previousStatus: task.status,
+          lastSeenAt: agent?.lastSeenAt?.toISOString() || null,
+        },
+      }),
+    });
+  });
 
   revalidatePath(`/tasks/${taskId}`);
   revalidatePath("/tasks");

@@ -6,6 +6,7 @@ import { verifyAgentToken } from "@/lib/agent-auth";
 import { apiError } from "@/lib/http";
 import { taskEventData } from "@/lib/task-events";
 import { hasRequiredCapabilities } from "@/lib/task-types";
+import { agentSeenRecently } from "@/lib/agent-presence";
 
 const schema = z.object({
   agentId: z.string().min(1),
@@ -61,6 +62,7 @@ export async function POST(
       select: {
         id: true,
         capabilitiesJson: true,
+        lastSeenAt: true,
       },
     });
 
@@ -68,6 +70,13 @@ export async function POST(
       return NextResponse.json(
         { error: "agent_not_found" },
         { status: 404 }
+      );
+    }
+
+    if (!agentSeenRecently(agent.lastSeenAt)) {
+      return NextResponse.json(
+        { error: "agent_offline" },
+        { status: 409 }
       );
     }
 

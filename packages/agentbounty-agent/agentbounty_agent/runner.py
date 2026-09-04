@@ -5,11 +5,14 @@ execution gating so the bundled worker only bids on task/delivery combinations
 it can actually finish, while protocol details live in cli_v04.
 """
 
+import builtins
 import getpass
+import ipaddress
 import json
 import os
 import sys
 import time
+import urllib.parse
 
 from . import __version__
 from . import cli as legacy
@@ -18,9 +21,13 @@ from . import video
 
 
 _LEGACY_CONFIGURE = legacy.configure
+_LEGACY_API_REQUEST = legacy.api_request
 _BASE_GENERAL_TASK_PROMPT = v04._general_task_prompt
 _BASE_HYDRATE_TASK_SOURCE = v04._hydrate_task_source
 _BASE_COLLECT_RESEARCH_EVIDENCE = v04._collect_research_evidence
+
+MIN_POLL_SECONDS = 5
+MAX_POLL_SECONDS = 300
 
 SUPPORTED_GENERAL_PATHS = {
     ("RESEARCH", "TEXT"),
@@ -39,6 +46,106 @@ SUPPORTED_ACTIONS = {
     "SOURCE_FETCH",
     "VIDEO_GENERATE",
 }
+
+
+def _is_loopback_host(hostname):
+    value = str(hostname or "").strip().lower().rstrip(".")
+    if value == "localhost" or value.endswith(".localhost"):
+        return True
+
+    try:
+        return ipaddress.ip_address(value).is_loopback
+    except ValueError:
+        return False
+
+
+def _validate_secret_bearing_url(value, label):
+    raw = str(value or "").strip()
+    if not raw:
+        raise RuntimeError(f"{label} is required.")
+
+    try:
+        parsed = urllib.parse.urlsplit(raw)
+    except ValueError as error:
+        raise RuntimeError(f"Invalid {label}.") from error
+
+    if not parsed.hostname:
+        raise RuntimeError(f"{label} must include a hostname.")
+
+    if parsed.username is not None or parsed.password is not None:
+        raise RuntimeError(
+            f"{label} must not contain embedded username/password credentials."
+        )
+
+    scheme = parsed.scheme.lower()
+    if scheme == "https":
+        pass
+    elif scheme == "http" and _is_loopback_host(parsed.hostname):
+        pass
+    else:
+        raise RuntimeError(
+            f"{label} must use HTTPS. Plain HTTP is allowed only for localhost."
+        )
+
+    if parsed.query or parsed.fragment:
+        raise RuntimeError(
+            f"{label} must be a base URL without query parameters or fragments."
+        )
+
+    return raw.rstrip("/")
+
+
+def _validated_poll_seconds(value):
+    try:
+        poll_seconds = int(value)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("Polling interval must be an integer number of seconds.") from error
+
+    if not MIN_POLL_SECONDS <= poll_seconds <= MAX_POLL_SECONDS:
+        raise RuntimeError(
+            "Polling interval must be between "
+            f"{MIN_POLL_SECONDS} and {MAX_POLL_SECONDS} seconds."
+        )
+
+    return poll_seconds
+
+
+def validate_runtime_config(config):
+    """Reject configs that could leak secrets or overload the marketplace."""
+    if not isinstance(config, dict):
+        raise RuntimeError("AgentBounty configuration is invalid.")
+
+    config["marketplace_url"] = _validate_secret_bearing_url(
+        config.get("marketplace_url"),
+        "Marketplace URL",
+    )
+
+    provider = str(config.get("provider") or "").strip().lower()
+    base_url = str(config.get("llm_base_url") or "").strip()
+    if provider and base_url:
+        config["llm_base_url"] = _validate_secret_bearing_url(
+            base_url,
+            "Model endpoint",
+        )
+
+    config["poll_seconds"] = _validated_poll_seconds(
+        config.get("poll_seconds", 10)
+    )
+    return config
+
+
+def _secure_api_request(config, path, method="GET", body=None):
+    """Validate transport before any Runner Token leaves the machine."""
+    _validate_secret_bearing_url(
+        config.get("marketplace_url"),
+        "Marketplace URL",
+    )
+    return _LEGACY_API_REQUEST(
+        config,
+        path,
+        method=method,
+        body=body,
+    )
 
 
 def _requested_actions(task):
@@ -427,8 +534,9 @@ def configure_video():
 
 
 def configure_preserving_integrations():
-    """Run legacy setup without discarding local integration credentials."""
+    """Run legacy setup while enforcing transport/polling safety."""
     preserved = {}
+    existing = {}
 
     try:
         existing = legacy.load_config()
@@ -443,15 +551,48 @@ def configure_preserving_integrations():
             if value:
                 preserved[key] = value
     except RuntimeError:
-        pass
+        existing = {}
 
-    _LEGACY_CONFIGURE()
+    original_input = builtins.input
 
-    if not preserved:
-        return
+    def secure_input(prompt=""):
+        entered = original_input(prompt)
+        stripped = entered.strip()
+
+        if prompt.startswith("Marketplace URL"):
+            effective = stripped or existing.get(
+                "marketplace_url",
+                "http://localhost:3000",
+            )
+            _validate_secret_bearing_url(effective, "Marketplace URL")
+
+        elif prompt.startswith("Custom API base URL"):
+            effective = stripped or (
+                existing.get("llm_base_url", "")
+                if existing.get("provider") == "custom"
+                else ""
+            )
+            if effective:
+                _validate_secret_bearing_url(effective, "Model endpoint")
+
+        elif prompt.startswith("Polling interval seconds"):
+            effective = stripped or existing.get("poll_seconds", 10)
+            _validated_poll_seconds(effective)
+
+        return entered
+
+    builtins.input = secure_input
+    try:
+        _LEGACY_CONFIGURE()
+    finally:
+        builtins.input = original_input
 
     updated = legacy.load_config()
-    updated.update(preserved)
+    validate_runtime_config(updated)
+
+    if preserved:
+        updated.update(preserved)
+
     legacy.save_config(updated)
 
 
@@ -475,6 +616,7 @@ def _select_runnable_job(active, failed_until, now):
 
 def run_reference():
     config = legacy.load_config()
+    validate_runtime_config(config)
     _apply_local_runtime_secrets(config)
 
     failed_until = {}
@@ -559,6 +701,7 @@ def _install_reference_runner_patches():
     if not hasattr(legacy, "_execute_job_v03"):
         legacy._execute_job_v03 = legacy.execute_job
 
+    legacy.api_request = _secure_api_request
     legacy.configure = configure_preserving_integrations
     legacy.get_open_tasks = v04.get_open_tasks
     legacy.get_jobs = v04.get_jobs
@@ -585,11 +728,15 @@ def main():
     if len(sys.argv) == 2 and sys.argv[1] == "configure-video":
         return configure_video()
 
-    try:
-        config = legacy.load_config()
-        _apply_local_runtime_secrets(config)
-    except RuntimeError:
-        pass
+    command = sys.argv[1] if len(sys.argv) >= 2 else ""
+    if command != "configure":
+        try:
+            config = legacy.load_config()
+            validate_runtime_config(config)
+            _apply_local_runtime_secrets(config)
+        except RuntimeError:
+            if command in {"run", "doctor"}:
+                raise
 
     _install_reference_runner_patches()
     return legacy.main()

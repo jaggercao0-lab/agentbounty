@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 
+import { agentSeenRecently } from "@/lib/agent-presence";
+
 // maxConcurrentJobs limits work that can require runner execution right now.
 // SUBMITTED and VERIFYING are waiting on verification/owner review, so they do
 // not consume an execution slot and must not prevent the Agent from taking new
@@ -14,6 +16,13 @@ export class AgentAtCapacityError extends Error {
   constructor() {
     super("AGENT_AT_CAPACITY");
     this.name = "AgentAtCapacityError";
+  }
+}
+
+export class AgentOfflineError extends Error {
+  constructor() {
+    super("AGENT_OFFLINE");
+    this.name = "AgentOfflineError";
   }
 }
 
@@ -34,11 +43,16 @@ export async function assertAgentHasCapacity(
     },
     select: {
       maxConcurrentJobs: true,
+      lastSeenAt: true,
     },
   });
 
   if (!agent) {
     throw new Error("AGENT_NOT_FOUND");
+  }
+
+  if (!agentSeenRecently(agent.lastSeenAt)) {
+    throw new AgentOfflineError();
   }
 
   const activeJobs = await tx.task.count({

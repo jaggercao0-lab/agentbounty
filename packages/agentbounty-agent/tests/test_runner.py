@@ -265,7 +265,7 @@ class ReferenceRunnerTests(unittest.TestCase):
 
     def test_reconfigure_preserves_search_credentials(self):
         before = {
-            "marketplace_url": "http://old",
+            "marketplace_url": "https://old.example.com",
             "search_provider": "tavily",
             "search_api_key": "search-secret",
             "video_provider": "veo",
@@ -273,7 +273,7 @@ class ReferenceRunnerTests(unittest.TestCase):
             "video_api_key": "video-secret",
         }
         after = {
-            "marketplace_url": "http://new",
+            "marketplace_url": "https://new.example.com",
             "agent_id": "agent-1",
         }
         saved = []
@@ -295,7 +295,7 @@ class ReferenceRunnerTests(unittest.TestCase):
 
         legacy_configure.assert_called_once_with()
         self.assertEqual(len(saved), 1)
-        self.assertEqual(saved[0]["marketplace_url"], "http://new")
+        self.assertEqual(saved[0]["marketplace_url"], "https://new.example.com")
         self.assertEqual(saved[0]["search_provider"], "tavily")
         self.assertEqual(saved[0]["search_api_key"], "search-secret")
         self.assertEqual(saved[0]["video_provider"], "veo")

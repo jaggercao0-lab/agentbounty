@@ -7,6 +7,7 @@ import { getWebSession } from "@/lib/web-session";
 import { getServerLocale } from "@/lib/server-locale";
 import { extraTranslations } from "@/lib/i18n-extra";
 import { safeStringArray } from "@/lib/task-types";
+import { agentCanBeRecovered } from "@/lib/agent-presence";
 
 import { hireBid } from "./actions";
 import OwnerTaskActions from "./OwnerTaskActions";
@@ -61,6 +62,12 @@ export default async function TaskPage({
         where: { id: task.assignedAgentId },
       })
     : null;
+
+  const canRecoverOfflineAgent = Boolean(
+    assignedAgent &&
+    ["ASSIGNED", "WORKING", "REVISION"].includes(task.status) &&
+    agentCanBeRecovered(assignedAgent.lastSeenAt)
+  );
 
   const payment = await db.payment.findFirst({
     where: { taskId: task.id },
@@ -444,6 +451,7 @@ export default async function TaskPage({
                 status={task.status}
                 verificationType={task.verificationType}
                 locale={locale}
+                canRecoverOfflineAgent={canRecoverOfflineAgent}
               />
             )}
 

@@ -35,6 +35,20 @@ export async function POST(
       );
     }
 
+    if (task.status === "PAID") {
+      const existingPayment = await db.payment.findUnique({
+        where: { taskId: task.id },
+      });
+
+      if (existingPayment) {
+        return NextResponse.json({
+          success: true,
+          alreadyPaid: true,
+          payment: existingPayment,
+        });
+      }
+    }
+
     if (task.status !== "ACCEPTED") {
       return NextResponse.json(
         {
@@ -61,87 +75,132 @@ export async function POST(
       task.bountyCents -
       platformFeeCents;
 
-    const result =
-      await db.$transaction(
-        async (tx) => {
-          const payment =
-            await tx.payment.create({
+    try {
+      const result =
+        await db.$transaction(
+          async (tx) => {
+            const claimed = await tx.task.updateMany({
+              where: {
+                id: task.id,
+                ownerId: user.id,
+                status: "ACCEPTED",
+              },
               data: {
-                taskId: task.id,
-                agentId:
-                  task.assignedAgentId!,
-                bountyCents:
-                  task.bountyCents,
-                executionFeeCents:
-                  task.executionFeeCents,
-                successRewardCents:
-                  task.successRewardCents,
-                platformFeeCents,
-                agentPayoutCents,
                 status: "PAID",
               },
             });
 
-          await tx.task.update({
-            where: {
-              id: task.id,
-            },
-            data: {
-              status: "PAID",
-            },
-          });
+            if (claimed.count !== 1) {
+              throw new Error("TASK_STATE_CHANGED");
+            }
 
-          await tx.agent.update({
-            where: {
-              id:
-                task.assignedAgentId!,
-            },
-            data: {
-              completedJobs: {
-                increment: 1,
-              },
-            },
-          });
-
-          await tx.taskEvent.create({
-            data:
-              taskEventData({
-                taskId:
-                  task.id,
-
-                type:
-                  "PAYMENT_RELEASED",
-
-                actorType:
-                  "HUMAN",
-
-                actorId:
-                  user.id,
-
-                message:
-                  "Payment released",
-
-                metadata: {
-                  paymentId:
-                    payment.id,
-
+            const payment =
+              await tx.payment.create({
+                data: {
+                  taskId: task.id,
+                  agentId:
+                    task.assignedAgentId!,
+                  bountyCents:
+                    task.bountyCents,
+                  executionFeeCents:
+                    task.executionFeeCents,
+                  successRewardCents:
+                    task.successRewardCents,
                   platformFeeCents,
                   agentPayoutCents,
+                  status: "PAID",
                 },
+              });
 
-                dedupeKey:
-                  `task:${task.id}:payment`,
-              }),
+            await tx.agent.update({
+              where: {
+                id:
+                  task.assignedAgentId!,
+              },
+              data: {
+                completedJobs: {
+                  increment: 1,
+                },
+              },
+            });
+
+            await tx.taskEvent.create({
+              data:
+                taskEventData({
+                  taskId:
+                    task.id,
+
+                  type:
+                    "PAYMENT_RELEASED",
+
+                  actorType:
+                    "HUMAN",
+
+                  actorId:
+                    user.id,
+
+                  message:
+                    "Payment released",
+
+                  metadata: {
+                    paymentId:
+                      payment.id,
+
+                    platformFeeCents,
+                    agentPayoutCents,
+                  },
+
+                  dedupeKey:
+                    `task:${task.id}:payment`,
+                }),
+            });
+
+            return payment;
+          }
+        );
+
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: false,
+        payment: result,
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "TASK_STATE_CHANGED"
+      ) {
+        const [currentTask, existingPayment] = await Promise.all([
+          db.task.findFirst({
+            where: {
+              id: task.id,
+              ownerId: user.id,
+            },
+            select: { status: true },
+          }),
+          db.payment.findUnique({
+            where: { taskId: task.id },
+          }),
+        ]);
+
+        if (currentTask?.status === "PAID" && existingPayment) {
+          return NextResponse.json({
+            success: true,
+            alreadyPaid: true,
+            payment: existingPayment,
           });
-
-          return payment;
         }
-      );
 
-    return NextResponse.json({
-      success: true,
-      payment: result,
-    });
+        return NextResponse.json(
+          {
+            error: "task_state_changed",
+            status: currentTask?.status,
+          },
+          { status: 409 }
+        );
+      }
+
+      throw error;
+    }
   } catch (error) {
     return apiError(error);
   }

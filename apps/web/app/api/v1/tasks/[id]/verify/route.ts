@@ -1,18 +1,93 @@
-import {
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
+import { db } from "@agentbounty/database";
+import { authenticateWebRequest } from "@/lib/web-api-auth";
+import { apiError } from "@/lib/http";
+import { verifySubmittedTask } from "@/lib/verification/service";
 
-export async function POST() {
-  return NextResponse.json(
-    {
-      error:
-        "legacy_endpoint_removed",
+export const runtime = "nodejs";
 
-      message:
-        "Use the GitHub-backed Verification Engine at /verify-github.",
-    },
-    {
-      status: 410,
+export async function POST(
+  request: Request,
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  try {
+    const user = await authenticateWebRequest(request);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "unauthorized" },
+        { status: 401 }
+      );
     }
-  );
+
+    const { id } = await params;
+
+    const ownedTask = await db.task.findFirst({
+      where: {
+        id,
+        ownerId: user.id,
+      },
+      select: {
+        id: true,
+        verificationType: true,
+      },
+    });
+
+    if (!ownedTask) {
+      return NextResponse.json(
+        { error: "task_not_found" },
+        { status: 404 }
+      );
+    }
+
+    if (ownedTask.verificationType === "MANUAL") {
+      return NextResponse.json(
+        { error: "manual_verification_required" },
+        { status: 409 }
+      );
+    }
+
+    const result = await verifySubmittedTask(id);
+
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          error: result.reason,
+          status: result.status,
+        },
+        {
+          status:
+            result.reason === "task_not_submitted"
+              ? 409
+              : 400,
+        }
+      );
+    }
+
+    return NextResponse.json({
+      passed: result.passed,
+      pending: result.verificationStatus === "PENDING",
+      verificationStatus: result.verificationStatus,
+      taskId: result.taskId,
+      report: result.report,
+      status: result.status,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "TASK_STATE_CHANGED"
+    ) {
+      return NextResponse.json(
+        { error: "task_state_changed" },
+        { status: 409 }
+      );
+    }
+
+    console.error(error);
+    return apiError(error);
+  }
 }

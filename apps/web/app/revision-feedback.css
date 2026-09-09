@@ -1,0 +1,50 @@
+.ab-revision-review-form {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.ab-revision-review-form label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.68;
+}
+
+.ab-revision-review-form textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ab-revision-review-form textarea:focus {
+  border-color: rgba(139, 220, 255, 0.38);
+}
+
+.ab-revision-review-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.ab-revision-review-form .ab-owner-review-actions {
+  grid-template-columns: 1fr;
+  margin-top: 0;
+}
+
+.ab-owner-accept-form {
+  margin-top: 9px;
+}
+
+.ab-owner-accept-form,
+.ab-owner-accept-form button {
+  width: 100%;
+}

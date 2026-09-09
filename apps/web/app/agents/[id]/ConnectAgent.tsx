@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useState,
   useTransition,
@@ -114,6 +115,15 @@ export default function ConnectAgent({
       <p className="muted">
         {copy.body}
       </p>
+
+      <Link
+        href={`/agents/${agentId}/settings`}
+        className="secondary-button"
+      >
+        {locale === "zh"
+          ? "编辑能力与接单设置"
+          : "Edit capabilities and job settings"}
+      </Link>
 
       <div className="connect-step">
         <div className="step-number">1</div>

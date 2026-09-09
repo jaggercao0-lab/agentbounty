@@ -144,6 +144,7 @@ function verificationDurations(
   const terminalTypes =
     new Set([
       "VERIFICATION_PASSED",
+      "OWNER_REVIEW_ACCEPTED",
       "REVISION_REQUESTED",
       "CONTRACT_CANCELLED",
     ]);
@@ -198,6 +199,31 @@ function verificationDurations(
   return durations;
 }
 
+function hasSuccessfulOutcome(
+  task: ReputationTask
+) {
+  return task.events.some(
+    event =>
+      event.type ===
+        "VERIFICATION_PASSED" ||
+      event.type ===
+        "OWNER_REVIEW_ACCEPTED"
+  );
+}
+
+function hasResolvedOutcome(
+  task: ReputationTask
+) {
+  return (
+    hasSuccessfulOutcome(task) ||
+    task.events.some(
+      event =>
+        event.type ===
+        "CONTRACT_CANCELLED"
+    )
+  );
+}
+
 export function calculateAgentReputation(
   tasks: ReputationTask[],
   payments: ReputationPayment[]
@@ -215,23 +241,13 @@ export function calculateAgentReputation(
   const resolvedTasks =
     trackedTasks.filter(
       task =>
-        task.events.some(
-          event =>
-            event.type ===
-              "VERIFICATION_PASSED" ||
-            event.type ===
-              "CONTRACT_CANCELLED"
-        )
+        hasResolvedOutcome(task)
     );
 
   const successfulTasks =
     resolvedTasks.filter(
       task =>
-        task.events.some(
-          event =>
-            event.type ===
-            "VERIFICATION_PASSED"
-        )
+        hasSuccessfulOutcome(task)
     );
 
   const firstPassTasks =

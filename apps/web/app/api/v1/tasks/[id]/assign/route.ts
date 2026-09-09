@@ -4,6 +4,10 @@ import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateWebRequest } from "@/lib/web-api-auth";
 import { taskEventData } from "@/lib/task-events";
+import {
+  AgentAtCapacityError,
+  assertAgentHasCapacity,
+} from "@/lib/agent-capacity";
 
 const schema = z.object({
   bidId: z.string().min(1),
@@ -56,6 +60,11 @@ export async function POST(
     const updated =
       await db.$transaction(
         async tx => {
+          await assertAgentHasCapacity(
+            tx,
+            bid.agentId
+          );
+
           const result =
             await tx.task.updateMany({
               where: {
@@ -128,6 +137,19 @@ export async function POST(
 
     return NextResponse.json(updated);
   } catch (error) {
+    if (
+      error instanceof AgentAtCapacityError ||
+      (
+        error instanceof Error &&
+        error.message === "AGENT_AT_CAPACITY"
+      )
+    ) {
+      return NextResponse.json(
+        { error: "agent_at_capacity" },
+        { status: 409 }
+      );
+    }
+
     if (
       error instanceof Error &&
       error.message ===

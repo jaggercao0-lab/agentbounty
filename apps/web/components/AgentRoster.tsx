@@ -8,6 +8,7 @@ import {
   translations,
   type Locale,
 } from "@/lib/i18n";
+import { WORK_TYPES, type WorkType } from "@/lib/task-types";
 
 export type RosterAgent = {
   id: string;
@@ -28,6 +29,7 @@ export type RosterAgent = {
   online: boolean;
   isOwner: boolean;
   skills: string[];
+  capabilities: string[];
 };
 
 type SortMode =
@@ -37,10 +39,35 @@ type SortMode =
   | "cheapest"
   | "earnings";
 
+type CapabilityFilter = "ALL" | WorkType;
+
 type Props = {
   agents: RosterAgent[];
   signedIn: boolean;
   locale: Locale;
+};
+
+const CAPABILITY_LABELS: Record<Locale, Record<CapabilityFilter, string>> = {
+  en: {
+    ALL: "All",
+    CODE: "Code",
+    RESEARCH: "Research",
+    IMAGE: "Image",
+    VIDEO: "Video",
+    DATA: "Data",
+    AUTOMATION: "Automation",
+    OTHER: "Other",
+  },
+  zh: {
+    ALL: "全部",
+    CODE: "代码",
+    RESEARCH: "调研",
+    IMAGE: "图片",
+    VIDEO: "视频",
+    DATA: "数据",
+    AUTOMATION: "自动化",
+    OTHER: "其他",
+  },
 };
 
 function money(cents: number) {
@@ -59,65 +86,51 @@ export default function AgentRoster({
   const t = translations[locale].agents;
 
   function reliabilityLabel(value: number | null) {
-    if (value === null) {
-      return t.unproven;
-    }
-    if (value >= 90) {
-      return t.elite;
-    }
-    if (value >= 80) {
-      return t.strong;
-    }
-    if (value >= 70) {
-      return t.established;
-    }
+    if (value === null) return t.unproven;
+    if (value >= 90) return t.elite;
+    if (value >= 80) return t.strong;
+    if (value >= 70) return t.established;
     return t.developing;
   }
 
   const [sortMode, setSortMode] =
     useState<SortMode>("recommended");
+  const [capabilityFilter, setCapabilityFilter] =
+    useState<CapabilityFilter>("ALL");
 
-  const sortedAgents = useMemo(() => {
-    const result = [...agents];
+  const visibleAgents = useMemo(() => {
+    const result = agents.filter(agent =>
+      capabilityFilter === "ALL"
+        ? true
+        : agent.capabilities.includes(capabilityFilter)
+    );
 
     result.sort((a, b) => {
       if (sortMode === "reliability") {
-        return (
-          (b.reliabilityScore ?? -1) -
-          (a.reliabilityScore ?? -1)
-        );
+        return (b.reliabilityScore ?? -1) - (a.reliabilityScore ?? -1);
       }
-
       if (sortMode === "experience") {
         return b.completedJobs - a.completedJobs;
       }
-
       if (sortMode === "cheapest") {
         return a.minimumJobCents - b.minimumJobCents;
       }
-
       if (sortMode === "earnings") {
         return b.totalEarningsCents - a.totalEarningsCents;
       }
 
       const onlineDifference = Number(b.online) - Number(a.online);
-      if (onlineDifference !== 0) {
-        return onlineDifference;
-      }
+      if (onlineDifference !== 0) return onlineDifference;
 
       const reliabilityDifference =
-        (b.reliabilityScore ?? -1) -
-        (a.reliabilityScore ?? -1);
-
-      if (reliabilityDifference !== 0) {
-        return reliabilityDifference;
-      }
+        (b.reliabilityScore ?? -1) - (a.reliabilityScore ?? -1);
+      if (reliabilityDifference !== 0) return reliabilityDifference;
 
       return b.completedJobs - a.completedJobs;
     });
 
     return result;
-  }, [agents, sortMode]);
+  }, [agents, capabilityFilter, sortMode]);
 
   const onlineCount = agents.filter(agent => agent.online).length;
   const totalJobs = agents.reduce(
@@ -188,25 +201,44 @@ export default function AgentRoster({
             <strong>{onlineCount}</strong>
             <small>{t.acceptingSignals}</small>
           </div>
-
           <div>
             <span>{t.registered}</span>
             <strong>{agents.length}</strong>
             <small>{t.machineWorkers}</small>
           </div>
-
           <div>
             <span>{t.jobsCompleted}</span>
             <strong>{totalJobs}</strong>
             <small>{t.verifiedDeliveries}</small>
           </div>
-
           <div>
             <span>{t.payouts}</span>
             <strong>{money(totalEarnings)}</strong>
             <small>{t.simulatedSettlement}</small>
           </div>
         </section>
+
+        <div className="ab-general-agent-filters">
+          {(["ALL", ...WORK_TYPES] as CapabilityFilter[]).map(value => (
+            <button
+              key={value}
+              type="button"
+              className={
+                capabilityFilter === value
+                  ? "ab-general-market-filter ab-general-market-filter-active"
+                  : "ab-general-market-filter"
+              }
+              onClick={() => setCapabilityFilter(value)}
+            >
+              {CAPABILITY_LABELS[locale][value]}
+              <span>
+                {value === "ALL"
+                  ? agents.length
+                  : agents.filter(agent => agent.capabilities.includes(value)).length}
+              </span>
+            </button>
+          ))}
+        </div>
 
         <div className="ab-agents-toolbar">
           <div>
@@ -234,7 +266,7 @@ export default function AgentRoster({
           </div>
         </div>
 
-        {agents.length === 0 ? (
+        {visibleAgents.length === 0 ? (
           <div className="ab-agents-empty">
             <div className="ab-agents-empty-face">-_-</div>
             <h2>{t.emptyTitle}</h2>
@@ -262,7 +294,7 @@ export default function AgentRoster({
               },
             }}
           >
-            {sortedAgents.map((agent, index) => (
+            {visibleAgents.map((agent, index) => (
               <motion.div
                 key={agent.id}
                 variants={{
@@ -270,10 +302,7 @@ export default function AgentRoster({
                   show: { opacity: 1, y: 0 },
                 }}
               >
-                <Link
-                  href={`/agents/${agent.id}`}
-                  className="ab-agent-card"
-                >
+                <Link href={`/agents/${agent.id}`} className="ab-agent-card">
                   <div className="ab-agent-card-glint" />
 
                   <div className="ab-agent-top">
@@ -325,6 +354,14 @@ export default function AgentRoster({
                         {agent.maxConcurrentJobs} {agent.maxConcurrentJobs === 1 ? t.job : t.jobs}
                       </strong>
                     </div>
+                  </div>
+
+                  <div className="ab-general-agent-capabilities">
+                    {agent.capabilities.map(capability => (
+                      <span key={capability}>
+                        {CAPABILITY_LABELS[locale][capability as WorkType] || capability}
+                      </span>
+                    ))}
                   </div>
 
                   <div className="ab-agent-skills">

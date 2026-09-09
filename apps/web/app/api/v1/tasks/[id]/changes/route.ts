@@ -152,6 +152,18 @@ export async function POST(
       );
     }
 
+    if (
+      task.workType !== "CODE" ||
+      task.deliveryType !== "PULL_REQUEST"
+    ) {
+      return NextResponse.json(
+        {
+          error: "coding_pull_request_delivery_required"
+        },
+        { status: 409 }
+      );
+    }
+
     if (!["ASSIGNED", "WORKING", "REVISION"].includes(task.status)) {
       return NextResponse.json(
         {
@@ -347,6 +359,7 @@ export async function POST(
         data: {
           taskId: task.id,
           agentId: data.agentId,
+          deliveryType: "PULL_REQUEST",
           pullRequestUrl: pr.html_url,
           notes:
             `${data.summary}\nChanged files: ` +
@@ -360,42 +373,42 @@ export async function POST(
       });
 
       await tx.taskEvent.create({
-    data:
-      taskEventData({
-        taskId:
-          task.id,
+        data:
+          taskEventData({
+            taskId:
+              task.id,
 
-        type:
-          "DELIVERY_SUBMITTED",
+            type:
+              "DELIVERY_SUBMITTED",
 
-        actorType:
-          "AGENT",
+            actorType:
+              "AGENT",
 
-        actorId:
-          data.agentId,
+            actorId:
+              data.agentId,
 
-        message:
-          "Pull request submitted",
+            message:
+              "Pull request submitted",
 
-        metadata: {
-          submissionId:
-            created.id,
+            metadata: {
+              submissionId:
+                created.id,
 
-          pullRequestUrl:
-            pr.html_url,
+              pullRequestUrl:
+                pr.html_url,
 
-          branch,
+              branch,
 
-          changedFiles:
-            committedFiles,
-        },
+              changedFiles:
+                committedFiles,
+            },
 
-        dedupeKey:
-          `submission:${created.id}:submitted`,
-      }),
-  });
+            dedupeKey:
+              `submission:${created.id}:submitted`,
+          }),
+      });
 
-  return created;
+      return created;
     });
 
     return NextResponse.json({

@@ -1,307 +1,135 @@
-import {
-  db,
-} from "@agentbounty/database";
-
-import {
-  getWebSession,
-} from "@/lib/web-session";
-
-import {
-  providerLabel,
-} from "@/lib/providers";
-
-import {
-  calculateAgentReputation,
-} from "@/lib/agent-reputation";
-
+import { db } from "@agentbounty/database";
+import { getWebSession } from "@/lib/web-session";
+import { providerLabel } from "@/lib/providers";
+import { calculateAgentReputation } from "@/lib/agent-reputation";
 import { getServerLocale } from "@/lib/server-locale";
+import { safeStringArray } from "@/lib/task-types";
 import AgentRoster from "@/components/AgentRoster";
 
-export const dynamic =
-  "force-dynamic";
+export const dynamic = "force-dynamic";
 
 export default async function AgentsPage() {
-  const [session, locale] =
-    await Promise.all([
-      getWebSession(),
-      getServerLocale(),
-    ]);
+  const [session, locale] = await Promise.all([
+    getWebSession(),
+    getServerLocale(),
+  ]);
 
-  const userId =
-    session?.user?.id;
+  const userId = session?.user?.id;
 
-  const agents =
-    await db.agent.findMany({
-      where: {
-        archivedAt:
-          null,
-      },
+  const agents = await db.agent.findMany({
+    where: { archivedAt: null },
+    orderBy: { createdAt: "desc" },
+  });
 
-      orderBy: {
-        createdAt:
-          "desc",
-      },
-    });
+  const agentIds = agents.map(agent => agent.id);
 
-  const agentIds =
-    agents.map(
-      agent =>
-        agent.id
-    );
+  const payments = agentIds.length > 0
+    ? await db.payment.findMany({
+        where: {
+          agentId: { in: agentIds },
+          status: "PAID",
+        },
+        select: {
+          agentId: true,
+          agentPayoutCents: true,
+        },
+      })
+    : [];
 
-  const payments =
-    agentIds.length > 0
-      ? await db.payment.findMany({
-          where: {
-            agentId: {
-              in:
-                agentIds,
+  const tasks = agentIds.length > 0
+    ? await db.task.findMany({
+        where: {
+          assignedAgentId: { in: agentIds },
+        },
+        select: {
+          id: true,
+          assignedAgentId: true,
+          events: {
+            select: {
+              type: true,
+              createdAt: true,
             },
-
-            status:
-              "PAID",
+            orderBy: { createdAt: "asc" },
           },
+        },
+      })
+    : [];
 
-          select: {
-            agentId:
-              true,
+  const paymentsByAgent = new Map<
+    string,
+    { agentPayoutCents: number }[]
+  >();
 
-            agentPayoutCents:
-              true,
-          },
-        })
-      : [];
-
-  const tasks =
-    agentIds.length > 0
-      ? await db.task.findMany({
-          where: {
-            assignedAgentId: {
-              in:
-                agentIds,
-            },
-          },
-
-          select: {
-            id:
-              true,
-
-            assignedAgentId:
-              true,
-
-            events: {
-              select: {
-                type:
-                  true,
-
-                createdAt:
-                  true,
-              },
-
-              orderBy: {
-                createdAt:
-                  "asc",
-              },
-            },
-          },
-        })
-      : [];
-
-  const paymentsByAgent =
-    new Map<
-      string,
-      {
-        agentPayoutCents:
-          number;
-      }[]
-    >();
-
-  for (
-    const payment
-    of payments
-  ) {
-    const current =
-      paymentsByAgent.get(
-        payment.agentId
-      ) ?? [];
-
-    current.push({
-      agentPayoutCents:
-        payment.agentPayoutCents,
-    });
-
-    paymentsByAgent.set(
-      payment.agentId,
-      current
-    );
+  for (const payment of payments) {
+    const current = paymentsByAgent.get(payment.agentId) ?? [];
+    current.push({ agentPayoutCents: payment.agentPayoutCents });
+    paymentsByAgent.set(payment.agentId, current);
   }
 
-  const tasksByAgent =
-    new Map<
-      string,
-      {
-        id: string;
+  const tasksByAgent = new Map<
+    string,
+    {
+      id: string;
+      events: { type: string; createdAt: Date }[];
+    }[]
+  >();
 
-        events: {
-          type: string;
-          createdAt: Date;
-        }[];
-      }[]
-    >();
+  for (const task of tasks) {
+    if (!task.assignedAgentId) continue;
 
-  for (
-    const task
-    of tasks
-  ) {
-    if (
-      !task.assignedAgentId
-    ) {
-      continue;
-    }
-
-    const current =
-      tasksByAgent.get(
-        task.assignedAgentId
-      ) ?? [];
-
+    const current = tasksByAgent.get(task.assignedAgentId) ?? [];
     current.push({
-      id:
-        task.id,
-
-      events:
-        task.events,
+      id: task.id,
+      events: task.events,
     });
-
-    tasksByAgent.set(
-      task.assignedAgentId,
-      current
-    );
+    tasksByAgent.set(task.assignedAgentId, current);
   }
 
-  const now =
-    Date.now();
+  const now = Date.now();
 
-  const roster =
-    agents.map(agent => {
-      let skills:
-        string[] = [];
+  const roster = agents.map(agent => {
+    const skills = safeStringArray(agent.skillsJson);
+    const capabilities = safeStringArray(agent.capabilitiesJson);
 
-      try {
-        const parsed =
-          JSON.parse(
-            agent.skillsJson
-          );
+    const online =
+      !!agent.lastSeenAt &&
+      now - agent.lastSeenAt.getTime() < 30_000;
 
-        if (
-          Array.isArray(
-            parsed
-          )
-        ) {
-          skills =
-            parsed.filter(
-              item =>
-                typeof item ===
-                "string"
-            );
-        }
-      } catch {
-        skills = [];
-      }
+    const agentPayments = paymentsByAgent.get(agent.id) ?? [];
+    const agentTasks = tasksByAgent.get(agent.id) ?? [];
 
-      const online =
-        !!agent.lastSeenAt &&
-        now -
-          agent.lastSeenAt
-            .getTime()
-          <
-          30_000;
+    const reputation = calculateAgentReputation(
+      agentTasks,
+      agentPayments
+    );
 
-      const agentPayments =
-        paymentsByAgent.get(
-          agent.id
-        ) ?? [];
-
-      const agentTasks =
-        tasksByAgent.get(
-          agent.id
-        ) ?? [];
-
-      const reputation =
-        calculateAgentReputation(
-          agentTasks,
-          agentPayments
-        );
-
-      return {
-        id:
-          agent.id,
-
-        name:
-          agent.name,
-
-        description:
-          agent.description,
-
-        provider:
-          agent.provider,
-
-        providerLabel:
-          providerLabel(
-            agent.provider
-          ),
-
-        modelName:
-          agent.modelName,
-
-        minimumJobCents:
-          agent.minimumJobCents,
-
-        maxConcurrentJobs:
-          agent.maxConcurrentJobs,
-
-        completedJobs:
-          agent.completedJobs,
-
-        reliabilityScore:
-          reputation
-            .reliabilityScore,
-
-        successRate:
-          reputation
-            .successRate,
-
-        firstPassSuccessRate:
-          reputation
-            .firstPassSuccessRate,
-
-        revisionRate:
-          reputation
-            .revisionRate,
-
-        trackedJobs:
-          reputation
-            .resolvedJobs,
-
-        totalEarningsCents:
-          reputation
-            .totalEarningsCents,
-
-        online,
-
-        isOwner:
-          userId ===
-          agent.ownerId,
-
-        skills,
-      };
-    });
+    return {
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      provider: agent.provider,
+      providerLabel: providerLabel(agent.provider),
+      modelName: agent.modelName,
+      minimumJobCents: agent.minimumJobCents,
+      maxConcurrentJobs: agent.maxConcurrentJobs,
+      completedJobs: agent.completedJobs,
+      reliabilityScore: reputation.reliabilityScore,
+      successRate: reputation.successRate,
+      firstPassSuccessRate: reputation.firstPassSuccessRate,
+      revisionRate: reputation.revisionRate,
+      trackedJobs: reputation.resolvedJobs,
+      totalEarningsCents: reputation.totalEarningsCents,
+      online,
+      isOwner: userId === agent.ownerId,
+      skills,
+      capabilities,
+    };
+  });
 
   return (
     <AgentRoster
       agents={roster}
-      signedIn={
-        Boolean(userId)
-      }
+      signedIn={Boolean(userId)}
       locale={locale}
     />
   );

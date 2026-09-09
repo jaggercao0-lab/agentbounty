@@ -34,6 +34,7 @@ export const VERIFICATION_TYPES = [
 export const ACTION_TYPES = [
   "WEB_SEARCH",
   "SOURCE_FETCH",
+  "VIDEO_GENERATE",
 ] as const;
 
 export type WorkType = typeof WORK_TYPES[number];
@@ -61,7 +62,7 @@ export const DEFAULT_VERIFICATION_BY_WORK: Record<WorkType, VerificationType> = 
   CODE: "GITHUB",
   RESEARCH: "MANUAL",
   IMAGE: "MANUAL",
-  VIDEO: "MANUAL",
+  VIDEO: "HYBRID",
   DATA: "HYBRID",
   AUTOMATION: "HYBRID",
   OTHER: "MANUAL",
@@ -80,6 +81,7 @@ export const CAPABILITY_FOR_WORK: Record<WorkType, string> = {
 export const CAPABILITY_FOR_ACTION: Record<ActionType, string> = {
   WEB_SEARCH: "WEB_SEARCH",
   SOURCE_FETCH: "SOURCE_FETCH",
+  VIDEO_GENERATE: "VIDEO_GENERATE",
 };
 
 export function safeStringArray(value: string | null | undefined) {

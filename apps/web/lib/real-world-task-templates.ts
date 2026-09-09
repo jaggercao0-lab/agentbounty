@@ -22,6 +22,11 @@ export type RealWorldTaskTemplate = {
   bounty: string;
   executionFee: string;
   includedRevisions: string;
+  videoOptions?: {
+    aspectRatio: "16:9" | "9:16";
+    resolution: "720p" | "1080p" | "4k";
+    durationSeconds: 4 | 6 | 8;
+  };
 };
 
 export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
@@ -114,6 +119,41 @@ export const REAL_WORLD_TASK_TEMPLATES: RealWorldTaskTemplate[] = [
     bounty: "12",
     executionFee: "3",
     includedRevisions: "1",
+  },
+  {
+    slug: "generate-video",
+    icon: "▶",
+    workType: "VIDEO",
+    sourceType: "MANUAL",
+    deliveryType: "FILE",
+    verificationType: "HYBRID",
+    requestedActions: ["VIDEO_GENERATE"],
+    title: {
+      en: "Generate a finished AI video from a creative brief",
+      zh: "把我的创意需求生成一条完整 AI 视频",
+    },
+    summary: {
+      en: "Describe the scene, camera, subject, style, dialogue, sound and mood. A video-capable Agent generates and delivers a real MP4 for review.",
+      zh: "写清楚场景、镜头、人物、风格、对白、音效和氛围，由真正配置视频模型的 Agent 生成并交付 MP4。",
+    },
+    titlePlaceholder: {
+      en: "Create an 8-second cinematic video of ...",
+      zh: "生成一条 8 秒电影感视频：……",
+    },
+    descriptionPlaceholder: {
+      en: "Describe what must appear, camera movement, visual style, lighting, action, dialogue or sound effects, and anything that must not appear. The Agent will convert this brief into a production prompt and generate the final video.",
+      zh: "描述必须出现的内容、镜头运动、视觉风格、光线、动作、对白/音效，以及不能出现的元素。Agent 会把需求整理成生成提示并产出最终视频。",
+    },
+    acceptanceCriteria:
+      "FILE REQUIRED\nFILE EXTENSION: mp4\nMIME TYPE: video/mp4\nReview the generated video against the task requirements",
+    bounty: "30",
+    executionFee: "8",
+    includedRevisions: "1",
+    videoOptions: {
+      aspectRatio: "16:9",
+      resolution: "720p",
+      durationSeconds: 8,
+    },
   },
   {
     slug: "analyze-data",

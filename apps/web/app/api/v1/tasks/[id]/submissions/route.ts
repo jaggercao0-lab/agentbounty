@@ -4,15 +4,19 @@ import { db } from "@agentbounty/database";
 import { apiError } from "@/lib/http";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { taskEventData } from "@/lib/task-events";
-import { DELIVERY_TYPES } from "@/lib/task-types";
+import { DELIVERY_TYPES, safeStringArray } from "@/lib/task-types";
+import {
+  artifactScopeFromKey,
+  createArtifactReadUrl,
+  isManagedArtifactUrl,
+  managedArtifactKeyFromUrl,
+} from "@/lib/artifact-storage";
 import { verifySubmittedTask } from "@/lib/verification/service";
 
 const MAX_JSON_BYTES = 500_000;
 const MAX_METADATA_BYTES = 64_000;
 
 const schema = z.object({
-  // Kept for backwards compatibility with older runners.
-  // The authenticated token remains authoritative.
   agentId: z.string().min(1).optional(),
   deliveryType: z.enum(DELIVERY_TYPES).optional(),
   pullRequestUrl: z.string().url().max(5000).optional(),
@@ -126,7 +130,10 @@ function validateDelivery(
       if (!data.artifactUrl) {
         throw new Error("artifact_url_required");
       }
-      if (!isHttpsUrl(data.artifactUrl)) {
+      if (
+        !isHttpsUrl(data.artifactUrl) &&
+        !isManagedArtifactUrl(data.artifactUrl)
+      ) {
         throw new Error("https_artifact_url_required");
       }
       break;
@@ -146,6 +153,140 @@ function validateDelivery(
 
     default:
       throw new Error("unsupported_delivery_type");
+  }
+}
+
+type VideoGenerationProof = {
+  provider: string;
+  model: string;
+  operationName: string;
+  sizeBytes: number;
+  storageKey: string;
+};
+
+function videoGenerationProof(value: unknown): VideoGenerationProof | null {
+  if (!value || typeof value !== "object") return null;
+  const proof = value as Record<string, unknown>;
+
+  if (
+    proof.attempted !== true ||
+    proof.ok !== true ||
+    typeof proof.provider !== "string" ||
+    typeof proof.model !== "string" ||
+    typeof proof.operationName !== "string" ||
+    typeof proof.sizeBytes !== "number" ||
+    !Number.isSafeInteger(proof.sizeBytes) ||
+    proof.sizeBytes <= 0 ||
+    typeof proof.storageKey !== "string" ||
+    !proof.storageKey
+  ) {
+    return null;
+  }
+
+  return {
+    provider: proof.provider,
+    model: proof.model,
+    operationName: proof.operationName,
+    sizeBytes: proof.sizeBytes,
+    storageKey: proof.storageKey,
+  };
+}
+
+function containsMp4Ftyp(bytes: Uint8Array) {
+  const limit = Math.min(bytes.length - 3, 64);
+
+  for (let index = 0; index < limit; index += 1) {
+    if (
+      bytes[index] === 0x66 &&
+      bytes[index + 1] === 0x74 &&
+      bytes[index + 2] === 0x79 &&
+      bytes[index + 3] === 0x70
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function verifyManagedVideoArtifact(
+  key: string,
+  expectedSizeBytes: number
+) {
+  const signedHeadUrl = createArtifactReadUrl({
+    key,
+    method: "HEAD",
+  });
+
+  let headResponse: Response;
+
+  try {
+    headResponse = await fetch(signedHeadUrl, {
+      method: "HEAD",
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new Error("video_artifact_not_reachable");
+  }
+
+  if (!headResponse.ok) {
+    throw new Error("video_artifact_not_reachable");
+  }
+
+  const contentType = (headResponse.headers.get("content-type") || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+
+  if (contentType !== "video/mp4") {
+    throw new Error("video_artifact_content_type_mismatch");
+  }
+
+  const lengthHeader = headResponse.headers.get("content-length");
+  const contentLength = Number(lengthHeader);
+
+  if (
+    !lengthHeader ||
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0
+  ) {
+    throw new Error("video_artifact_empty");
+  }
+
+  if (contentLength !== expectedSizeBytes) {
+    throw new Error("video_artifact_size_mismatch");
+  }
+
+  const signedGetUrl = createArtifactReadUrl({
+    key,
+    method: "GET",
+  });
+
+  let sampleResponse: Response;
+
+  try {
+    sampleResponse = await fetch(signedGetUrl, {
+      method: "GET",
+      headers: {
+        Range: "bytes=0-255",
+      },
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new Error("video_artifact_signature_check_failed");
+  }
+
+  if (sampleResponse.status !== 206) {
+    throw new Error("video_artifact_signature_check_failed");
+  }
+
+  const sample = new Uint8Array(await sampleResponse.arrayBuffer());
+  if (!containsMp4Ftyp(sample)) {
+    throw new Error("video_artifact_invalid_mp4");
   }
 }
 
@@ -183,8 +324,10 @@ export async function POST(
         id: true,
         status: true,
         assignedAgentId: true,
+        workType: true,
         deliveryType: true,
         verificationType: true,
+        requestedActionsJson: true,
         githubRepo: true,
       },
     });
@@ -231,6 +374,52 @@ export async function POST(
       task.githubRepo
     );
 
+    const requestedActions = safeStringArray(
+      task.requestedActionsJson
+    );
+
+    if (requestedActions.includes("VIDEO_GENERATE")) {
+      if (
+        task.workType !== "VIDEO" ||
+        task.deliveryType !== "FILE" ||
+        data.mimeType?.trim().toLowerCase() !== "video/mp4"
+      ) {
+        throw new Error("invalid_video_delivery");
+      }
+
+      if (!data.artifactUrl) {
+        throw new Error("artifact_url_required");
+      }
+
+      const proof = videoGenerationProof(data.metadata?.videoGeneration);
+      if (!proof) {
+        throw new Error("video_generation_proof_required");
+      }
+
+      const storageKey = managedArtifactKeyFromUrl(data.artifactUrl);
+      if (!storageKey) {
+        throw new Error("video_artifact_must_use_managed_storage");
+      }
+
+      if (proof.storageKey !== storageKey) {
+        throw new Error("video_artifact_proof_mismatch");
+      }
+
+      const scope = artifactScopeFromKey(storageKey);
+      if (
+        !scope ||
+        scope.taskId !== id ||
+        scope.agentId !== agent.id
+      ) {
+        throw new Error("video_artifact_scope_mismatch");
+      }
+
+      await verifyManagedVideoArtifact(
+        storageKey,
+        proof.sizeBytes
+      );
+    }
+
     const normalizedJsonContent =
       data.jsonContent === undefined
         ? null
@@ -265,7 +454,7 @@ export async function POST(
           artifactUrl: data.artifactUrl || null,
           textContent: data.textContent || null,
           jsonContent: normalizedJsonContent,
-          mimeType: data.mimeType || null,
+          mimeType: data.mimeType?.trim().toLowerCase() || null,
           metadataJson: data.metadata
             ? JSON.stringify(data.metadata)
             : null,
@@ -289,6 +478,8 @@ export async function POST(
             deliveryType: task.deliveryType,
             pullRequestUrl: created.pullRequestUrl,
             artifactUrl: created.artifactUrl,
+            mimeType: created.mimeType,
+            actions: requestedActions,
           },
           dedupeKey: `submission:${created.id}:submitted`,
         }),
@@ -299,8 +490,6 @@ export async function POST(
 
     let automaticVerification = null;
 
-    // Artifact checks are local and deterministic, so run them immediately.
-    // GitHub/PR verification can depend on external CI and remains queued.
     if (
       task.deliveryType !== "PULL_REQUEST" &&
       ["AUTOMATIC", "HYBRID"].includes(task.verificationType)
@@ -319,8 +508,6 @@ export async function POST(
               status: result.status,
             };
       } catch (error) {
-        // The delivery is already durable. Leave it SUBMITTED so the system
-        // verification queue or owner retry can safely process it later.
         console.error(
           "Immediate artifact verification failed",
           id,
@@ -358,6 +545,17 @@ export async function POST(
         "json_content_required",
         "invalid_json_content",
         "unsupported_delivery_type",
+        "invalid_video_delivery",
+        "video_generation_proof_required",
+        "video_artifact_must_use_managed_storage",
+        "video_artifact_proof_mismatch",
+        "video_artifact_scope_mismatch",
+        "video_artifact_not_reachable",
+        "video_artifact_content_type_mismatch",
+        "video_artifact_empty",
+        "video_artifact_size_mismatch",
+        "video_artifact_signature_check_failed",
+        "video_artifact_invalid_mp4",
       ].includes(error.message)
     ) {
       return NextResponse.json(

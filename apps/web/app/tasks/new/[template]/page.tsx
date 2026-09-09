@@ -42,9 +42,7 @@ export default async function QuickTaskPage({
           <Link href="/tasks/new">
             {isZh ? "← 返回任务模板" : "← Back to task templates"}
           </Link>
-          <span>
-            {isZh ? "快速发布" : "QUICK TASK"}
-          </span>
+          <span>{isZh ? "快速发布" : "QUICK TASK"}</span>
         </div>
 
         <header className="ab-compose-header">
@@ -108,7 +106,11 @@ export default async function QuickTaskPage({
                           ? isZh
                             ? "读取外部来源"
                             : "Fetch source"
-                          : action}
+                          : action === "VIDEO_GENERATE"
+                            ? isZh
+                              ? "生成视频"
+                              : "Generate video"
+                            : action}
                     </span>
                   ))}
                 </div>
@@ -162,6 +164,63 @@ export default async function QuickTaskPage({
               </section>
             )}
 
+            {template.videoOptions && (
+              <section className="ab-compose-panel">
+                <div className="ab-compose-panel-head">
+                  <div>
+                    <span>{isZh ? "视频规格" : "VIDEO FORMAT"}</span>
+                    <h2>
+                      {isZh
+                        ? "选择成片画幅和清晰度"
+                        : "Choose the output format"}
+                    </h2>
+                  </div>
+                  <span className="ab-compose-step">8 SEC</span>
+                </div>
+
+                <input
+                  type="hidden"
+                  name="videoDurationSeconds"
+                  value={template.videoOptions.durationSeconds}
+                />
+
+                <div className="ab-compose-money-grid">
+                  <label className="ab-compose-field">
+                    <span>{isZh ? "画幅" : "Aspect ratio"}</span>
+                    <select
+                      name="videoAspectRatio"
+                      defaultValue={template.videoOptions.aspectRatio}
+                    >
+                      <option value="16:9">
+                        16:9 · {isZh ? "横屏" : "Landscape"}
+                      </option>
+                      <option value="9:16">
+                        9:16 · {isZh ? "竖屏" : "Portrait"}
+                      </option>
+                    </select>
+                  </label>
+
+                  <label className="ab-compose-field">
+                    <span>{isZh ? "分辨率" : "Resolution"}</span>
+                    <select
+                      name="videoResolution"
+                      defaultValue={template.videoOptions.resolution}
+                    >
+                      <option value="720p">720p</option>
+                      <option value="1080p">1080p</option>
+                      <option value="4k">4K</option>
+                    </select>
+                  </label>
+                </div>
+
+                <p className="ab-compose-verifier-note">
+                  {isZh
+                    ? "首版 Video Agent 生成 8 秒 MP4。更高分辨率通常意味着更高模型成本和更长生成时间。"
+                    : "The first Video Agent generates an 8-second MP4. Higher resolutions generally increase model cost and generation latency."}
+                </p>
+              </section>
+            )}
+
             <section className="ab-compose-panel">
               <div className="ab-compose-panel-head">
                 <div>
@@ -203,9 +262,7 @@ export default async function QuickTaskPage({
               <div className="ab-compose-panel-head">
                 <div>
                   <span>{isZh ? "赏金" : "BOUNTY"}</span>
-                  <h2>
-                    {isZh ? "给这个任务定一个价格" : "Set the task economics"}
-                  </h2>
+                  <h2>{isZh ? "给这个任务定一个价格" : "Set the task economics"}</h2>
                 </div>
               </div>
 
@@ -252,9 +309,7 @@ export default async function QuickTaskPage({
               <div className="ab-compose-panel-head">
                 <div>
                   <span>{isZh ? "想自己配置？" : "NEED MORE CONTROL?"}</span>
-                  <h2>
-                    {isZh ? "切换到高级发布器" : "Use the advanced composer"}
-                  </h2>
+                  <h2>{isZh ? "切换到高级发布器" : "Use the advanced composer"}</h2>
                 </div>
               </div>
               <p className="ab-compose-verifier-note">
@@ -298,12 +353,23 @@ export default async function QuickTaskPage({
                   <strong>
                     {template.requestedActions.length
                       ? template.requestedActions.join(" + ")
-                      : isZh
-                        ? "无需外部动作"
-                        : "No external action"}
+                      : isZh ? "无需外部动作" : "No external action"}
                   </strong>
                 </div>
               </div>
+
+              {template.videoOptions && (
+                <div className="ab-compose-preview-info">
+                  <div>
+                    <span>{isZh ? "默认画幅" : "Default ratio"}</span>
+                    <strong>{template.videoOptions.aspectRatio}</strong>
+                  </div>
+                  <div>
+                    <span>{isZh ? "默认清晰度" : "Default resolution"}</span>
+                    <strong>{template.videoOptions.resolution}</strong>
+                  </div>
+                </div>
+              )}
 
               <div className="ab-compose-machine-note">
                 <span>&gt;_</span>

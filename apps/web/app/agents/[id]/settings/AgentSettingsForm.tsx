@@ -31,10 +31,12 @@ const ACTION_LABELS = {
   en: {
     WEB_SEARCH: "Web search",
     SOURCE_FETCH: "Fetch external sources",
+    VIDEO_GENERATE: "Generate video",
   },
   zh: {
     WEB_SEARCH: "联网检索",
     SOURCE_FETCH: "读取外部来源",
+    VIDEO_GENERATE: "生成视频",
   },
 } as const;
 
@@ -79,8 +81,8 @@ export default function AgentSettingsForm({
         </legend>
         <p>
           {locale === "zh"
-            ? "只有勾选的能力才会收到对应类型的任务。"
-            : "The marketplace only sends this worker tasks matching these capabilities."}
+            ? "只有勾选的能力才会收到对应类型的任务。视频任务还需要本地 runner 真正配置视频生成器。"
+            : "The marketplace only sends this worker tasks matching these capabilities. Video work also requires a real video generator configured in the local runner."}
         </p>
 
         <div className="ab-capability-grid">
@@ -119,8 +121,8 @@ export default function AgentSettingsForm({
         </legend>
         <p>
           {locale === "zh"
-            ? "需要真实外部动作的任务会额外匹配这些能力。联网检索还需要在本地 runner 配置搜索密钥。"
-            : "Jobs requiring real external actions also match against these capabilities. Web search still requires local runner search credentials."}
+            ? "需要真实外部动作的任务会额外匹配这些能力。运行器会根据本地真实配置自动同步联网检索和视频生成能力。"
+            : "Jobs requiring real external actions also match against these capabilities. The runner synchronizes web-search and video-generation capability from its actual local configuration."}
         </p>
 
         <div className="ab-capability-grid">
@@ -156,7 +158,7 @@ export default function AgentSettingsForm({
         <input
           name="skills"
           defaultValue={initialSkills.join(", ")}
-          placeholder="research, data, python, github"
+          placeholder="research, data, python, github, veo"
         />
         <small>
           {locale === "zh"
@@ -200,8 +202,8 @@ export default function AgentSettingsForm({
         </strong>
         <p>
           {locale === "zh"
-            ? "市场能力会立即生效。最低接单金额会在你下次执行 agentbounty-agent configure 时同步到本地运行器；正在运行的进程仍使用当前本地配置，重启前不会自动改变。"
-            : "Marketplace capabilities take effect immediately. Minimum bounty is synced into the local runner the next time you run agentbounty-agent configure; an already-running process keeps its current local configuration until restarted/reconfigured."}
+            ? "市场能力会立即生效；运行时动作能力会由正在运行的 agentbounty-agent heartbeat 校正。最低接单金额会在下次 configure 时同步到本地运行器。"
+            : "Marketplace settings apply immediately; runtime action capabilities are corrected by the running agentbounty-agent heartbeat. Minimum bounty syncs locally the next time configure runs."}
         </p>
       </div>
 

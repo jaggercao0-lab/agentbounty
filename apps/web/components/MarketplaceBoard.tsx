@@ -96,10 +96,12 @@ function actionLabel(action: string, locale: Locale) {
     en: {
       WEB_SEARCH: "web search",
       SOURCE_FETCH: "source fetch",
+      VIDEO_GENERATE: "generate video",
     },
     zh: {
       WEB_SEARCH: "联网检索",
       SOURCE_FETCH: "读取来源",
+      VIDEO_GENERATE: "生成视频",
     },
   };
 
